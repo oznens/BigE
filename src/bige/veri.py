@@ -1,9 +1,15 @@
 """Binance'tan OHLCV verisi çekme.
 
+İki kaynak destekleniyor:
+1. Binance public REST API (anlık veri) — bazı bölgelerden geo-block alabilir
+2. data.binance.vision — aylık historical archive (CSV.zip), erişimi açık
+
 Backtest için 4h ve 1D mumları indirir, İstanbul saatine çevirir.
 """
 from __future__ import annotations
 
+import io
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +18,7 @@ import requests
 from .zaman import istanbul_index
 
 BINANCE_API = "https://api.binance.com/api/v3/klines"
+BINANCE_VISION = "https://data.binance.vision/data/spot/monthly/klines"
 
 # Binance kline interval kodları
 INTERVAL = {
@@ -81,6 +88,72 @@ def indir_tarihsel(
     if not parcalar:
         return pd.DataFrame()
 
+    df = pd.concat(parcalar).sort_index()
+    df = df[~df.index.duplicated(keep="first")]
+    return df.loc[bas_ts:bit_ts]
+
+
+def indir_vision_ay(sembol: str, aralik: str, yil: int, ay: int) -> pd.DataFrame:
+    """data.binance.vision'dan tek bir ayın verisini indirir."""
+    fname = f"{sembol}-{aralik}-{yil}-{ay:02d}.zip"
+    url = f"{BINANCE_VISION}/{sembol}/{aralik}/{fname}"
+    r = requests.get(url, timeout=30)
+    if r.status_code == 404:
+        return pd.DataFrame()
+    r.raise_for_status()
+
+    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        csv_name = z.namelist()[0]
+        with z.open(csv_name) as f:
+            # Binance archive header'sız geliyor 2025 öncesinde, 2025'ten sonra header'lı
+            # İlk satıra bakıp karar veriyoruz
+            data = f.read().decode()
+
+    has_header = data.lstrip().lower().startswith("open_time")
+    cols = ["open_time", "open", "high", "low", "close", "volume",
+            "close_time", "quote_volume", "trades",
+            "taker_buy_base", "taker_buy_quote", "ignore"]
+    df = pd.read_csv(
+        io.StringIO(data),
+        header=0 if has_header else None,
+        names=cols if not has_header else None,
+    )
+
+    # Bazı yıllarda open_time mikrosaniye, diğerlerinde milisaniye geliyor
+    ot = df["open_time"]
+    unit = "us" if ot.max() > 10**14 else "ms"
+    df["open_time"] = pd.to_datetime(ot, unit=unit, utc=True)
+    df = df.set_index("open_time")
+    for col in ["open", "high", "low", "close", "volume"]:
+        df[col] = df[col].astype(float)
+    df = df[["open", "high", "low", "close", "volume"]]
+    return istanbul_index(df)
+
+
+def indir_vision_aralik(
+    sembol: str,
+    aralik: str,
+    baslangic: str,
+    bitis: str | None = None,
+) -> pd.DataFrame:
+    """data.binance.vision'dan birden fazla ayı çekip birleştirir."""
+    bas_ts = pd.Timestamp(baslangic, tz="Europe/Istanbul")
+    bit_ts = pd.Timestamp(bitis, tz="Europe/Istanbul") if bitis else pd.Timestamp.now(tz="Europe/Istanbul")
+
+    parcalar: list[pd.DataFrame] = []
+    cur = pd.Timestamp(year=bas_ts.year, month=bas_ts.month, day=1, tz="Europe/Istanbul")
+    while cur <= bit_ts:
+        ay = indir_vision_ay(sembol, aralik, cur.year, cur.month)
+        if not ay.empty:
+            parcalar.append(ay)
+        # Bir sonraki ay
+        if cur.month == 12:
+            cur = cur.replace(year=cur.year + 1, month=1)
+        else:
+            cur = cur.replace(month=cur.month + 1)
+
+    if not parcalar:
+        return pd.DataFrame()
     df = pd.concat(parcalar).sort_index()
     df = df[~df.index.duplicated(keep="first")]
     return df.loc[bas_ts:bit_ts]
