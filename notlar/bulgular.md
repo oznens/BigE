@@ -1,6 +1,6 @@
 # Backtest Bulguları
 
-## En iyi default konfigürasyon (şu an)
+## En iyi default konfigürasyon (grid search sonucu)
 
 ```python
 StratejiParams(
@@ -10,32 +10,34 @@ StratejiParams(
     min_ha_body_atr_ratio=0.2,       # küçük mumlarda pas
     require_stoch_confirm=True,
     trend_filtresi_aktif=True,
-    trend_ema_period=200,            # uzun trend yönü
+    trend_ema_period=50,             # GRID: 50 > 100 > 200
     sl_mode="atr",
-    sl_atr_multiplier=2.0,           # ATR × 2 stop loss
-    sl_lookback_candles=3,           # swing modu kullanılırsa
+    sl_atr_multiplier=3.0,           # GRID: 3.0 en yüksek Sharpe + en düşük DD
+    sl_lookback_candles=3,
     risk_per_trade_pct=1.0,
-    bounce_aktif=False,              # bounce trade'ler default kapalı
-    allow_short=False,               # kripto'da long-only daha iyi
-    saat_filtresi_aktif=True,        # Big E saatleri (Istanbul 9-17)
-    saat_baslangic=9,                # 4h için aktif, 1D'de auto-skip
+    mtf_onay_filtresi=True,          # 1D trend uyumu — Sharpe %57 arttırdı
+    # mtf_trend kolonu mtf_trend_ekle(df_4h, df_1d, ema_p=20) ile eklenir
+    bounce_aktif=False,
+    allow_short=False,
+    saat_filtresi_aktif=True,
+    saat_baslangic=9,
     saat_bitis=17,
 )
 ```
 
 ## Sonuç tablosu (2022-01-01 → 2026-04-30, 4 yıl)
 
-Big E saatleri (Istanbul 9-17), MTF onayı (1D), long-only, EMA200 trend, ATR×2 SL:
+Grid-searched config: trend_ema=50, sl_atr_mult=3.0, mtf_ema=20
 
 | Pair | TF | Trade | WR | PF | Sharpe | Max DD | Getiri | B&H |
 |---|---|---|---|---|---|---|---|---|
-| BTC | 4h | 97 | 49% | 1.65 | **0.69** | -3.9% | +11% | +63% |
+| BTC | 4h | 98 | **50%** | 1.77 | **0.77** | -3.3% | +13% | +63% |
 | BTC | 1d | 44 | 45% | **2.32** | **2.54** | -2.5% | +12% | +60% |
-| ETH | 4h | 102 | 44% | **2.02** | **1.12** | -4.3% | **+23%** | -39% |
+| ETH | 4h | 98 | 47% | **2.35** | **1.27** | -3.9% | **+27%** | -39% |
 | ETH | 1d | 43 | 35% | 1.38 | 0.87 | -2.9% | +4% | -40% |
-| SOL | 4h | 88 | 49% | **2.08** | **1.15** | -3.6% | +20% | -52% |
+| SOL | 4h | 88 | 48% | **2.18** | **1.18** | -3.5% | +20% | -52% |
 | SOL | 1d | 36 | **56%** | 1.83 | **1.41** | **-1.8%** | +5% | -54% |
-| BNB | 4h | 107 | 39% | 1.16 | 0.14 | -6.9% | +2% | +19% |
+| BNB | 4h | 104 | 43% | 1.25 | 0.25 | -5.5% | +3% | +19% |
 | BNB | 1d | 38 | 37% | 1.14 | 0.32 | -3.6% | +1% | +17% |
 
 **Toplam iyileştirme yolculuğu (BTC 4h baseline → final):**

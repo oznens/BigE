@@ -59,7 +59,7 @@ class StratejiParams:
 
     # Trend filtresi (yeni)
     trend_filtresi_aktif: bool = True
-    trend_ema_period: int = 50   # uzun EMA — long sadece price > EMA, short tersi
+    trend_ema_period: int = 50   # grid search'te 50 > 100 > 200 (hızlı trend takibi daha iyi)
 
     # Big E'nin manuel filtrelerinin mekanik karşılıkları
     # Konsolidasyon: son N mumun gövdesi ATR'a göre küçükse pas
@@ -99,7 +99,7 @@ class StratejiParams:
     sl_mode: str = "atr"           # "swing" (eski) | "atr" (yeni default) | "hybrid"
     sl_lookback_candles: int = 3   # swing modu için, 2'den 3'e çıkarıldı
     sl_atr_period: int = 14
-    sl_atr_multiplier: float = 2.0  # ATR × bu
+    sl_atr_multiplier: float = 3.0  # grid search'te 3.0 en yüksek Sharpe + en düşük DD verdi
 
     # Yönler
     allow_long: bool = True

@@ -73,7 +73,7 @@ def main():
                 continue
             # 4h backtest'i için MTF trend kolonu (1D üzerinden) ekle
             if aralik == "4h" and df_1d_cache is not None:
-                df = mtf_trend_ekle(df, df_1d_cache, ema_p=50)
+                df = mtf_trend_ekle(df, df_1d_cache, ema_p=20)
             bh = (df["close"].iloc[-1] / df["close"].iloc[0] - 1) * 100
 
             for etiket, p in [("long_only", p_long_only), ("long_short", p_long_short)]:

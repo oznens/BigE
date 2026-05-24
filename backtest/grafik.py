@@ -29,7 +29,7 @@ def ciz(
     if aralik == "4h":
         try:
             df_1d = yukle(sembol, "1d")
-            df = mtf_trend_ekle(df, df_1d, ema_p=50)
+            df = mtf_trend_ekle(df, df_1d, ema_p=20)
         except Exception:
             pass
     sonuc = calistir(df, p, k)
