@@ -52,10 +52,17 @@ class BacktestSonuc:
 
         bs = self.bakiye_serisi
         max_dd = 0.0
+        sharpe = 0.0
         if bs is not None and len(bs):
             zirve = bs.cummax()
             dd = (bs - zirve) / zirve
             max_dd = float(dd.min())
+            # Bar bazlı getiriler üzerinden Sharpe (yıllıklandırılmış)
+            getiriler = bs.pct_change().dropna()
+            if len(getiriler) > 1 and getiriler.std() > 0:
+                # 4h mum varsayımı: yılda ~2190 bar (365 × 6)
+                bar_per_yil = 2190
+                sharpe = float(getiriler.mean() / getiriler.std() * np.sqrt(bar_per_yil))
 
         return {
             "trade_sayisi": int(len(pnls)),
@@ -67,6 +74,7 @@ class BacktestSonuc:
             "ort_kayip": round(ort_kayip, 2),
             "profit_factor": round(pf, 3) if np.isfinite(pf) else None,
             "max_drawdown": round(max_dd, 4),
+            "sharpe": round(sharpe, 3),
         }
 
 
@@ -91,7 +99,7 @@ def calistir(
     p = p or StratejiParams()
     k = k or BacktestKonfig()
 
-    df = tum_indikatorler(df)
+    df = tum_indikatorler(df, trend_ema_p=p.trend_ema_period)
     n = len(df)
     bakiye = k.baslangic_bakiyesi
     pos: Pozisyon | None = None
@@ -112,7 +120,7 @@ def calistir(
             yon = bekleyen_sinyal
             isaret = 1 if yon is Yon.LONG else -1
             giris_fiyat = _slipaj_fiyat(cur_open, isaret, k.slippage_bps)
-            sl = stop_loss_hesapla(df, i, yon, lookback=p.sl_lookback_candles)
+            sl = stop_loss_hesapla(df, i, yon, p, giris_fiyat=giris_fiyat)
 
             risk_per_unit = abs(giris_fiyat - sl)
             if risk_per_unit > 0:

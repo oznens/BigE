@@ -126,6 +126,7 @@ def tum_indikatorler(
     stoch_smooth: int = 3,
     ema_p: int = 5,
     atr_p: int = 14,
+    trend_ema_p: int = 50,
 ) -> pd.DataFrame:
     """Tüm indikatörleri tek seferde hesapla ve df'e ekle.
 
@@ -136,5 +137,6 @@ def tum_indikatorler(
     stoch_df = stochastic(df["high"], df["low"], df["close"], stoch_k, stoch_d, stoch_smooth)
     out = pd.concat([out, tdi_df, stoch_df], axis=1)
     out["ema5"] = ema(df["close"], ema_p)
+    out["trend_ema"] = ema(df["close"], trend_ema_p)
     out["atr"] = atr(df, atr_p)
     return out

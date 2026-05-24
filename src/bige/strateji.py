@@ -45,23 +45,30 @@ class Trade:
 @dataclass
 class StratejiParams:
     # Entry filtreleri
-    max_candle_age_after_cross: int = 2
-    tdi_angle_min: float = 0.5   # son 2 mumdaki yeşil çizgi |delta| ≥ bu
+    max_candle_age_after_cross: int = 1   # Big E: candle #1 veya #2 — yani cross'tan sonra ≤1 mum
+    tdi_angle_min: float = 1.0   # son 2 mumdaki yeşil çizgi |delta| ≥ bu (saat 12-2 / 4-6)
     tdi_oversold: float = 32.0
     tdi_overbought: float = 68.0
-    near_extreme_margin: float = 3.0   # 68'e veya 32'ye bu kadar uzaktaysa "yakın" say
-    min_ha_body_atr_ratio: float = 0.15   # gövde < bu*ATR ise küçük mum → pas
+    near_extreme_margin: float = 5.0   # 68'e veya 32'ye yakınsa pas
+    min_ha_body_atr_ratio: float = 0.2   # gövde < bu*ATR ise küçük mum → pas
     require_stoch_confirm: bool = True
     stoch_lower: float = 20.0
     stoch_upper: float = 80.0
 
+    # Trend filtresi (yeni)
+    trend_filtresi_aktif: bool = True
+    trend_ema_period: int = 50   # uzun EMA — long sadece price > EMA, short tersi
+
     # Çıkış
-    tdi_flat_threshold: float = 0.25   # |slope| < bu → flat say
+    tdi_flat_threshold: float = 0.25
     tdi_flat_lookback: int = 2
 
     # Risk / sizing
-    risk_per_trade_pct: float = 1.0    # hesabın %1'i
-    sl_lookback_candles: int = 2       # 2 mum geri swing
+    risk_per_trade_pct: float = 1.0
+    sl_mode: str = "atr"           # "swing" (eski) | "atr" (yeni default) | "hybrid"
+    sl_lookback_candles: int = 3   # swing modu için, 2'den 3'e çıkarıldı
+    sl_atr_period: int = 14
+    sl_atr_multiplier: float = 2.0  # ATR × bu
 
     # Yönler
     allow_long: bool = True
@@ -163,6 +170,19 @@ def giris_sinyali(df: pd.DataFrame, i: int, p: StratejiParams) -> Yon | None:
     return None
 
 
+def _trend_yonu(df: pd.DataFrame, i: int, p: StratejiParams) -> int:
+    """Long EMA bazlı uzun trend: +1 yukarı, -1 aşağı."""
+    if not p.trend_filtresi_aktif:
+        return 0   # nötr — filtre yok
+    col = "trend_ema"
+    if col not in df.columns:
+        return 0
+    ema = df[col].iat[i]
+    if pd.isna(ema):
+        return 0
+    return 1 if df["close"].iat[i] > ema else -1
+
+
 def _long_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
     # HA yeşil mum (cross sonrası yön)
     if not bool(df["ha_bullish"].iat[i]):
@@ -179,6 +199,11 @@ def _long_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
     # Stoch teyit
     if p.require_stoch_confirm and _stoch_yonu(df, i) != 1:
         return False
+    # Uzun trend filtresi
+    if p.trend_filtresi_aktif:
+        t = _trend_yonu(df, i, p)
+        if t != 1 and t != 0:
+            return False
     return True
 
 
@@ -193,6 +218,10 @@ def _short_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
         return False
     if p.require_stoch_confirm and _stoch_yonu(df, i) != -1:
         return False
+    if p.trend_filtresi_aktif:
+        t = _trend_yonu(df, i, p)
+        if t != -1 and t != 0:
+            return False
     return True
 
 
@@ -229,16 +258,41 @@ def cikis_sinyali(df: pd.DataFrame, i: int, pos: Pozisyon, p: StratejiParams) ->
     return False
 
 
-def stop_loss_hesapla(df: pd.DataFrame, i: int, yon: Yon, lookback: int = 2) -> float:
-    """Girilen mumdan `lookback` mum geri swing high/low.
+def stop_loss_hesapla(
+    df: pd.DataFrame,
+    i: int,
+    yon: Yon,
+    p: StratejiParams,
+    giris_fiyat: float | None = None,
+) -> float:
+    """Stop loss seviyesi.
 
-    `i` = giriş yapılacak mumun indeksi (i. mumun açılışında girilir).
-    Stop için, i-1, i-2, ..., i-lookback mumlarına bakılır.
+    Modlar:
+      - "swing": girilen mumdan sl_lookback_candles mum geri swing high/low
+      - "atr":   giriş fiyatı ± sl_atr_multiplier × ATR
+      - "hybrid": ikisinden hangisi daha uzaksa onu kullan (daha güvenli)
     """
-    bas = max(0, i - lookback)
-    son = i  # i hariç
-    if son <= bas:
-        return float(df["close"].iat[i])
-    if yon is Yon.LONG:
-        return float(df["low"].iloc[bas:son].min())
-    return float(df["high"].iloc[bas:son].max())
+    px = giris_fiyat if giris_fiyat is not None else float(df["close"].iat[i])
+
+    def swing_seviye() -> float:
+        bas = max(0, i - p.sl_lookback_candles)
+        son = i
+        if son <= bas:
+            return px
+        if yon is Yon.LONG:
+            return float(df["low"].iloc[bas:son].min())
+        return float(df["high"].iloc[bas:son].max())
+
+    def atr_seviye() -> float:
+        a = df["atr"].iat[i]
+        if pd.isna(a) or a == 0:
+            return swing_seviye()
+        return px - p.sl_atr_multiplier * a if yon is Yon.LONG else px + p.sl_atr_multiplier * a
+
+    if p.sl_mode == "swing":
+        return swing_seviye()
+    if p.sl_mode == "atr":
+        return atr_seviye()
+    # hybrid: long için en düşük SL (en uzak), short için en yüksek SL
+    s, a = swing_seviye(), atr_seviye()
+    return min(s, a) if yon is Yon.LONG else max(s, a)
