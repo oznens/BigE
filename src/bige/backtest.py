@@ -155,6 +155,14 @@ def calistir(
                 bakiye = _bakiyeyi_guncelle(bakiye, trades[-1])
                 pos = None
 
+            # Gün-sonu kapatma (Big E'nin "6am Pacific'te kapat" mantığı)
+            elif p.gun_sonu_kapat_saat is not None and ts.hour == p.gun_sonu_kapat_saat:
+                isaret = -1 if pos.yon is Yon.LONG else 1
+                cikis_fiyat = _slipaj_fiyat(cur_open, isaret, k.slippage_bps)
+                trades.append(_trade_kapat(pos, i, ts, cikis_fiyat, "gun_sonu", df, k))
+                bakiye = _bakiyeyi_guncelle(bakiye, trades[-1])
+                pos = None
+
         # 3) Mum kapandı; sinyal üret
         if pos is None:
             sig = giris_sinyali(df, i, p)

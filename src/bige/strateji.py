@@ -84,6 +84,16 @@ class StratejiParams:
     allow_long: bool = True
     allow_short: bool = True
 
+    # Saat filtresi (İstanbul saati)
+    # Big E orijinali: 10pm Pacific (Istanbul 09:00) - 6am Pacific (Istanbul 17:00)
+    # Yani London Open + NY Open dönemini kapsıyor.
+    # Backtest sonuçları: 4h'de Sharpe 0.40 → 0.49 (24/7 → Big E hours), DD -8.8% → -5.1%.
+    saat_filtresi_aktif: bool = True
+    saat_baslangic: int = 9    # dahil — sonraki mumun açılış saati bu veya sonrasında olmalı
+    saat_bitis: int = 17       # dahil
+    # Big E "6am Pacific'te tüm 4h trade'leri kapat" diyor (Istanbul 17:00)
+    gun_sonu_kapat_saat: int | None = None   # None = kapatma; opsiyonel
+
 
 def _cross_yukari(g_prev: float, r_prev: float, g_now: float, r_now: float) -> bool:
     return g_prev <= r_prev and g_now > r_now
@@ -205,6 +215,16 @@ def giris_sinyali(df: pd.DataFrame, i: int, p: StratejiParams) -> tuple[Yon, str
     r = df["tdi_red"].iat[i]
     if pd.isna(g) or pd.isna(r):
         return None
+
+    # Saat filtresi: giriş, bir sonraki mumun açılışında yapılacak
+    # 1D mumlar İstanbul 03:00'te kapanır → 9-17 filtresi onları öldürür.
+    # Bu yüzden mum aralığı >= 1 gün ise saat filtresini otomatik atla.
+    if p.saat_filtresi_aktif and i + 1 < len(df):
+        mum_araligi = df.index[i + 1] - df.index[i]
+        if mum_araligi < pd.Timedelta(days=1):
+            giris_saat = df.index[i + 1].hour
+            if not (p.saat_baslangic <= giris_saat <= p.saat_bitis):
+                return None
 
     # LONG denemesi — önce cross, sonra bounce
     if p.allow_long:

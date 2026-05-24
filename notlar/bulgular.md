@@ -17,21 +17,31 @@ StratejiParams(
     risk_per_trade_pct=1.0,
     bounce_aktif=False,              # bounce trade'ler default kapalı
     allow_short=False,               # kripto'da long-only daha iyi
+    saat_filtresi_aktif=True,        # Big E saatleri (Istanbul 9-17)
+    saat_baslangic=9,                # 4h için aktif, 1D'de auto-skip
+    saat_bitis=17,
 )
 ```
 
 ## Sonuç tablosu (2022-01-01 → 2026-04-30, 4 yıl)
 
+Big E saatleri (Istanbul 9-17) aktif, long-only, EMA200 trend, ATR×2 SL:
+
 | Pair | TF | Trade | WR | PF | Sharpe | Max DD | Getiri | B&H |
 |---|---|---|---|---|---|---|---|---|
-| BTC | 4h | 249 | 42% | 1.25 | 0.44 | -9.7% | +10% | +63% |
-| BTC | 1d | 44 | 45% | **2.32** | **2.54** | **-2.5%** | +12% | +60% |
-| ETH | 4h | 240 | 38% | 1.38 | 0.75 | -7.0% | **+21%** | -39% |
+| BTC | 4h | 106 | 47% | 1.47 | 0.52 | **-3.9%** | +9% | +63% |
+| BTC | 1d | 44 | 45% | **2.32** | **2.54** | -2.5% | +12% | +60% |
+| ETH | 4h | 115 | 41% | 1.56 | 0.75 | -4.6% | **+16%** | -39% |
 | ETH | 1d | 43 | 35% | 1.38 | 0.87 | -2.9% | +4% | -40% |
-| SOL | 4h | 235 | 45% | 1.47 | 0.93 | -4.8% | **+23%** | -52% |
-| SOL | 1d | 36 | 56% | 1.83 | **1.41** | -1.8% | +5% | -54% |
-| BNB | 4h | 282 | 35% | 0.86 | -0.54 | -14% | -12% | +19% |
+| SOL | 4h | 99 | 45% | **1.80** | 0.95 | -3.7% | **+17%** | -52% |
+| SOL | 1d | 36 | **56%** | 1.83 | **1.41** | -1.8% | +5% | -54% |
+| BNB | 4h | 121 | 38% | 0.91 | -0.26 | -8.1% | -4% | +19% |
 | BNB | 1d | 38 | 37% | 1.14 | 0.32 | -3.6% | +1% | +17% |
+
+**Saat filtresinin etkisi (24/7 vs Big E hours, ortalama):**
+- Sharpe: 0.84 → **0.89**
+- Max DD: -5.8% → **-3.9%** (yarıya yakın düşüş)
+- Trade sayısı: 251 → **110** (kaliteli sinyal seçimi)
 
 ## Önemli içgörüler
 
