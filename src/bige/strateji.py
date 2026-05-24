@@ -25,6 +25,7 @@ class Pozisyon:
     stop_loss: float
     miktar: float
     giris_zamani: pd.Timestamp
+    giris_sebebi: str = "cross"   # 'cross' | 'bounce'
 
 
 @dataclass
@@ -37,7 +38,8 @@ class Trade:
     miktar: float
     giris_zamani: pd.Timestamp
     cikis_zamani: pd.Timestamp
-    sebep: str   # 'tdi_exit' | 'stop_loss'
+    sebep: str   # 'tdi_exit' | 'stop_loss' | 'eof'
+    giris_sebebi: str = "cross"   # 'cross' | 'bounce'
     pnl_brut: float = 0.0
     pnl_net: float = 0.0   # komisyon + slipaj sonrası
 
@@ -58,6 +60,14 @@ class StratejiParams:
     # Trend filtresi (yeni)
     trend_filtresi_aktif: bool = True
     trend_ema_period: int = 50   # uzun EMA — long sadece price > EMA, short tersi
+
+    # Bounce trade'leri (default kapalı — backtest'te Sharpe'ı düşürüyor)
+    # Big E'nin manuel olarak filtrelediği "iyi bounce'ları" mekanik olarak
+    # yakalamak zor; tight parametrelerle bile cross-only'den daha iyi olmuyor.
+    bounce_aktif: bool = False
+    bounce_yaklasma_esigi: float = 1.5   # green-red mesafesi bu kadar veya daha az olduysa "yaklaştı"
+    bounce_uzaklik_geri: int = 5         # son N mum içinde yaklaşma olmuşsa say
+    bounce_min_son_cross_yas: int = 5    # önceki cross en az bu kadar eski olmalı
 
     # Çıkış
     tdi_flat_threshold: float = 0.25
@@ -140,10 +150,53 @@ def _stoch_yonu(df: pd.DataFrame, i: int) -> int:
     return 0
 
 
-def giris_sinyali(df: pd.DataFrame, i: int, p: StratejiParams) -> Yon | None:
+def _bounce_tetiklendi(df: pd.DataFrame, i: int, yon: Yon, p: StratejiParams) -> bool:
+    """Bounce trade tetikleyici.
+
+    Şartlar:
+    1. Son cross bu yönde ve `bounce_min_son_cross_yas` mumdan eski olmalı
+       (yani trend kurulmuş, taze cross değil)
+    2. Son `bounce_uzaklik_geri` mum içinde green-red mesafesi azalıp
+       eşiğin altına düşmüş olmalı (yaklaşma)
+    3. Şu an green tekrar uzaklaşıyor olmalı (eğim doğru yönde)
+    """
+    # 1) Son cross kontrolü
+    yas = _bul_son_cross_yas(df, i, yon, max_geri=200)
+    if yas is None or yas < p.bounce_min_son_cross_yas:
+        return False
+
+    # 2) Son bounce_uzaklik_geri mumda yaklaşma olmuş mu?
+    yakinda_yaklasti = False
+    bas = max(0, i - p.bounce_uzaklik_geri)
+    for k in range(bas, i + 1):
+        g = df["tdi_green"].iat[k]
+        r = df["tdi_red"].iat[k]
+        if pd.isna(g) or pd.isna(r):
+            continue
+        if abs(g - r) <= p.bounce_yaklasma_esigi:
+            # Long bounce: yeşil kırmızıya YUKARIDAN yaklaştı
+            if yon is Yon.LONG and g >= r:
+                yakinda_yaklasti = True
+                break
+            if yon is Yon.SHORT and g <= r:
+                yakinda_yaklasti = True
+                break
+
+    if not yakinda_yaklasti:
+        return False
+
+    # 3) Şu an uzaklaşıyor mu? (eğim doğru yönde)
+    egim = _tdi_egim(df, i, lookback=2)
+    if yon is Yon.LONG:
+        return egim >= p.tdi_angle_min
+    return egim <= -p.tdi_angle_min
+
+
+def giris_sinyali(df: pd.DataFrame, i: int, p: StratejiParams) -> tuple[Yon, str] | None:
     """Mum `i` kapandı, bir sonraki mumun açılışında işleme girilecek mi?
 
-    None = giriş yok. Yon.LONG / Yon.SHORT = giriş sinyali.
+    None = giriş yok.
+    (Yon, sebep) — sebep: 'cross' veya 'bounce'.
     """
     if i < 50:
         return None
@@ -153,19 +206,25 @@ def giris_sinyali(df: pd.DataFrame, i: int, p: StratejiParams) -> Yon | None:
     if pd.isna(g) or pd.isna(r):
         return None
 
-    # LONG denemesi
+    # LONG denemesi — önce cross, sonra bounce
     if p.allow_long:
         yas = _bul_son_cross_yas(df, i, Yon.LONG, max_geri=p.max_candle_age_after_cross)
         if yas is not None and yas <= p.max_candle_age_after_cross:
             if _long_filtreler(df, i, p):
-                return Yon.LONG
+                return Yon.LONG, "cross"
+        if p.bounce_aktif and _bounce_tetiklendi(df, i, Yon.LONG, p):
+            if _long_filtreler(df, i, p):
+                return Yon.LONG, "bounce"
 
     # SHORT denemesi
     if p.allow_short:
         yas = _bul_son_cross_yas(df, i, Yon.SHORT, max_geri=p.max_candle_age_after_cross)
         if yas is not None and yas <= p.max_candle_age_after_cross:
             if _short_filtreler(df, i, p):
-                return Yon.SHORT
+                return Yon.SHORT, "cross"
+        if p.bounce_aktif and _bounce_tetiklendi(df, i, Yon.SHORT, p):
+            if _short_filtreler(df, i, p):
+                return Yon.SHORT, "bounce"
 
     return None
 

@@ -103,7 +103,7 @@ def calistir(
     n = len(df)
     bakiye = k.baslangic_bakiyesi
     pos: Pozisyon | None = None
-    bekleyen_sinyal: Yon | None = None
+    bekleyen_sinyal: tuple[Yon, str] | None = None
     trades: list[Trade] = []
     bakiye_serisi = np.full(n, np.nan)
     bakiye_serisi[0] = bakiye
@@ -117,7 +117,7 @@ def calistir(
 
         # 1) Bekleyen giriş sinyali varsa BU mumun açılışında giriş
         if bekleyen_sinyal is not None and pos is None:
-            yon = bekleyen_sinyal
+            yon, sebep = bekleyen_sinyal
             isaret = 1 if yon is Yon.LONG else -1
             giris_fiyat = _slipaj_fiyat(cur_open, isaret, k.slippage_bps)
             sl = stop_loss_hesapla(df, i, yon, p, giris_fiyat=giris_fiyat)
@@ -136,6 +136,7 @@ def calistir(
                     miktar=miktar,
                     giris_zamani=ts,
                 )
+                pos.giris_sebebi = sebep  # type: ignore[attr-defined]
             bekleyen_sinyal = None
 
         # 2) Pozisyon varsa intraday SL tetikleme kontrolü
@@ -158,7 +159,7 @@ def calistir(
         if pos is None:
             sig = giris_sinyali(df, i, p)
             if sig is not None:
-                bekleyen_sinyal = sig
+                bekleyen_sinyal = sig  # (Yon, sebep) tuple
         else:
             if cikis_sinyali(df, i, pos, p):
                 # Sıradaki mum açılışında çıkış için bekleyen exit kullanmak
@@ -218,6 +219,7 @@ def _trade_kapat(
         giris_zamani=pos.giris_zamani,
         cikis_zamani=cikis_ts,
         sebep=sebep,
+        giris_sebebi=getattr(pos, "giris_sebebi", "cross"),
         pnl_brut=pnl_brut,
         pnl_net=pnl_net,
     )
