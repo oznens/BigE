@@ -75,7 +75,22 @@ Big E saatleri (Istanbul 9-17) aktif, long-only, EMA200 trend, ATR×2 SL:
 - Big E'nin manuel sezgisini mekanikleştirmek zor
 - Default kapalı, opt-in parametre olarak duruyor
 
-### 7. Stop loss en kritik parametre
+### 7. Big E'nin "17:00'da kapat" mantığı kripto'da ÇALIŞMIYOR
+Big E forex'te 6am Pacific'te (Istanbul 17:00) tüm 4h trade'leri kapatıyordu.
+Sebep: forex broker overnight rollover komisyonları. Kripto 24/7 olduğu için
+bu sorun yok ve trade'leri yarıda kesmek zararlı.
+
+| Kapatma saati | Sharpe | DD | Getiri |
+|---|---|---|---|
+| Hold (kapatma yok) | **0.49** | -5.1% | **+9.2%** |
+| Kapa 15:00 | -1.05 | -7.3% | -6.5% |
+| Kapa 19:00 | -0.36 | -6.5% | -3.8% |
+| Kapa 23:00 | 0.23 | -5.1% | +3.9% |
+| Kapa 03:00 | 0.46 | -4.9% | +8.1% |
+
+Default `gun_sonu_kapat_saat=None`. Bu Big E'nin kuralından bilinçli ayrılış.
+
+### 8. Stop loss en kritik parametre
 - Orijinal "2 mum geri swing" crypto 4h'de hemen tetikleniyor (340 trade SL'de
   kapandı baseline'da, ortalama tutuş <1 mum)
 - ATR × 2 çok daha iyi: SL'ler azaldı, kazanan trade'ler nefes aldı
