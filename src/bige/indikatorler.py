@@ -116,6 +116,20 @@ def atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return tr.ewm(alpha=1.0 / period, adjust=False).mean().rename("atr")
 
 
+def mtf_trend_ekle(df: pd.DataFrame, df_yuksek_tf: pd.DataFrame, ema_p: int = 50) -> pd.DataFrame:
+    """Yüksek TF EMA trend yönünü düşük TF'ye merge et.
+
+    df: düşük TF (örn 4h), df_yuksek_tf: yüksek TF (örn 1d).
+    Sonuç df'ye 'mtf_trend' kolonu ekler (+1 = yukarı, -1 = aşağı).
+    """
+    yuksek_ema = ema(df_yuksek_tf["close"], ema_p)
+    yuksek_yon = (df_yuksek_tf["close"] > yuksek_ema).astype(int) * 2 - 1
+    # Düşük TF index'ine forward-fill (yüksek TF mumu kapandıkça yenilenir)
+    out = df.copy()
+    out["mtf_trend"] = yuksek_yon.reindex(out.index, method="ffill")
+    return out
+
+
 def tum_indikatorler(
     df: pd.DataFrame,
     rsi_period: int = 13,

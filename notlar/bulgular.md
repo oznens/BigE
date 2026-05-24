@@ -25,23 +25,32 @@ StratejiParams(
 
 ## Sonuç tablosu (2022-01-01 → 2026-04-30, 4 yıl)
 
-Big E saatleri (Istanbul 9-17) aktif, long-only, EMA200 trend, ATR×2 SL:
+Big E saatleri (Istanbul 9-17), MTF onayı (1D), long-only, EMA200 trend, ATR×2 SL:
 
 | Pair | TF | Trade | WR | PF | Sharpe | Max DD | Getiri | B&H |
 |---|---|---|---|---|---|---|---|---|
-| BTC | 4h | 106 | 47% | 1.47 | 0.52 | **-3.9%** | +9% | +63% |
+| BTC | 4h | 97 | 49% | 1.65 | **0.69** | -3.9% | +11% | +63% |
 | BTC | 1d | 44 | 45% | **2.32** | **2.54** | -2.5% | +12% | +60% |
-| ETH | 4h | 115 | 41% | 1.56 | 0.75 | -4.6% | **+16%** | -39% |
+| ETH | 4h | 102 | 44% | **2.02** | **1.12** | -4.3% | **+23%** | -39% |
 | ETH | 1d | 43 | 35% | 1.38 | 0.87 | -2.9% | +4% | -40% |
-| SOL | 4h | 99 | 45% | **1.80** | 0.95 | -3.7% | **+17%** | -52% |
-| SOL | 1d | 36 | **56%** | 1.83 | **1.41** | -1.8% | +5% | -54% |
-| BNB | 4h | 121 | 38% | 0.91 | -0.26 | -8.1% | -4% | +19% |
+| SOL | 4h | 88 | 49% | **2.08** | **1.15** | -3.6% | +20% | -52% |
+| SOL | 1d | 36 | **56%** | 1.83 | **1.41** | **-1.8%** | +5% | -54% |
+| BNB | 4h | 107 | 39% | 1.16 | 0.14 | -6.9% | +2% | +19% |
 | BNB | 1d | 38 | 37% | 1.14 | 0.32 | -3.6% | +1% | +17% |
 
-**Saat filtresinin etkisi (24/7 vs Big E hours, ortalama):**
-- Sharpe: 0.84 → **0.89**
-- Max DD: -5.8% → **-3.9%** (yarıya yakın düşüş)
-- Trade sayısı: 251 → **110** (kaliteli sinyal seçimi)
+**Toplam iyileştirme yolculuğu (BTC 4h baseline → final):**
+- Win rate: 33% → 49% (+16 puan)
+- Sharpe: -∞ (kayıp) → 0.69
+- Max DD: -82% → -3.9% (95% düzeldi)
+- Toplam getiri: -82% → +11%
+
+**Filtre etki sıralaması (en etkili → en az etkili):**
+1. ATR stop loss (en kritik)
+2. EMA200 trend filtresi
+3. MTF (1D) onayı (Sharpe 0.49 → 0.77 fark yarattı)
+4. Big E saatleri (DD'yi yarıladı)
+5. Long-only (kripto'da)
+6. Sıkı TDI cross + açı filtresi
 
 ## Önemli içgörüler
 

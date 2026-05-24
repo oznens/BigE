@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from bige.backtest import BacktestKonfig, calistir
+from bige.indikatorler import mtf_trend_ekle
 from bige.strateji import StratejiParams
 from bige.veri import indir_vision_aralik, kaydet, yukle
 
@@ -57,6 +58,11 @@ def main():
 
     satirlar = []
     for sembol in semboller:
+        # 1D verisini bir kez yükle, 4h backtest'i için MTF kolonu eklemekte kullan
+        try:
+            df_1d_cache = veri_hazirla(sembol, "1d", baslangic)
+        except Exception:
+            df_1d_cache = None
         for aralik in aralıklar:
             try:
                 df = veri_hazirla(sembol, aralik, baslangic)
@@ -65,6 +71,9 @@ def main():
                 continue
             if len(df) < 500:
                 continue
+            # 4h backtest'i için MTF trend kolonu (1D üzerinden) ekle
+            if aralik == "4h" and df_1d_cache is not None:
+                df = mtf_trend_ekle(df, df_1d_cache, ema_p=50)
             bh = (df["close"].iloc[-1] / df["close"].iloc[0] - 1) * 100
 
             for etiket, p in [("long_only", p_long_only), ("long_short", p_long_short)]:

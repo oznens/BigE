@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from bige.backtest import BacktestKonfig, calistir
+from bige.indikatorler import mtf_trend_ekle
 from bige.strateji import StratejiParams
 from bige.veri import yukle
 
@@ -24,6 +25,13 @@ def ciz(
     baslik_eki: str = "",
 ):
     df = yukle(sembol, aralik)
+    # 4h için MTF (1D) trend kolonu ekle
+    if aralik == "4h":
+        try:
+            df_1d = yukle(sembol, "1d")
+            df = mtf_trend_ekle(df, df_1d, ema_p=50)
+        except Exception:
+            pass
     sonuc = calistir(df, p, k)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 9), sharex=True, gridspec_kw={"height_ratios": [2, 1]})

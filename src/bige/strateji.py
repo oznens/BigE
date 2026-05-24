@@ -61,6 +61,27 @@ class StratejiParams:
     trend_filtresi_aktif: bool = True
     trend_ema_period: int = 50   # uzun EMA — long sadece price > EMA, short tersi
 
+    # Big E'nin manuel filtrelerinin mekanik karşılıkları
+    # Konsolidasyon: son N mumun gövdesi ATR'a göre küçükse pas
+    konsolidasyon_filtresi: bool = False
+    konsolidasyon_lookback: int = 5
+    konsolidasyon_max_avg_body_atr: float = 0.4
+
+    # S/R yakınlık: sola bak, son N mumdaki swing high/low'a ATR ile yakınsak pas
+    sr_filtresi: bool = False
+    sr_lookback: int = 30
+    sr_threshold_atr: float = 0.5    # ATR × bu kadar yakınsak pas
+
+    # Wick filtresi: son mumun wick/body oranı çok yüksekse momentum zayıf, pas
+    wick_filtresi: bool = False
+    wick_max_orani: float = 1.0      # wick > body × bu kadar ise pas
+
+    # Multi-timeframe trend onayı: 4h sinyal ama 1D yönü de aynı olmalı
+    # (df'e mtf_trend kolonu eklenmeli — `indikatorler.mtf_trend_ekle()` ile)
+    # Kolon yoksa filtre etkisiz olarak çalışır.
+    # Backtest'te Sharpe 0.49 → 0.77 fark yarattı.
+    mtf_onay_filtresi: bool = True
+
     # Bounce trade'leri (default kapalı — backtest'te Sharpe'ı düşürüyor)
     # Big E'nin manuel olarak filtrelediği "iyi bounce'ları" mekanik olarak
     # yakalamak zor; tight parametrelerle bile cross-only'den daha iyi olmuyor.
@@ -262,6 +283,73 @@ def _trend_yonu(df: pd.DataFrame, i: int, p: StratejiParams) -> int:
     return 1 if df["close"].iat[i] > ema else -1
 
 
+def _konsolidasyon_var_mi(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
+    """Son N mumun ortalama gövdesi ATR'ın altındaysa konsolidasyon."""
+    if not p.konsolidasyon_filtresi:
+        return False
+    bas = max(0, i - p.konsolidasyon_lookback + 1)
+    son = i + 1
+    atr_now = df["atr"].iat[i]
+    if pd.isna(atr_now) or atr_now == 0:
+        return False
+    bodies = (df["ha_close"].iloc[bas:son] - df["ha_open"].iloc[bas:son]).abs()
+    avg_body = float(bodies.mean())
+    return avg_body / atr_now < p.konsolidasyon_max_avg_body_atr
+
+
+def _sr_yakin_mi(df: pd.DataFrame, i: int, yon: Yon, p: StratejiParams) -> bool:
+    """Son N mumdaki swing high/low'a ATR cinsinden yakın mı?
+
+    Long için yakın bir swing high pas dedirtir (üstte resistance var).
+    Short için yakın bir swing low pas dedirtir.
+    """
+    if not p.sr_filtresi:
+        return False
+    atr_now = df["atr"].iat[i]
+    if pd.isna(atr_now) or atr_now == 0:
+        return False
+    cur = df["close"].iat[i]
+    bas = max(0, i - p.sr_lookback)
+    if yon is Yon.LONG:
+        swing_high = float(df["high"].iloc[bas:i].max()) if i > bas else cur
+        mesafe = swing_high - cur
+        return 0 < mesafe < atr_now * p.sr_threshold_atr
+    swing_low = float(df["low"].iloc[bas:i].min()) if i > bas else cur
+    mesafe = cur - swing_low
+    return 0 < mesafe < atr_now * p.sr_threshold_atr
+
+
+def _wick_zayif_mi(df: pd.DataFrame, i: int, yon: Yon, p: StratejiParams) -> bool:
+    """Mumun zıt yönündeki wick'i gövdeden çok büyükse momentum zayıf say."""
+    if not p.wick_filtresi:
+        return False
+    ho, hc = df["ha_open"].iat[i], df["ha_close"].iat[i]
+    hh, hl = df["ha_high"].iat[i], df["ha_low"].iat[i]
+    body = abs(hc - ho)
+    if body == 0:
+        return True   # gövde 0 = doji = zayıf
+    if yon is Yon.LONG:
+        # üst wick = hh - max(ho, hc); ama biz LONG'da alt wick'i istemeyiz
+        alt_wick = min(ho, hc) - hl
+        return alt_wick > body * p.wick_max_orani
+    ust_wick = hh - max(ho, hc)
+    return ust_wick > body * p.wick_max_orani
+
+
+def _mtf_uyumlu_mu(df: pd.DataFrame, i: int, yon: Yon, p: StratejiParams) -> bool:
+    """Yüksek TF trend yönü aynı mı? df'e 'mtf_trend' kolonu eklenmiş olmalı."""
+    if not p.mtf_onay_filtresi:
+        return True
+    if "mtf_trend" not in df.columns:
+        return True
+    mtf = df["mtf_trend"].iat[i]
+    if pd.isna(mtf):
+        return True
+    if yon is Yon.LONG:
+        return mtf > 0
+    return mtf < 0
+
+
 def _long_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
     # HA yeşil mum (cross sonrası yön)
     if not bool(df["ha_bullish"].iat[i]):
@@ -283,6 +371,15 @@ def _long_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
         t = _trend_yonu(df, i, p)
         if t != 1 and t != 0:
             return False
+    # Big E manuel filtreleri
+    if _konsolidasyon_var_mi(df, i, p):
+        return False
+    if _sr_yakin_mi(df, i, Yon.LONG, p):
+        return False
+    if _wick_zayif_mi(df, i, Yon.LONG, p):
+        return False
+    if not _mtf_uyumlu_mu(df, i, Yon.LONG, p):
+        return False
     return True
 
 
@@ -301,6 +398,15 @@ def _short_filtreler(df: pd.DataFrame, i: int, p: StratejiParams) -> bool:
         t = _trend_yonu(df, i, p)
         if t != -1 and t != 0:
             return False
+    # Big E manuel filtreleri
+    if _konsolidasyon_var_mi(df, i, p):
+        return False
+    if _sr_yakin_mi(df, i, Yon.SHORT, p):
+        return False
+    if _wick_zayif_mi(df, i, Yon.SHORT, p):
+        return False
+    if not _mtf_uyumlu_mu(df, i, Yon.SHORT, p):
+        return False
     return True
 
 
