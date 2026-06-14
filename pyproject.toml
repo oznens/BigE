@@ -1,14 +1,13 @@
 [project]
-name = "bige"
-version = "0.0.1"
-description = "Big E trader modeli + backtest"
+name = "walter"
+version = "0.1.0"
+description = "BTC sistematik intraday trend stratejisi + backtest motoru"
 requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.2",
     "numpy>=1.26",
     "requests>=2.32",
     "pyarrow>=15",
-    "matplotlib>=3.8",
 ]
 
 [project.optional-dependencies]

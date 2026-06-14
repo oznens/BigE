@@ -1,39 +1,22 @@
+# Veri cache (büyük dosyalar)
+data/*.parquet
+data/*.csv
+
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
+*.egg-info/
+.eggs/
+build/
+dist/
 .venv/
 venv/
-env/
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 
-# Notebooks
-.ipynb_checkpoints/
+# Raporlar (üretilen)
+backtest/raporlar/*.csv
+backtest/raporlar/*.png
 
-# Veri (büyük dosyalar)
-data/*.csv
-data/*.parquet
-data/*.feather
-data/raw/
-data/processed/
-!data/.gitkeep
-
-# Backtest çıktıları
-backtest/results/
-backtest/*.html
-backtest/*.png
-
-# IDE
+# Editör
 .vscode/
 .idea/
-*.swp
 .DS_Store
-
-# Env
-.env
-.env.local
