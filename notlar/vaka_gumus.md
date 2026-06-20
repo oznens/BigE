@@ -45,9 +45,14 @@ tercihi, anlam aynı (XABCD alanı).
 - ✅ **Çoklu hedef**: mavi kutu girişi → mor çizgi (ara) → kırmızı kutu (ana).
 
 ## Sisteme yansıma (yapılacaklar)
-- [ ] **Mor çizgi** = giriş ile ana hedef arasındaki ara scale-out seviyesi
-      (güçlü tek-fiyat S/R). Senaryoya "ilk kâr-alma" olarak eklenebilir.
-- [ ] **MTF (üst zaman dilimi) uyarısı**: günlük yapı problemliyse senaryoda not.
+- [x] **Mor çizgi** = giriş ile ana hedef arasındaki ara scale-out seviyesi.
+      `Senaryo.ara_hedef` (en yakın direnç, ana hedeften önce). Plan + yoruma
+      "Mor çizgide kademeli kâr al" satırı eklendi.
+- [x] **MTF (üst zaman dilimi) uyarısı**: `senaryo_uret(df_ust=...)` → üst zaman
+      yapısı düşüşteyse `mtf_yapi="problemli"`, planda/yorumda uyarı. CLI üst
+      TF'yi otomatik çekiyor (4h→1d, 1h→4h).
+
+> Gümüş vakasının dersleri sisteme yansıtıldı. ✅
 
 Not: Gümüş (XAGUSD) Binance'te yok; veri katmanı şimdilik kripto. Vaka
 metodoloji öğrenmek için; sistem aynı mantığı kripto paritelerde uyguluyor.

@@ -39,8 +39,16 @@ def main() -> None:
             except Exception as e:
                 print(f"  HATA {sembol}/{tf}: {e}")
                 continue
+            # Üst zaman dilimi (MTF onayı için)
+            _ust_tf = {"15m": "1h", "1h": "4h", "4h": "1d"}.get(tf)
+            df_ust = None
+            if _ust_tf:
+                try:
+                    df_ust = veri.indir(sembol, _ust_tf, gun=args.gun)
+                except Exception:
+                    df_ust = None
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
-                                min_guc=args.min_guc)
+                                min_guc=args.min_guc, df_ust=df_ust)
             sn.yazdir(sembol, tf, s, vade=args.vade)
 
             if args.grafik:

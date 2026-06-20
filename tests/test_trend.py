@@ -8,7 +8,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.trend import trend_cizgisi_bul, kanal_bul, TrendCizgisi
-from miraz.senaryo import senaryo_uret, Senaryo, gelis_hacim_orani
+from miraz.senaryo import (
+    senaryo_uret, Senaryo, gelis_hacim_orani, _mtf_yapi,
+)
 
 
 def _df(closes, hacimler=None):
@@ -96,6 +98,27 @@ def test_gelis_hacim_orani_artar():
 
     sakin = _df(list(100 + np.zeros(80)), [1.0] * 80)
     assert gelis_hacim_orani(sakin) == 1.0
+
+
+def test_mtf_yapi_yon():
+    """Üst zaman dilimi düşüşte 'problemli', yükselişte 'sağlıklı' olmalı."""
+    dusus = _df(list(np.linspace(200, 150, 40)))   # belirgin düşüş
+    yukselis = _df(list(np.linspace(150, 200, 40)))  # belirgin yükseliş
+    yatay = _df([180 + (i % 2) * 0.2 for i in range(40)])
+    assert _mtf_yapi(dusus) == "problemli"
+    assert _mtf_yapi(yukselis) == "sağlıklı"
+    assert _mtf_yapi(yatay) == "nötr"
+
+
+def test_senaryo_mtf_ve_ara_hedef():
+    """df_ust verilince mtf_yapi dolmalı; ara_hedef ana hedeften küçük olmalı."""
+    rng = np.random.default_rng(11)
+    df = _df(list(120 + np.cumsum(rng.normal(0.05, 1, 400))))
+    df_ust = _df(list(np.linspace(160, 120, 60)))   # üst zaman düşüşte
+    s = senaryo_uret(df, n=3, min_guc=40, df_ust=df_ust)
+    assert s.mtf_yapi in ("problemli", "sağlıklı", "nötr")
+    if s.ara_hedef is not None and s.hedef_kutu is not None:
+        assert s.ara_hedef <= s.hedef_kutu.ust
 
 
 def test_kirilma_riski_hacimli_geliste():
