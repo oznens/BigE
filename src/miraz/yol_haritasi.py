@@ -98,9 +98,10 @@ def yol_haritasi_uret(
                      key=lambda b: b.guc, reverse=True)[:max_yon]
     secili = sorted(shortlar + longlar, key=lambda b: b.merkez, reverse=True)
 
-    # Grafikte gösterilecek harmonikler: en kaliteli, en yeni birkaç pattern
+    # Grafikte gösterilecek harmonik: sadece en kaliteli/güncel TEK pattern
+    # (çok pattern üst üste gelince kırmızı alan grafiği kaplıyor).
     en_iyi_pat = sorted(patternler, key=lambda p: (p.kalite, p.D_idx),
-                        reverse=True)[:3]
+                        reverse=True)[:1]
 
     # Projeksiyon oku hedefi: fiyatın üstündeki en yakın SHORT bölgesi
     ust_shortlar = sorted([b for b in shortlar if b.merkez > fiyat],

@@ -100,12 +100,12 @@ def _harmonik_ciz(ax, df, pattern, ofset, x):
             pts.append((x[yerel], fy))
     if len(pts) < 4:
         return
-    # Gölgeli polygon (XABCD zikzak alanı) — Miraz'ın kırmızı harmonik gölgesi
-    ax.add_patch(Polygon(pts, closed=True, facecolor="#f23645", alpha=0.16,
-                         edgecolor="#f23645", linewidth=1.0, zorder=2))
+    # Gölgeli polygon (XABCD zikzak alanı) — hafif dolgu, belirgin kenar
+    ax.add_patch(Polygon(pts, closed=True, facecolor="#f23645", alpha=0.08,
+                         edgecolor="#f23645", linewidth=1.2, zorder=2))
     # X-A-B-C-D kırılım çizgisi
     xs, ys = zip(*pts)
-    ax.plot(xs, ys, color="#f23645", linewidth=1.0, alpha=0.5, zorder=2)
+    ax.plot(xs, ys, color="#f23645", linewidth=1.2, alpha=0.7, zorder=2)
 
 
 def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
@@ -128,9 +128,9 @@ def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
     xD = x1 + bar_w * 7
     ax.plot([xs[-1], xD], [ys[-1], oh.D], color="#f23645", linewidth=1.3,
             linestyle="--", zorder=5)
-    # X-A-B-C-D gölgeli polygon
+    # X-A-B-C-D hafif gölge (sadece harmonik alanı, baskın değil)
     ax.add_patch(Polygon(list(pts) + [(xD, oh.D)], closed=True,
-                         facecolor="#f23645", alpha=0.13, edgecolor="none",
+                         facecolor="#f23645", alpha=0.06, edgecolor="none",
                          zorder=2))
     # PRZ kutusu (projeksiyon belirsizliği) + D işareti
     ax.add_patch(Rectangle((xD - bar_w * 2, oh.prz_alt), bar_w * 5,
