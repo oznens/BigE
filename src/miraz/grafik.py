@@ -23,6 +23,7 @@ from matplotlib.patches import Rectangle
 from .harmonik import HarmonikSonuc
 from .kutular import Kutu
 from .senaryo import Senaryo
+from .yol_haritasi import YolHaritasi
 
 # tradermiraz renk paleti → matplotlib renkleri
 _RENK_HEX = {
@@ -332,6 +333,82 @@ def senaryo_ciz(
         fig.text(0.012, 0.975, baslik, fontsize=8.5, color=_TV["eksen"],
                  style="italic")
 
+    fig.subplots_adjust(left=0.01, right=0.93, top=0.9, bottom=0.07)
+
+    dosya = Path(dosya)
+    dosya.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(dosya, dpi=140, facecolor=_TV["bg"])
+    plt.close(fig)
+    return dosya
+
+
+def yol_haritasi_ciz(
+    df: pd.DataFrame,
+    yh: YolHaritasi,
+    dosya: str | Path,
+    baslik: str = "",
+    son_n: int = 300,
+    symbol: str = "Bittensor / TetherUS",
+    interval: str = "1G",
+    borsa: str = "Binance",
+) -> Path:
+    """Çoklu-bölge yol haritasını TAO tarzı çizer: LONG (yeşil) + SHORT (mor)
+    bölgeleri, mavi daireler ve güncel fiyat — hepsi tek grafikte."""
+    tam = len(df)
+    ofset = max(0, tam - son_n)
+    dfg = df.iloc[ofset:]
+    x = mdates.date2num(dfg.index.to_pydatetime())
+    x0, x1 = x[0], x[-1]
+    bar_w = (x[1] - x[0]) if len(x) > 1 else 0.16
+    x_sag = x1 + bar_w * 30
+
+    fig, ax = plt.subplots(figsize=(16, 8.5))
+    fig.patch.set_facecolor(_TV["bg"])
+    ax.set_facecolor(_TV["bg"])
+    _mum_ciz_tv(ax, dfg)
+
+    for b in yh.bolgeler:
+        if b.rol == "SHORT":
+            fc, ec = _TV["direnc_fc"], _TV["direnc_ec"]
+        else:
+            fc, ec = _TV["destek"], _TV["destek"]
+        ax.add_patch(Rectangle(
+            (x0, b.alt), x_sag - x0, b.ust - b.alt,
+            facecolor=fc, alpha=0.30, edgecolor=ec, linewidth=1.1, zorder=1))
+        _fiyat_etiketi(ax, b.ust, ec)
+        _fiyat_etiketi(ax, b.alt, ec)
+        ax.text(x0 + bar_w, b.merkez, f"{b.rol} · {b.renk} (güç {b.guc:.0f})",
+                va="center", ha="left", fontsize=8, color=ec,
+                fontweight="bold", zorder=5)
+        if b.mavi_daire is not None:
+            ax.scatter([x1], [b.mavi_daire], s=480, facecolor="#26c6da",
+                       edgecolor="#0097a7", linewidth=1.6, alpha=0.65, zorder=6)
+
+    ax.axhline(yh.fiyat, color=_TV["fiyat_tag"], linewidth=0.8,
+               linestyle=(0, (1, 2)), alpha=0.75, zorder=4)
+    _fiyat_etiketi(ax, yh.fiyat, _TV["fiyat_tag"])
+
+    ax.set_xlim(x0 - bar_w, x_sag)
+    ax.yaxis.tick_right()
+    ax.tick_params(axis="y", colors=_TV["eksen"], labelsize=8, length=0)
+    ax.tick_params(axis="x", colors=_TV["eksen"], labelsize=8, length=0)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, p: _tr_sayi(v)))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(_TurkceTarih())
+    ax.grid(True, color=_TV["grid"], linewidth=0.8, zorder=0)
+    for kenar in ("top", "left", "bottom", "right"):
+        ax.spines[kenar].set_visible(False)
+
+    ax.text(0.006, 1.025, f"{symbol} · {interval} · {borsa}",
+            transform=ax.transAxes, fontsize=10.5, fontweight="bold",
+            color=_TV["metin"], va="bottom", ha="left")
+    ax.text(1.0, 1.025, "USDT", transform=ax.transAxes, fontsize=8.5,
+            color=_TV["eksen"], va="bottom", ha="right")
+    fig.text(0.012, 0.022, "₸ TradingView", fontsize=11, fontweight="bold",
+             color=_TV["metin"])
+    if baslik:
+        fig.text(0.012, 0.975, baslik, fontsize=8.5, color=_TV["eksen"],
+                 style="italic")
     fig.subplots_adjust(left=0.01, right=0.93, top=0.9, bottom=0.07)
 
     dosya = Path(dosya)
