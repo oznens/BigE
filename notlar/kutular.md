@@ -31,6 +31,15 @@ Her rengin farklı bir anlamı var.
 - **Short için**: Fiyat kırmızı kutuya gelince satış fırsatı
 - **Kural**: Kırmızı kutuda direkt dalmak yok — önce fiyatın bölgede "dinlenmesi" beklenir
 
+## 🔵 Mavi DAİRE (Blue Circle) — kutudan farklı!
+- **Anlam**: En derin, en yüksek güvenli talep noktası. Kutu değil, **daire**
+  ile işaretlenir (dar, kesin bir dönüş bölgesi).
+- **Kullanım**: Birincil long girişi. Tipik olarak **bullish harmonik D
+  noktasının** tamamlandığı yerdir (harmonik PRZ ∩ en güçlü destek = çakışma).
+- **TAO örneği (8 Haz 2026)**: Mavi daire 178.94–187.79; fiyat mor'dan -%36
+  düşüp burada harmonik D'yi tamamladı, Miraz "Mavide aldım" dedi, +%20 yükseldi.
+- Detay: notlar/vaka_tao.md
+
 ## 🟠 Turuncu Kutu (Orange Box)
 - **Anlam**: Ara nefes bölgesi, geçici destek
 - **Örnek tweet**: "Turuncu bölge ara bir nefes alanı olarak çalışacaktır."
@@ -39,8 +48,16 @@ Her rengin farklı bir anlamı var.
 - **Anlam**: Harmonik pattern alanı (PRZ - Potential Reversal Zone)
 - Sarı shaded triangle = harmonik X-A-B-C-D kolu gösterimi
 
+## Bölge rolleri YÖNLÜdür (TAO vakasından)
+- 🟣 Mor = **SHORT** bölgesi (direnç)
+- 🟢 Yeşil + 🔵 Mavi (kutu/daire) = **LONG** bölgeleri (destek)
+- Bir plan aynı anda birden çok bölge içerebilir (HTF yol haritası):
+  mor'dan short → mavi'de long → yeşil'de kâr al gibi.
+
 ## Genel Kurallar
 1. Fiyat destek bölgesine ne kadar sert ve hacimli gelirse, kırılma ihtimali o kadar artar
+   → **Hacim filtresi**: destek bölgesine YÜKSEK hacimle gelinirse o bölge
+     kırılma adayıdır, işlem ALINMAZ (TAO'da yeşil kutu bu yüzden atlandı).
 2. Bölgede kalıcılık = bölgenin çalıştığının onayı
 3. Kapanış önemli — "X$ altında KAPANIŞ" kriteri vardır (fitil yetmez)
 4. Bölge kaybedilince direnç görevi görür (eski destek → yeni direnç)
