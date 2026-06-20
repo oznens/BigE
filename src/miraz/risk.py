@@ -151,3 +151,129 @@ def _aciklama(giris, stop, hedef, r_dolar, carpan, poz_dolar, poz_miktar,
         f"   Yönetim: birinci hedefte %{kar_al*100:.0f} kâr al, "
         f"kalanı girişe stop çekerek taşı (risk-free).")
     return "\n".join(sat)
+
+
+# ----------------------------------------------------------------------------
+# Kademeli giriş (laddered entry) — arşiv dersi: "kademe kademe alırım"
+# ----------------------------------------------------------------------------
+
+@dataclass
+class Kademe:
+    no: int             # kademe sırası (1, 2, ...)
+    seviye: float       # bu kademenin giriş fiyatı
+    agirlik: float      # toplam riskteki payı (0..1)
+    poz_dolar: float    # bu kademenin nominal büyüklüğü ($)
+    poz_miktar: float   # bu kademede alınacak miktar
+
+
+@dataclass
+class KademeliPlan:
+    kademeler: list      # list[Kademe]
+    ort_giris: float     # ağırlıklı ortalama giriş (miktara göre)
+    stop: float
+    hedef: float | None
+    toplam_dolar: float  # tüm kademelerin nominal toplamı
+    r_dolar: float       # toplam risk (stop olursa kayıp)
+    rr_orani: float | None
+    aciklama: str
+
+
+def kademeli_plan(senaryo, r_dolar: float = 25.0,
+                  paylar: tuple = (0.5, 0.5)) -> KademeliPlan | None:
+    """Pozisyonu birden çok destek seviyesine bölen kademeli giriş planı.
+
+    Miraz "kademe kademe alırım" / "birinci kademe, ikinci kademe" der: alımı
+    tek noktaya değil, üst destekten alt desteğe yayar. Toplam risk (stop
+    olursa kayıp) yine r_dolar'dır; paylar bunu kademelere böler.
+
+    Kademe seviyeleri:
+      1) üst destek: mavi daire varsa orası, yoksa bölge üstü
+      2) alt destek: bölge altı (kritik seviye civarı)
+    Ek paylar verilirse üst↔alt arasına eşit aralıklı dağıtılır.
+    """
+    if getattr(senaryo, "destek_kutu", None) is None:
+        return None
+    bolge_alt = senaryo.bolge_alt
+    bolge_ust = senaryo.bolge_ust
+    if bolge_alt is None or bolge_ust is None:
+        return None
+
+    ust = float(senaryo.mavi_daire) if senaryo.mavi_daire is not None \
+        else float(bolge_ust)
+    alt = float(bolge_alt)
+    if ust <= alt:
+        ust, alt = alt, ust * 0.999
+
+    # Stop: fitil (yoksa kritik altı)
+    if senaryo.fitil_seviye is not None:
+        stop = float(senaryo.fitil_seviye)
+    elif senaryo.kritik_seviye is not None:
+        stop = round(float(senaryo.kritik_seviye) * 0.995, 4)
+    else:
+        return None
+    if stop >= alt:
+        return None
+
+    paylar = tuple(paylar)
+    pay_top = sum(paylar)
+    if pay_top <= 0:
+        return None
+    paylar = tuple(p / pay_top for p in paylar)   # normalize
+
+    # Seviyeler: üstten alta eşit aralıklı
+    k = len(paylar)
+    if k == 1:
+        seviyeler = [ust]
+    else:
+        adim = (ust - alt) / (k - 1)
+        seviyeler = [round(ust - i * adim, 4) for i in range(k)]
+
+    karsi = _karsi_trend(senaryo)
+    r_carpan = 0.5 if karsi else 1.0
+
+    kademeler = []
+    toplam_dolar = 0.0
+    toplam_miktar = 0.0
+    for i, (sev, pay) in enumerate(zip(seviyeler, paylar), start=1):
+        # bu kademe pay*r_dolar kadar risk eder (stop ortak)
+        pd, pm, _ = pozisyon_boyutu(sev, stop, r_dolar, carpan=r_carpan * pay)
+        kademeler.append(Kademe(no=i, seviye=sev, agirlik=round(pay, 3),
+                                poz_dolar=pd, poz_miktar=pm))
+        toplam_dolar += pd
+        toplam_miktar += pm
+
+    ort_giris = round(toplam_dolar / toplam_miktar, 4) if toplam_miktar else 0.0
+
+    hedef = None
+    if getattr(senaryo, "ara_hedef", None) is not None:
+        hedef = float(senaryo.ara_hedef)
+    elif getattr(senaryo, "hedef_kutu", None) is not None:
+        hedef = float(senaryo.hedef_kutu.alt)
+
+    rr = None
+    if hedef is not None and hedef > ort_giris and ort_giris > stop:
+        rr = round((hedef - ort_giris) / (ort_giris - stop), 2)
+
+    aciklama = _kademe_aciklama(kademeler, ort_giris, stop, hedef,
+                                toplam_dolar, r_dolar, r_carpan, rr)
+    return KademeliPlan(
+        kademeler=kademeler, ort_giris=ort_giris, stop=round(stop, 4),
+        hedef=hedef, toplam_dolar=round(toplam_dolar, 2), r_dolar=r_dolar,
+        rr_orani=rr, aciklama=aciklama)
+
+
+def _kademe_aciklama(kademeler, ort_giris, stop, hedef, toplam, r_dolar,
+                     r_carpan, rr) -> str:
+    sat = [f"🪜 KADEMELİ GİRİŞ ({len(kademeler)} kademe"
+           + (", ½R" if r_carpan < 1 else "") + ")"]
+    for kd in kademeler:
+        sat.append(
+            f"   {kd.no}. kademe {kd.seviye:,.2f}  "
+            f"(%{kd.agirlik*100:.0f} pay → {kd.poz_dolar:,.2f}$)")
+    rr_txt = f"  |  R/R: {rr:.2f}" if rr is not None else ""
+    sat.append(
+        f"   Ort. giriş {ort_giris:,.2f}  |  Stop {stop:,.2f}  |  "
+        f"Toplam ≈ {toplam:,.2f}$ (risk {r_dolar*r_carpan:.0f}$){rr_txt}")
+    if hedef is not None:
+        sat.append(f"   Hedef {hedef:,.2f} — kademeli kâr al, kalanı taşı.")
+    return "\n".join(sat)

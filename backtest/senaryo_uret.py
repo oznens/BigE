@@ -32,6 +32,8 @@ def main() -> None:
     ap.add_argument("--gun", type=int, default=500)
     ap.add_argument("--r", type=float, default=0.0,
                     help="1R dolar tutarı (>0 ise risk planı eklenir, ör. 25)")
+    ap.add_argument("--kademe", type=int, default=0,
+                    help="kademeli giriş sayısı (>0 ve --r ile, ör. 2)")
     args = ap.parse_args()
 
     for sembol in args.sembol:
@@ -56,6 +58,13 @@ def main() -> None:
                                 min_guc=args.min_guc, df_ust=df_ust, gguc=gguc,
                                 r_dolar=args.r)
             sn.yazdir(sembol, tf, s, vade=args.vade)
+
+            if args.r > 0 and args.kademe > 0:
+                from miraz.risk import kademeli_plan
+                paylar = tuple([1.0 / args.kademe] * args.kademe)
+                kp = kademeli_plan(s, r_dolar=args.r, paylar=paylar)
+                if kp is not None:
+                    print("\n" + kp.aciklama)
 
             if args.grafik:
                 from miraz import grafik

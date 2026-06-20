@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.risk import pozisyon_boyutu, risk_plani
+from miraz.risk import pozisyon_boyutu, risk_plani, kademeli_plan
 
 
 def test_pozisyon_boyutu_tam_r():
@@ -90,3 +90,38 @@ def test_risk_plani_mavi_daire_giris():
 
 def test_risk_plani_destek_yoksa_none():
     assert risk_plani(_senaryo(destek_kutu=None)) is None
+
+
+def test_kademeli_plan_iki_kademe():
+    kp = kademeli_plan(_senaryo(), r_dolar=25, paylar=(0.5, 0.5))
+    assert kp is not None
+    assert len(kp.kademeler) == 2
+    # 1. kademe üst destek (bölge üstü=110), 2. kademe alt (bölge altı=100)
+    assert kp.kademeler[0].seviye == 110.0
+    assert kp.kademeler[1].seviye == 100.0
+    # ortalama giriş iki seviye arasında
+    assert 100.0 < kp.ort_giris < 110.0
+    assert kp.stop == 98.0
+
+
+def test_kademeli_toplam_risk_1r():
+    # Toplam risk (stop olursa kayıp) ≈ r_dolar olmalı (tam R, trend yönünde)
+    kp = kademeli_plan(_senaryo(), r_dolar=25, paylar=(0.5, 0.5))
+    kayip = sum(kd.poz_dolar * (kd.seviye - kp.stop) / kd.seviye
+                for kd in kp.kademeler)
+    assert abs(kayip - 25.0) < 0.5
+
+
+def test_kademeli_karsi_trend_yari():
+    kp = kademeli_plan(_senaryo(mtf_yapi="problemli"), r_dolar=25)
+    kayip = sum(kd.poz_dolar * (kd.seviye - kp.stop) / kd.seviye
+                for kd in kp.kademeler)
+    assert abs(kayip - 12.5) < 0.5      # ½R
+
+
+def test_kademeli_uc_kademe_seviyeler():
+    kp = kademeli_plan(_senaryo(), r_dolar=30, paylar=(0.4, 0.3, 0.3))
+    assert len(kp.kademeler) == 3
+    assert kp.kademeler[0].seviye == 110.0
+    assert kp.kademeler[-1].seviye == 100.0
+    assert kp.kademeler[1].seviye == 105.0   # ortada
