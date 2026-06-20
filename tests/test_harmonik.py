@@ -8,7 +8,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.harmonik import tara, _bullish_oranlar, _bearish_oranlar, HarmonikSonuc
+from miraz.harmonik import (
+    tara, _bullish_oranlar, _bearish_oranlar, _kontrol_et, HarmonikSonuc,
+)
 from miraz.pivotlar import pivot_listesi, swing_high_maske, swing_low_maske
 
 
@@ -121,6 +123,29 @@ def test_tarama_bos_df():
     df = _df([100, 200, 100])
     pivlar = pivot_listesi(df, n=1)
     assert tara(df, pivlar) == []
+
+
+def test_sl_her_zaman_dogru_tarafta_x_yuksekken():
+    """X, D'den yüksek olsa bile Bullish SL girişin (D) altında olmalı.
+
+    Eski hata: SL = X*0.995 → X>D iken SL girişin üstüne çıkıyordu.
+    Düzeltme: SL = min(X, D)*0.995.
+    """
+    # Bullish L-H-L-H-L; X=107 > D=105, AB=CD=30
+    X, A, B, C, D = 107.0, 130.0, 100.0, 135.0, 105.0
+    sonuc = _kontrol_et(0, 1, 2, 3, 4, X, A, B, C, D, "Bullish")
+    abcd = [s for s in sonuc if s.isim == "AB=CD"]
+    assert abcd, "AB=CD tespit edilmeli"
+    for s in abcd:
+        assert s.sl < s.entry, "X>D olsa bile Bullish SL girişin altında olmalı"
+
+    # Bearish simetrik: X=103 < D=105, SL girişin üstünde olmalı
+    Xb, Ab, Bb, Cb, Db = 103.0, 80.0, 110.0, 75.0, 105.0
+    sb = _kontrol_et(0, 1, 2, 3, 4, Xb, Ab, Bb, Cb, Db, "Bearish")
+    abcd_b = [s for s in sb if s.isim == "AB=CD"]
+    assert abcd_b, "Bearish AB=CD tespit edilmeli"
+    for s in abcd_b:
+        assert s.sl > s.entry, "X<D olsa bile Bearish SL girişin üstünde olmalı"
 
 
 def test_sonuc_sl_tp_mantigi():

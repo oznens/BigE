@@ -223,12 +223,14 @@ def _kontrol_et(
         # TP / SL hesapla
         if yon == "Bullish":
             entry = D
-            sl    = X * (1 - 0.005)           # X'in biraz altı
+            # Stop, giriş (D) ile origin (X) arasındaki en düşük noktanın altı.
+            # Böylece long işlemde SL her zaman girişin altında kalır.
+            sl    = min(X, D) * (1 - 0.005)
             tp1   = D + oranlar["CD"] * 0.382  # CD'nin %38.2 geri çekilmesi
             tp2   = B                           # B seviyesi
         else:
             entry = D
-            sl    = X * (1 + 0.005)
+            sl    = max(X, D) * (1 + 0.005)
             tp1   = D - oranlar["CD"] * 0.382
             tp2   = B
 
@@ -248,9 +250,11 @@ def _kontrol_et(
     # AB=CD ayrı kontrol
     if _oran_iceride(oranlar.get("AB_CD", -1), (1 - ABCD_TOL, 1 + ABCD_TOL)):
         if yon == "Bullish":
-            entry = D; sl = X * 0.995; tp1 = D + oranlar["CD"] * 0.382; tp2 = B
+            entry = D; sl = min(X, D) * 0.995
+            tp1 = D + oranlar["CD"] * 0.382; tp2 = B
         else:
-            entry = D; sl = X * 1.005; tp1 = D - oranlar["CD"] * 0.382; tp2 = B
+            entry = D; sl = max(X, D) * 1.005
+            tp1 = D - oranlar["CD"] * 0.382; tp2 = B
         risk = abs(entry - sl); kazan = abs(tp1 - entry)
         sonuclar.append(HarmonikSonuc(
             isim="AB=CD", yon=yon,
