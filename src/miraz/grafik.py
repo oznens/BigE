@@ -98,11 +98,12 @@ def _harmonik_ciz(ax, df, pattern, ofset, x):
         yerel = gi - ofset
         if 0 <= yerel < len(x):
             pts.append((x[yerel], fy))
-    if len(pts) < 4:
+    if len(pts) < 5:
         return
-    # Gölgeli polygon (XABCD zikzak alanı) — hafif dolgu, belirgin kenar
-    ax.add_patch(Polygon(pts, closed=True, facecolor="#f23645", alpha=0.08,
-                         edgecolor="#f23645", linewidth=1.2, zorder=2))
+    # TradingView XABCD stili: iki üçgen (X-A-B) ve (B-C-D), B'de birleşir
+    for ucgen in (pts[0:3], pts[2:5]):
+        ax.add_patch(Polygon(ucgen, closed=True, facecolor="#f23645",
+                             alpha=0.13, edgecolor="none", zorder=2))
     # X-A-B-C-D kırılım çizgisi
     xs, ys = zip(*pts)
     ax.plot(xs, ys, color="#f23645", linewidth=1.2, alpha=0.7, zorder=2)
@@ -128,10 +129,12 @@ def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
     xD = x1 + bar_w * 7
     ax.plot([xs[-1], xD], [ys[-1], oh.D], color="#f23645", linewidth=1.3,
             linestyle="--", zorder=5)
-    # X-A-B-C-D hafif gölge (sadece harmonik alanı, baskın değil)
-    ax.add_patch(Polygon(list(pts) + [(xD, oh.D)], closed=True,
-                         facecolor="#f23645", alpha=0.06, edgecolor="none",
-                         zorder=2))
+    # TradingView XABCD stili: iki üçgen (X-A-B) ve (B-C-D'projeksiyon)
+    tum = list(pts) + [(xD, oh.D)]
+    if len(tum) >= 5:
+        for ucgen in (tum[0:3], tum[2:5]):
+            ax.add_patch(Polygon(ucgen, closed=True, facecolor="#f23645",
+                                 alpha=0.11, edgecolor="none", zorder=2))
     # PRZ kutusu (projeksiyon belirsizliği) + D işareti
     ax.add_patch(Rectangle((xD - bar_w * 2, oh.prz_alt), bar_w * 5,
                            oh.prz_ust - oh.prz_alt, facecolor="#f23645",
