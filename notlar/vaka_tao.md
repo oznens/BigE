@@ -62,7 +62,8 @@ Bizim "ana hedef" mantığımızla uyumlu.
 ## Sistemimize yansıması (yapılacaklar)
 - [ ] **Mavi daire** = harmonik D ∩ en güçlü destek → `cakisma.py`'de özel "daire"
       işareti / en yüksek skor etiketi.
-- [ ] **Hacim filtresi**: destek bölgesine geliş hacmi yüksekse senaryoda
-      "kırılma riski — işlem alma" uyarısı.
+- [x] **Hacim filtresi**: destek bölgesine geliş hacmi ≥1.5× ortalama ise senaryoda
+      "KIRILMA RİSKİ — işlem alma, teyit bekle" uyarısı. (`senaryo.gelis_hacim_orani`,
+      `Senaryo.kirilma_riski`; yön "Tepki (kırılma riski)" olur.)
 - [ ] **Çoklu-bölge yol haritası**: aynı anda mor(short)/yeşil(long)/mavi(long)
       bölgelerini tek planda listele (HTF günlük).

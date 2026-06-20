@@ -8,7 +8,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.trend import trend_cizgisi_bul, kanal_bul, TrendCizgisi
-from miraz.senaryo import senaryo_uret, Senaryo
+from miraz.senaryo import senaryo_uret, Senaryo, gelis_hacim_orani
 
 
 def _df(closes, hacimler=None):
@@ -84,3 +84,32 @@ def test_senaryo_kritik_fitil_iliskisi():
     s = senaryo_uret(df, n=4, min_guc=40)
     if s.kritik_seviye is not None:
         assert s.fitil_seviye < s.kritik_seviye, "Fitil kritik seviyenin altında olmalı"
+
+
+def test_gelis_hacim_orani_artar():
+    """Son barlarda hacim patlarsa geliş hacim oranı >1 olmalı."""
+    closes = list(100 + np.zeros(80))
+    hacimler = [1.0] * 72 + [5.0] * 8     # son 8 barda hacim patlaması
+    df = _df(closes, hacimler)
+    oran = gelis_hacim_orani(df)
+    assert oran > 1.5, "Hacimli geliş yüksek oran vermeli"
+
+    sakin = _df(list(100 + np.zeros(80)), [1.0] * 80)
+    assert gelis_hacim_orani(sakin) == 1.0
+
+
+def test_kirilma_riski_hacimli_geliste():
+    """Destek bölgesine hacimli geliş kırılma riski işaretlemeli."""
+    # Destek oluşturan testere + son barlarda hacim patlaması
+    seviyeler, hacimler = [], []
+    for k in range(5):
+        seviyeler += list(np.linspace(110, 100, 8)); hacimler += [1.0] * 8
+        seviyeler += list(np.linspace(100, 110, 8)); hacimler += [1.0] * 8
+    # son inişte hacmi patlat
+    for i in range(1, 9):
+        hacimler[-i] = 6.0
+    df = _df(seviyeler, hacimler)
+    s = senaryo_uret(df, n=3, min_guc=0)
+    if s.destek_kutu is not None:
+        assert s.kirilma_riski, "Hacimli gelişte kırılma riski işaretlenmeli"
+        assert "kırılma" in s.yon.lower() or s.kirilma_riski

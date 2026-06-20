@@ -32,6 +32,27 @@ _FITIL_TOL = 0.015  # %1.5
 # Fiyatın bu kadar altındaki destekler tek "tepki bölgesi" sayılır
 _BOLGE_MENZIL = 0.06  # %6
 
+# Hacim filtresi: destek bölgesine geliş hacmi bu kattan fazlaysa kırılma riski
+_HACIM_ESIK = 1.5
+_HACIM_GELIS_N = 8     # son kaç bar "geliş" sayılır
+_HACIM_TABAN_N = 60    # uzun dönem hacim ortalaması penceresi
+
+
+def gelis_hacim_orani(df, gelis_n: int = _HACIM_GELIS_N,
+                      taban_n: int = _HACIM_TABAN_N) -> float:
+    """Fiyatın bölgeye gelişindeki hacmin uzun dönem ortalamaya oranı.
+
+    Son `gelis_n` barın ortalama hacmi / son `taban_n` barın ortalama hacmi.
+    >1 = normalden hacimli geliş (TAO'da yeşil kutuya hacimli geliş gibi).
+    """
+    vol = df["volume"]
+    if len(vol) < gelis_n + 1:
+        return 1.0
+    son = float(vol.iloc[-gelis_n:].mean())
+    taban = float(vol.iloc[-taban_n:].mean()) if len(vol) >= taban_n \
+        else float(vol.mean())
+    return son / taban if taban else 1.0
+
 
 @dataclass
 class Senaryo:
@@ -44,7 +65,9 @@ class Senaryo:
     kritik_seviye: float | None   # altında KAPANIŞ = iptal
     fitil_seviye: float | None    # bu seviyeye fitil senaryoyu bozmaz
     trend: TrendCizgisi | None    # sadece yükselen destek çizgisi
-    metin: str                    # okunabilir plan
+    gelis_hacim: float = 1.0      # bölgeye geliş hacim oranı
+    kirilma_riski: bool = False   # hacimli geliş → kırılma adayı, işlem alma
+    metin: str = ""               # okunabilir plan
 
 
 def senaryo_uret(
@@ -107,30 +130,43 @@ def senaryo_uret(
     if trend_cizgi is not None and trend_cizgi.yon != "Yükselen":
         trend_cizgi = None
 
+    # Hacim filtresi: bölgeye hacimli geliş = kırılma adayı (TAO yeşil kutu dersi)
+    hacim_orani = round(gelis_hacim_orani(df), 2)
+    kirilma_riski = (destek_kutu is not None and hacim_orani >= _HACIM_ESIK)
+
     # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
-    if destek_kutu is not None:
-        yon = "Yükseliş tepkisi"
-    else:
+    if destek_kutu is None:
         yon = "Nötr"
+    elif kirilma_riski:
+        yon = "Tepki (kırılma riski)"
+    else:
+        yon = "Yükseliş tepkisi"
 
     metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
-                        hedef_kutu, kritik, fitil, trend_cizgi)
+                        hedef_kutu, kritik, fitil, trend_cizgi,
+                        hacim_orani, kirilma_riski)
 
     return Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
         bolge_alt=bolge_alt, bolge_ust=bolge_ust,
         hedef_kutu=hedef_kutu, kritik_seviye=kritik, fitil_seviye=fitil,
-        trend=trend_cizgi, metin=metin)
+        trend=trend_cizgi, gelis_hacim=hacim_orani,
+        kirilma_riski=kirilma_riski, metin=metin)
 
 
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
-                kritik, fitil, trend) -> str:
+                kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False) -> str:
     sat = [f"Güncel fiyat: {fiyat:,.2f}", f"Senaryo: {yon}", ""]
 
     if destek is not None:
         sat.append(
             f"📍 Destek bölgesi: {bolge_alt:,.2f}–{bolge_ust:,.2f} "
             f"(en güçlü kutu {destek.renk}, güç {destek.guc:.0f})")
+        if kirilma_riski:
+            sat.append(
+                f"   ⚠️ Fiyat bu bölgeye HACİMLİ geliyor "
+                f"(geliş hacmi {hacim_orani:.1f}× ortalama) — KIRILMA RİSKİ. "
+                f"İşlem alma, önce bölgede dönüş/teyit bekle.")
         sat.append(
             f"   → {kritik:,.2f} altında KAPANIŞ yapılmadıkça bu bölgeden "
             f"tepki bekleniyor.")
@@ -196,6 +232,13 @@ def miraz_yorumu(symbol: str, s: Senaryo, vade: str = "Kısa vade") -> str:
                 f"Fitil ihtimalini de hesaba kattığımızda, "
                 f"{_tr_para(s.fitil_seviye)}$ bölgesine gelecek bir fitil "
                 f"senaryoyu bozmaz (kapanış kritik, fitil değil).")
+        if s.kirilma_riski:
+            sat.append("")
+            sat.append(
+                f"Ancak dikkat: fiyat bu bölgeye oldukça hacimli geliyor "
+                f"(geliş hacmi ~{s.gelis_hacim:.1f}× ortalama). Bu yüzden "
+                f"direkt işlem almıyorum; bölgede dönüş yapısı teyit edilmeden "
+                f"pozisyon açmam (hacimli geliş kırılma getirebilir).")
     else:
         sat.append("Fiyat net bir destek kutusunun dışında; "
                    "yeni bölge oluşana kadar temkinli takip ediyorum.")
