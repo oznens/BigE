@@ -127,6 +127,7 @@ def senaryo_uret(
     hedef_min_guc: float = 80.0,
     df_ust: pd.DataFrame | None = None,
     gguc: object = None,
+    r_dolar: float = 0.0,
 ) -> Senaryo:
     """Güncel piyasa yapısından koşullu bir plan üretir.
 
@@ -223,7 +224,7 @@ def senaryo_uret(
                         hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
                         ara_hedef, mtf, gguc, myapi, flama)
 
-    return Senaryo(
+    s = Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
         bolge_alt=bolge_alt, bolge_ust=bolge_ust,
         hedef_kutu=hedef_kutu, kritik_seviye=kritik, fitil_seviye=fitil,
@@ -232,6 +233,15 @@ def senaryo_uret(
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, metin=metin)
+
+    # R-bazlı risk planı (r_dolar verilmişse plana eklenir)
+    if r_dolar > 0:
+        from .risk import risk_plani
+        rp = risk_plani(s, r_dolar=r_dolar)
+        if rp is not None:
+            s.metin = s.metin + "\n\n" + rp.aciklama
+
+    return s
 
 
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,

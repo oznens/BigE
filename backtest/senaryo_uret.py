@@ -30,6 +30,8 @@ def main() -> None:
     ap.add_argument("--son-n", type=int, default=260,
                     help="Grafikte gösterilecek mum sayısı")
     ap.add_argument("--gun", type=int, default=500)
+    ap.add_argument("--r", type=float, default=0.0,
+                    help="1R dolar tutarı (>0 ise risk planı eklenir, ör. 25)")
     args = ap.parse_args()
 
     for sembol in args.sembol:
@@ -51,7 +53,8 @@ def main() -> None:
             from miraz import oran
             gguc = oran.goreceli_guc(sembol)
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
-                                min_guc=args.min_guc, df_ust=df_ust, gguc=gguc)
+                                min_guc=args.min_guc, df_ust=df_ust, gguc=gguc,
+                                r_dolar=args.r)
             sn.yazdir(sembol, tf, s, vade=args.vade)
 
             if args.grafik:
