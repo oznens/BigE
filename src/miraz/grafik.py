@@ -268,12 +268,15 @@ def senaryo_ciz(
                 zorder=5)
 
     # --- Yükselen trend çizgisi (ince siyah) ---
+    # Sadece çizginin kendi anchor barından itibaren çiz (geriye taşma yok).
     t = senaryo.trend
     if t is not None:
-        y_bas, y_son = t.deger(ofset), t.deger(tam_uzunluk - 1)
-        egim = (y_son - y_bas) / (x1 - x0) if x1 > x0 else 0
-        ax.plot([x0, x_sag], [y_bas, y_son + egim * (x_sag - x1)],
-                color="#131722", linewidth=1.1, linestyle="-", zorder=4)
+        basla = max(ofset, t.bar0)
+        gx0 = mdates.date2num(df.index[basla].to_pydatetime())
+        y0, y1 = t.deger(basla), t.deger(tam_uzunluk - 1)
+        egim = (y1 - y0) / (x1 - gx0) if x1 > gx0 else 0
+        ax.plot([gx0, x_sag], [y0, y1 + egim * (x_sag - x1)],
+                color="#131722", linewidth=1.2, linestyle="-", zorder=4)
 
     # --- Güncel fiyat etiketi (koyu) ---
     ax.axhline(senaryo.fiyat, color=_TV["fiyat_tag"], linewidth=0.7,

@@ -60,11 +60,14 @@ def senaryo_uret(
                               min_guc=min_guc)
     direncler = [k for k in kutular if k.tip == "Direnç"]
 
-    # Tepki bölgesi: fiyatın hemen altındaki/içindeki destekleri birleştir
+    # Tepki bölgesi: fiyatın hemen altındaki/içindeki destekleri birleştir.
+    # Kutu, [fiyat*(1-menzil), fiyat*1.005] aralığıyla ÖRTÜŞÜYORSA dahil edilir
+    # (dibi biraz taşsa bile üstü yakınsa bölgeye girer).
+    alt_sinir = fiyat * (1 - _BOLGE_MENZIL)
+    ust_sinir = fiyat * 1.005
     bolge_destekler = [
         k for k in kutular
-        if k.tip == "Destek" and k.alt <= fiyat * (1 + 0.005)
-        and k.alt >= fiyat * (1 - _BOLGE_MENZIL)
+        if k.tip == "Destek" and k.alt <= ust_sinir and k.ust >= alt_sinir
     ]
     destek_kutu = bolge_alt = bolge_ust = kritik = fitil = None
     if bolge_destekler:
@@ -77,8 +80,10 @@ def senaryo_uret(
     hedef_kutu = min((k for k in direncler if k.merkez > fiyat),
                      key=lambda k: k.merkez - fiyat, default=None)
 
-    # Sadece YÜKSELEN destek çizgisi anlamlı (trend devam formasyonu)
-    trend_cizgi = tr.trend_cizgisi_bul(df, "Destek", n=n)
+    # Trend devam formasyonu = yerel (son ~90 bar) yükselen destek çizgisi.
+    # Geniş pencere genel düşüş trendini yakalar; Miraz yerel çizgi çizer.
+    trend_cizgi = tr.trend_cizgisi_bul(df, "Destek", n=n, min_dokunus=2,
+                                       son_n=90)
     if trend_cizgi is not None and trend_cizgi.yon != "Yükselen":
         trend_cizgi = None
 
@@ -134,7 +139,68 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
     return "\n".join(sat)
 
 
-def yazdir(symbol: str, interval: str, s: Senaryo) -> None:
+# Coin sembol → Türkçe konuşma dilindeki ad
+_COIN_AD = {
+    "BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL",
+    "BNBUSDT": "BNB", "XRPUSDT": "XRP", "AVAXUSDT": "AVAX",
+}
+
+
+def _tr_para(v: float) -> str:
+    """1728.53 → '1.728,53' (Türkçe biçim, $ ile)."""
+    s = f"{v:,.2f}"
+    return s.replace(",", "§").replace(".", ",").replace("§", ".")
+
+
+def miraz_yorumu(symbol: str, s: Senaryo, vade: str = "Kısa vade") -> str:
+    """Senaryoyu @tradermiraz üslubunda düz metin (tweet) yorumuna çevirir."""
+    coin = _COIN_AD.get(symbol, symbol.replace("USDT", ""))
+    renk = s.destek_kutu.renk.lower() if s.destek_kutu else "destek"
+
+    sat = [f"{coin} | {vade} plan - Güncelleme", ""]
+
+    if s.destek_kutu is not None:
+        sat.append(
+            f"Fiyatın {renk} kutuya kadar geri çekilmesini bekliyorduk. "
+            f"Bu bölgede ({_tr_para(s.bolge_alt)}$ – {_tr_para(s.bolge_ust)}$) "
+            f"fiyatın dönüş yapısı oluşturabileceğini takip ediyoruz.")
+        sat.append("")
+        sat.append(
+            f"Bu bölgede aranacak dönüşlerin {_tr_para(s.kritik_seviye)}$ "
+            f"altında iptal olması gerekir.")
+        sat.append(
+            f"{_tr_para(s.kritik_seviye)}$ altında KAPANIŞ gelmediği sürece "
+            f"yükseliş senaryosunu koruyorum.")
+        if s.fitil_seviye is not None:
+            sat.append(
+                f"Fitil ihtimalini de hesaba kattığımızda, "
+                f"{_tr_para(s.fitil_seviye)}$ bölgesine gelecek bir fitil "
+                f"senaryoyu bozmaz (kapanış kritik, fitil değil).")
+    else:
+        sat.append("Fiyat net bir destek kutusunun dışında; "
+                   "yeni bölge oluşana kadar temkinli takip ediyorum.")
+
+    if s.hedef_kutu is not None:
+        sat.append("")
+        sat.append(
+            f"Tepki gelirse ilk hedef {_tr_para(s.hedef_kutu.alt)}$ – "
+            f"{_tr_para(s.hedef_kutu.ust)}$ ({s.hedef_kutu.renk.lower()} kutu) "
+            f"bölgesi olacaktır.")
+
+    if s.trend is not None:
+        sat.append(
+            f"Yükselen trend çizgisi ({_tr_para(s.trend.guncel_deger)}$) "
+            f"yapıyı destekliyor.")
+
+    return "\n".join(sat)
+
+
+def yazdir(symbol: str, interval: str, s: Senaryo,
+           yorum: bool = True, vade: str = "Kısa vade") -> None:
     print(f"\n{'='*64}\n{symbol} / {interval} — Senaryo Planı\n{'='*64}")
     print(s.metin)
     print("=" * 64)
+    if yorum:
+        print("\n--- @tradermiraz tarzı yorum ---\n")
+        print(miraz_yorumu(symbol, s, vade=vade))
+        print()

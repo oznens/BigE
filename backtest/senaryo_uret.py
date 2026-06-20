@@ -23,6 +23,8 @@ def main() -> None:
     ap.add_argument("--pivot-n", type=int, default=5)
     ap.add_argument("--tolerans", type=float, default=0.015)
     ap.add_argument("--min-guc", type=float, default=50.0)
+    ap.add_argument("--vade", default="Kısa vade",
+                    help="Yorumda kullanılacak vade (ör. 'Orta vade')")
     ap.add_argument("--grafik", action="store_true",
                     help="Senaryoyu PNG grafiğe de çiz")
     ap.add_argument("--son-n", type=int, default=260,
@@ -39,7 +41,7 @@ def main() -> None:
                 continue
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
                                 min_guc=args.min_guc)
-            sn.yazdir(sembol, tf, s)
+            sn.yazdir(sembol, tf, s, vade=args.vade)
 
             if args.grafik:
                 from miraz import grafik
