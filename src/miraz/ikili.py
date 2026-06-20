@@ -15,6 +15,8 @@ Kullanım:
 
 from __future__ import annotations
 
+from .bicim import f as _f
+
 from dataclasses import dataclass
 
 import pandas as pd
@@ -84,11 +86,11 @@ def ikili_bul(df: pd.DataFrame, n: int = 5,
 
 
 def _aciklama(tip, s1, s2, boyun, hedef, onayli, yon_soz) -> str:
-    durum = (f"boyun {boyun:,.2f} {yon_soz} KAPANIŞ ile ONAYLANDI"
+    durum = (f"boyun {_f(boyun)} {yon_soz} KAPANIŞ ile ONAYLANDI"
              if onayli else
-             f"boyun {boyun:,.2f} {yon_soz} kapanış bekleniyor (henüz onaysız)")
-    return (f"{tip} ({s1:,.2f} / {s2:,.2f}) — {durum}. "
-            f"Ölçülü hareket hedefi {hedef:,.2f}.")
+             f"boyun {_f(boyun)} {yon_soz} kapanış bekleniyor (henüz onaysız)")
+    return (f"{tip} ({_f(s1)} / {_f(s2)}) — {durum}. "
+            f"Ölçülü hareket hedefi {_f(hedef)}.")
 
 
 def metin(f: IkiliFormasyon | None) -> str:

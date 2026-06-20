@@ -55,8 +55,24 @@ _TR_AY = ["Oca", "Şub", "Mar", "Nis", "May", "Haz",
           "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
 
 
-def _tr_sayi(v: float, ondalik: int = 2) -> str:
-    """Türkçe sayı formatı: 1722.69 → '1.722,69'."""
+def _ondalik(v: float) -> int:
+    """Büyüklüğe göre ondalık hane sayısı (kuruş-altı coinlerde hassasiyet)."""
+    a = abs(v)
+    if a >= 1:
+        return 2
+    if a >= 0.1:
+        return 4
+    if a >= 0.01:
+        return 5
+    if a >= 0.0001:
+        return 6
+    return 8
+
+
+def _tr_sayi(v: float, ondalik: int | None = None) -> str:
+    """Türkçe sayı formatı: 1722.69 → '1.722,69'. ondalik=None → otomatik."""
+    if ondalik is None:
+        ondalik = _ondalik(v)
     s = f"{v:,.{ondalik}f}"
     return s.replace(",", "§").replace(".", ",").replace("§", ".")
 
@@ -246,7 +262,7 @@ def setup_ciz(
             if 0 <= yerel < len(x):
                 px.append(x[yerel]); py.append(fy)
                 ax.scatter(x[yerel], fy, s=45, color="black", zorder=5)
-                ax.annotate(f"{et}\n{fy:,.2f}", (x[yerel], fy),
+                ax.annotate(f"{et}\n{_tr_sayi(fy)}", (x[yerel], fy),
                             textcoords="offset points", xytext=(0, 10),
                             ha="center", fontsize=9, fontweight="bold")
         if len(px) >= 2:
@@ -263,7 +279,7 @@ def setup_ciz(
         ]:
             ax.axhline(seviye, color=renk, linewidth=1.0, linestyle=":",
                        alpha=0.8, zorder=3)
-            ax.text(x0, seviye, f"{etiket} {seviye:,.2f} ", va="center",
+            ax.text(x0, seviye, f"{etiket} {_tr_sayi(seviye)} ", va="center",
                     ha="right", fontsize=8, color=renk, fontweight="bold")
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
@@ -402,7 +418,7 @@ def senaryo_ciz(
             f"A{_tr_sayi(son['open'])}  Y{_tr_sayi(son['high'])}  "
             f"D{_tr_sayi(son['low'])}  K{_tr_sayi(son['close'])}   "
             f"{'+' if degisim>=0 else ''}{_tr_sayi(degisim)} "
-            f"({'+' if degisim>=0 else ''}{_tr_sayi(yuzde)}%)",
+            f"({'+' if degisim>=0 else ''}{_tr_sayi(yuzde, 2)}%)",
             transform=ax.transAxes, fontsize=8.5, color=fark_renk,
             va="top", ha="left")
     ax.text(1.0, 1.025, "USDT", transform=ax.transAxes, fontsize=8.5,

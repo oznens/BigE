@@ -260,7 +260,7 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
                 mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
                 mtf=None, gguc=None, myapi=None, flama=None, ikili=None) -> str:
-    sat = [f"Güncel fiyat: {fiyat:,.2f}", f"Senaryo: {yon}"]
+    sat = [f"Güncel fiyat: {_f(fiyat)}", f"Senaryo: {yon}"]
     if myapi is not None:
         from .yapi import metin as _yapi_metin
         sat.append(_yapi_metin(myapi))
@@ -282,11 +282,11 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
 
     if destek is not None:
         sat.append(
-            f"📍 Destek bölgesi: {bolge_alt:,.2f}–{bolge_ust:,.2f} "
+            f"📍 Destek bölgesi: {_f(bolge_alt)}–{_f(bolge_ust)} "
             f"(en güçlü kutu {destek.renk}, güç {destek.guc:.0f})")
         if mavi_daire is not None:
             sat.append(
-                f"   🔵 MAVİ DAİRE {mavi_daire:,.2f} — burada Bullish "
+                f"   🔵 MAVİ DAİRE {_f(mavi_daire)} — burada Bullish "
                 f"{mavi_daire_isim} harmonik D noktası tamamlanıyor "
                 f"(PRZ ∩ destek = EN YÜKSEK GÜVENLİ long girişi).")
         if kirilma_riski:
@@ -295,33 +295,33 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 f"(geliş hacmi {hacim_orani:.1f}× ortalama) — KIRILMA RİSKİ. "
                 f"İşlem alma, önce bölgede dönüş/teyit bekle.")
         sat.append(
-            f"   → {kritik:,.2f} altında KAPANIŞ yapılmadıkça bu bölgeden "
+            f"   → {_f(kritik)} altında KAPANIŞ yapılmadıkça bu bölgeden "
             f"tepki bekleniyor.")
         sat.append(
-            f"   → {fitil:,.2f} bölgesine gelecek FİTİL senaryoyu bozmaz "
+            f"   → {_f(fitil)} bölgesine gelecek FİTİL senaryoyu bozmaz "
             f"(kapanış kritik, fitil değil).")
     else:
         sat.append("📍 Yakında güçlü destek kutusu yok — temkinli ol.")
 
     if ara_hedef is not None:
         sat.append(
-            f"🟣 Mor çizgi (ilk kâr-alma): {ara_hedef:,.2f} — burada "
+            f"🟣 Mor çizgi (ilk kâr-alma): {_f(ara_hedef)} — burada "
             f"kademeli kâr al, kalanı ana hedefe taşı.")
 
     if hedef is not None:
         sat.append(
-            f"🎯 Ana hedef: {hedef.alt:,.2f}–{hedef.ust:,.2f} "
+            f"🎯 Ana hedef: {_f(hedef.alt)}–{_f(hedef.ust)} "
             f"({hedef.renk} direnç, güç {hedef.guc:.0f})")
 
     if trend is not None:
         sat.append(
-            f"📈 {trend.yon} trend çizgisi {trend.guncel_deger:,.2f} "
+            f"📈 {trend.yon} trend çizgisi {_f(trend.guncel_deger)} "
             f"seviyesinde ({trend.dokunus} dokunuş) — yapıyı destekliyor.")
 
     if kritik is not None:
         sat.append("")
         sat.append(
-            f"❌ İPTAL: {kritik:,.2f} altında KAPANIŞ → yükseliş senaryosu "
+            f"❌ İPTAL: {_f(kritik)} altında KAPANIŞ → yükseliş senaryosu "
             f"geçersiz, aşağı risk açılır.")
 
     return "\n".join(sat)
@@ -334,9 +334,28 @@ _COIN_AD = {
 }
 
 
+def _ondalik(v: float) -> int:
+    """Büyüklüğe göre ondalık hane (kuruş-altı coinlerde hassasiyet)."""
+    a = abs(v)
+    if a >= 1:
+        return 2
+    if a >= 0.1:
+        return 4
+    if a >= 0.01:
+        return 5
+    if a >= 0.0001:
+        return 6
+    return 8
+
+
+def _f(v: float) -> str:
+    """Plan metni için hassasiyet-duyarlı sayı (İngilizce ayraç)."""
+    return f"{v:,.{_ondalik(v)}f}"
+
+
 def _tr_para(v: float) -> str:
-    """1728.53 → '1.728,53' (Türkçe biçim, $ ile)."""
-    s = f"{v:,.2f}"
+    """1728.53 → '1.728,53' (Türkçe biçim). Küçük fiyatlarda hassasiyet artar."""
+    s = f"{v:,.{_ondalik(v)}f}"
     return s.replace(",", "§").replace(".", ",").replace("§", ".")
 
 

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .bicim import f as _f
 from .pivotlar import pivot_listesi
 
 
@@ -93,13 +94,13 @@ def _aciklama(durum, kirilim, son_h, son_l) -> str:
     }[durum]
     s = f"Market yapısı {yapi_txt}"
     if kirilim == "CHoCH-aşağı":
-        s += f" — yapı AŞAĞIYA döndü (CHoCH): {son_l:,.2f} altında kapanış."
+        s += f" — yapı AŞAĞIYA döndü (CHoCH): {_f(son_l)} altında kapanış."
     elif kirilim == "CHoCH-yukarı":
-        s += f" — yapı YUKARIYA döndü (CHoCH): {son_h:,.2f} üstünde kapanış."
+        s += f" — yapı YUKARIYA döndü (CHoCH): {_f(son_h)} üstünde kapanış."
     elif kirilim == "BOS-aşağı":
-        s += f" — düşüş yönünde kırılım (BOS): {son_l:,.2f} kırıldı."
+        s += f" — düşüş yönünde kırılım (BOS): {_f(son_l)} kırıldı."
     elif kirilim == "BOS-yukarı":
-        s += f" — yükseliş yönünde kırılım (BOS): {son_h:,.2f} kırıldı."
+        s += f" — yükseliş yönünde kırılım (BOS): {_f(son_h)} kırıldı."
     return s
 
 

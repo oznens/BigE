@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .bicim import f as _f
 from .trend import TrendCizgisi, trend_cizgisi_bul
 
 
@@ -87,10 +88,10 @@ def flama_bul(
     hedef_asagi = round(alt - yukseklik, 4)
 
     aciklama = (
-        f"Flama (yakınsayan üçgen): üst {ust:,.2f} ↘ / alt {alt:,.2f} ↗, "
+        f"Flama (yakınsayan üçgen): üst {_f(ust)} ↘ / alt {_f(alt)} ↗, "
         f"apekse ~{int(apeks - son_bar)} bar. "
-        f"Kırılımla ölçülü hareket ≈ {yukseklik:,.2f} "
-        f"(yukarı hedef {hedef_yukari:,.2f}, aşağı hedef {hedef_asagi:,.2f}).")
+        f"Kırılımla ölçülü hareket ≈ {_f(yukseklik)} "
+        f"(yukarı hedef {_f(hedef_yukari)}, aşağı hedef {_f(hedef_asagi)}).")
 
     return Flama(direnc=direnc, destek=destek, apeks_bar=int(round(apeks)),
                  daralma=daralma, yukseklik=yukseklik,

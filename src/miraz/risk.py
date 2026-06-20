@@ -22,6 +22,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+def _f(v: float) -> str:
+    """Fiyat için hassasiyet-duyarlı format (kuruş-altı coinler)."""
+    a = abs(v)
+    if a >= 1:
+        ond = 2
+    elif a >= 0.1:
+        ond = 4
+    elif a >= 0.01:
+        ond = 5
+    elif a >= 0.0001:
+        ond = 6
+    else:
+        ond = 8
+    return f"{v:,.{ond}f}"
+
+
 @dataclass
 class RiskPlan:
     yon: str                  # "Long" / "Short" / "Nötr"
@@ -138,12 +154,12 @@ def _aciklama(giris, stop, hedef, r_dolar, carpan, poz_dolar, poz_miktar,
               risk_yuzde, rr, poz_tipi, kar_al) -> str:
     sat = [
         f"💰 RİSK PLANI ({poz_tipi})",
-        f"   Giriş: {giris:,.2f}  |  Stop: {stop:,.2f} "
+        f"   Giriş: {_f(giris)}  |  Stop: {_f(stop)} "
         f"(kapanış bazlı, %{risk_yuzde:.2f})",
     ]
     if hedef is not None:
         rr_txt = f"  |  R/R: {rr:.2f}" if rr is not None else ""
-        sat.append(f"   Hedef: {hedef:,.2f}{rr_txt}")
+        sat.append(f"   Hedef: {_f(hedef)}{rr_txt}")
     sat.append(
         f"   1R = {r_dolar:.0f}$" + (" (½R uygulandı)" if carpan < 1 else "") +
         f"  →  pozisyon ≈ {poz_dolar:,.2f}$ ({poz_miktar:g} adet)")
@@ -268,12 +284,12 @@ def _kademe_aciklama(kademeler, ort_giris, stop, hedef, toplam, r_dolar,
            + (", ½R" if r_carpan < 1 else "") + ")"]
     for kd in kademeler:
         sat.append(
-            f"   {kd.no}. kademe {kd.seviye:,.2f}  "
+            f"   {kd.no}. kademe {_f(kd.seviye)}  "
             f"(%{kd.agirlik*100:.0f} pay → {kd.poz_dolar:,.2f}$)")
     rr_txt = f"  |  R/R: {rr:.2f}" if rr is not None else ""
     sat.append(
-        f"   Ort. giriş {ort_giris:,.2f}  |  Stop {stop:,.2f}  |  "
+        f"   Ort. giriş {_f(ort_giris)}  |  Stop {_f(stop)}  |  "
         f"Toplam ≈ {toplam:,.2f}$ (risk {r_dolar*r_carpan:.0f}$){rr_txt}")
     if hedef is not None:
-        sat.append(f"   Hedef {hedef:,.2f} — kademeli kâr al, kalanı taşı.")
+        sat.append(f"   Hedef {_f(hedef)} — kademeli kâr al, kalanı taşı.")
     return "\n".join(sat)
