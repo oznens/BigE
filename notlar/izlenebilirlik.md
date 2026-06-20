@@ -27,6 +27,9 @@
 | Karar motoru (Trade/Watch/Skip + A-D kalite + güven) | `karar.py` | `test_karar.py` |
 | R-bazlı risk + kademeli giriş | `risk.py` | `test_risk.py` |
 | Fibonacci retracement / golden pocket (hoca @finansalTRader) | `fib.py` | `test_fib.py` |
+| İndikatörler RSI/EMA/SMA/MACD (hoca) | `indikator.py` | `test_indikator.py` |
+| RSI divergence / trend yorgunluğu (hoca) | `divergence.py` | `test_indikator.py` |
+| Elliott Wave itme/düzeltme (hoca) | `elliott.py` | `test_indikator.py` |
 | Göreceli güç: ALT/BTC, BTC/Altın, genel RASYO | `oran.py` | `test_oran.py` |
 | Çoklu-bölge yol haritası | `yol_haritasi.py` | `test_yol_haritasi.py` |
 | TradingView/Miraz tarzı grafik | `grafik.py` | `test_grafik.py` |
@@ -48,14 +51,14 @@
 | Temas davranışı istatistiği (0/1/2/3+ dokunuş) | ❌ beklemede | PriceActionLab "Temas Davranışı" paneli |
 | GAP bölgeleri (doldurulacak fiyat boşlukları) | ❌ beklemede | "potansiyel GAP" — CME GAP ile birlikte |
 
-## Hoca @finansalTRader — indikatör-bazlı araçlar (felsefeye göre opsiyonel)
-| Kavram | Durum | Not |
+## Hoca @finansalTRader — indikatör-bazlı araçlar
+| Kavram | Durum | Modül / Not |
 |---|---|---|
-| RSI + divergence (trend yorgunluğu) | ❌ beklemede | indikatör; mekanikleştirilebilir |
-| Elliott Wave (itme/düzeltme/ABC) | ❌ beklemede | karmaşık |
-| EMA / SMA / MACD | ❌ beklemede | hareketli ortalama indikatörleri |
-| DXY / VIX makro | ❌ beklemede | dominance ile birlikte |
-| Wedge (takoz) | ❌ beklemede | flama'nın yönlü varyantı |
+| RSI / EMA / SMA / MACD | ✅ uygulandı | `indikator.py` |
+| RSI divergence (trend yorgunluğu) | ✅ uygulandı | `divergence.py` (karar motoruna da bağlı) |
+| Elliott Wave (itme 1-5 / düzeltme ABC) | ✅ uygulandı | `elliott.py` |
+| Wedge (takoz) | 🟡 kısmen | flama'nın yönlü varyantı; ayrı eklenebilir |
+| DXY / VIX makro | ❌ veri-kısıtlı | Binance.US yalnızca kripto; DXY/VIX dış TradFi verisi gerekiyor |
 
 ## Notlar
 - 8 vaka çalışması: TAO, Gümüş, ETH/BTC, BTC/Altın, MSTR, Altın/Gümüş, Arşiv,

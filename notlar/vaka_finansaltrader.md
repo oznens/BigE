@@ -42,16 +42,25 @@ Hocanın en sık ve en saf fiyat-bazlı aracı:
   `Senaryo.fib` alanı.
 - Canlı: BTC/ETH/SOL 4h'de golden pocket direnç bölgeleri tespit edildi.
 
-## Beklemedeki hoca-spesifik kavramlar (not)
-- [ ] **RSI + divergence** (trend yorgunluğu): fiyat HH ama RSI LH = bearish
-      uyumsuzluk. İndikatör gerektirir — Miraz felsefesinden sapma, ama hoca
-      kaynaklı meşru ek. Mekanikleştirilebilir.
-- [ ] **Elliott Wave** (itme/düzeltme, ABC, dalga yapıları): daha karmaşık.
-- [ ] **Hareketli ortalamalar** (EMA/SMA) ve **MACD**.
-- [ ] **DXY / VIX makro** filtreleri (dominance ile birlikte).
-- [ ] Wedge (takoz) — flama'nın yönlü varyantı.
+## İkinci tur: hoca araçlarının tamamı eklendi ✅
+- [x] **İndikatörler** (`indikator.py`): RSI (Wilder), EMA, SMA, MACD —
+      yalnızca OHLC'den hesaplanır.
+- [x] **RSI divergence** (`divergence.py`): fiyat HH + RSI LH = bearish
+      (trend yorgunluğu); fiyat LL + RSI HL = bullish. Karar motoruna da
+      bağlandı (bearish −10, bullish +8 güven).
+- [x] **Elliott Wave** (`elliott.py`): 5'li itme (1-2-3-4-5, klasik kurallar)
+      veya 3'lü ABC düzeltme etiketlemesi.
+- [x] Senaryoya entegre: plan metnine 📉/📈 divergence ve 🌊 Elliott satırları.
+- [ ] **DXY / VIX makro**: Binance.US yalnızca kripto sunar; bu TradFi
+      endeksleri için dış veri kaynağı gerekiyor → **veri-kısıtlı**, ertelendi.
+- [ ] Wedge (takoz): flama'nın yönlü varyantı, opsiyonel.
 
-> Hoca @finansalTRader incelendi. En değerli saf-fiyat aracı (Fibonacci
-> Retracement / golden pocket) sisteme eklendi. İndikatör-bazlı araçlar
-> (RSI divergence, Elliott, EMA) beklemede — sistemin felsefi yönüne göre
-> opsiyonel. 79/79 test geçiyor.
+### Felsefi not
+Miraz indikatörsüz çalışır; bu araçlar **hoca kaynaklı** ve opsiyonel bir
+katmandır. Senaryo planında ayrı satırlar olarak görünür; çekirdek Price
+Action kararını (mavi daire, kutu, market yapısı) ezmez, yalnızca teyit/uyarı
+katkısı yapar.
+
+> Hoca @finansalTRader tamamen incelendi ve **tüm mekanikleştirilebilir
+> araçları** (Fibonacci, RSI, divergence, Elliott, EMA/MACD) sisteme eklendi.
+> Yalnızca DXY/VIX veri-kısıtlı olduğu için ertelendi. 87/87 test geçiyor.

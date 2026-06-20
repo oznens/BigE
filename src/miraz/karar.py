@@ -98,6 +98,14 @@ def karar_uret(senaryo, rr: float | None = None) -> KararSonuc:
         elif ik.tip == "Çift Tepe" and ik.onayli:
             guven -= 12; ger.append("Onaylı çift tepe — long aleyhine (−12)")
 
+    # RSI divergence (hoca dersi — trend yorgunluğu)
+    dv = getattr(senaryo, "divergence", None)
+    if dv is not None:
+        if dv.tip == "Bullish":
+            guven += 8; ger.append("Bullish divergence — long lehine (+8)")
+        elif dv.tip == "Bearish":
+            guven -= 10; ger.append("Bearish divergence — long aleyhine (−10)")
+
     # Risk/Ödül
     if rr is not None:
         if rr >= 2.0:
