@@ -11,10 +11,9 @@ import requests
 BASE = "https://api.binance.us/api/v3/klines"
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
-# Veri kaynakları sırayla denenir: Binance.US başarısız/eksikse MEXC'e düşer.
-# MEXC saatlik için "60m" kullanır (Binance "1h"); interval_map bunu eşler.
+# Tek veri kaynağı: MEXC (kullanıcı tercihi). MEXC saatlik için "60m" kullanır
+# (Binance "1h"); interval_map bunu eşler. Gerekirse listeye yeni borsa eklenir.
 _BORSALAR = [
-    ("binance.us", "https://api.binance.us/api/v3/klines", {}),
     ("mexc", "https://api.mexc.com/api/v3/klines", {"1h": "60m"}),
 ]
 
@@ -40,8 +39,10 @@ def _borsadan_cek(base: str, symbol: str, interval: str, start_ms: int,
         if not chunk:
             break
         parcalar.extend(chunk)
-        son = chunk[-1][6] + 1
-        if son <= imlec or len(chunk) < 1000:
+        son = chunk[-1][6] + 1          # son barın close_time + 1
+        # MEXC istek başına en çok 500 bar döndürür; bu yüzden chunk<1000 ile
+        # kesmeyiz — close_time'ı ilerletip end_ms'e kadar sayfalamaya devam.
+        if son <= imlec:
             break
         imlec = son
         time.sleep(0.2)
