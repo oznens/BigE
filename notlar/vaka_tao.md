@@ -65,5 +65,8 @@ Bizim "ana hedef" mantığımızla uyumlu.
 - [x] **Hacim filtresi**: destek bölgesine geliş hacmi ≥1.5× ortalama ise senaryoda
       "KIRILMA RİSKİ — işlem alma, teyit bekle" uyarısı. (`senaryo.gelis_hacim_orani`,
       `Senaryo.kirilma_riski`; yön "Tepki (kırılma riski)" olur.)
-- [ ] **Çoklu-bölge yol haritası**: aynı anda mor(short)/yeşil(long)/mavi(long)
-      bölgelerini tek planda listele (HTF günlük).
+- [x] **Çoklu-bölge yol haritası**: `yol_haritasi.py` — tüm bölgeleri yönlü
+      rolleriyle (üst=short, alt=long) tek planda listeler + TAO tarzı grafik.
+      CLI: `backtest/yol_haritasi.py`.
+
+> TAO vakasının TÜM dersleri sisteme yansıtıldı. ✅
