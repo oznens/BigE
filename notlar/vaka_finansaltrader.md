@@ -64,3 +64,32 @@ katkısı yapar.
 > Hoca @finansalTRader tamamen incelendi ve **tüm mekanikleştirilebilir
 > araçları** (Fibonacci, RSI, divergence, Elliott, EMA/MACD) sisteme eklendi.
 > Yalnızca DXY/VIX veri-kısıtlı olduğu için ertelendi. 87/87 test geçiyor.
+
+---
+
+## Grafik (görsel) incelemesi — "bitti mi" doğrulaması
+
+824 tweet'in metni madenlendikten sonra, grafiklerden de tarih/kavram
+çeşitliliğine göre temsili örneklem incelendi:
+
+| Grafik | Gözlem | Sonuç |
+|---|---|---|
+| BTC Fib (8 May) | "Fibo Retr.. 0,618" etiketi 81.779'da kırmızı kutu | `fib.py` ✅ birebir |
+| LONG SETUP eğitim (28 Mar) | **"PRZ İşlem giriş Bölgesi = Fibo Retr 0.618–0.786"** + Elliott + trend kırılımı + ölçülü hedef | `fib.py`+`elliott.py` ✅ |
+| XU100 (22 Nis) | **"Sol Omuz / Baş / Sağ Omuz" + "TOBO oluşumu"** | 🔨 `obo.py` eklendi |
+
+### Son eklenen: OBO/TOBO (`obo.py`)
+Hocanın grafiğinde açıkça etiketlenen omuz-baş-omuz formasyonu:
+- OBO (H-L-H-L-H, baş en yüksek, omuzlar benzer) → boyun altı kapanışla bearish
+- TOBO (ters) → boyun üstü kapanışla bullish; ölçülü hareket hedefi
+- Canlı: ETH 1d OBO, SOL 1d TOBO tespit edildi.
+
+### Veri kaynağı genişletildi: MEXC
+`veri.py` artık Binance.US başarısız/eksikse **MEXC**'e düşüyor (1h→60m
+eşlemesi, 8/12 kolon farkı yönetiliyor) — çok daha geniş altcoin kapsamı.
+
+> **"Bitti mi?"** → Hocanın erişilebilir 824 tweet'inin metni + temsili
+> grafikleri incelendi; çıkan tüm mekanikleştirilebilir kavramlar (Fib, RSI,
+> divergence, Elliott, OBO/TOBO) sisteme eklendi. Tüm 21.598 tweet'in tamamı
+> X API geçmiş sınırı (~son 800-3200) yüzünden çekilemez; erişilebilen kısım
+> ve görsel söz dağarcığı tamamlandı. Kalan: DXY/VIX (veri-kısıtlı). 91/91 test.

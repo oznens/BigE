@@ -118,6 +118,7 @@ class Senaryo:
     fib: object = None                    # Fibonacci retracement (FibRetr) — hoca tarzı
     divergence: object = None             # RSI divergence (Divergence) — hoca tarzı
     elliott: object = None                # Elliott dalga sayımı — hoca tarzı
+    obo: object = None                    # omuz-baş-omuz (OBO/TOBO) — hoca tarzı
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -230,6 +231,10 @@ def senaryo_uret(
     divg = _div_bul(df, n=n)
     elliott = _ell_bul(df, n=n)
 
+    # OBO/TOBO omuz-baş-omuz (hoca @finansalTRader dersi — "TOBO oluşumu")
+    from .obo import obo_bul as _obo_bul
+    obo = _obo_bul(df, n=n)
+
     # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
     if destek_kutu is None:
         yon = "Nötr"
@@ -242,7 +247,7 @@ def senaryo_uret(
                         hedef_kutu, kritik, fitil, trend_cizgi,
                         hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
                         ara_hedef, mtf, gguc, myapi, flama, ikili, fib,
-                        divg, elliott)
+                        divg, elliott, obo)
 
     s = Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
@@ -253,7 +258,7 @@ def senaryo_uret(
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
-        divergence=divg, elliott=elliott, metin=metin)
+        divergence=divg, elliott=elliott, obo=obo, metin=metin)
 
     # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
     from .karar import karar_uret
@@ -275,7 +280,7 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
                 mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
                 mtf=None, gguc=None, myapi=None, flama=None, ikili=None,
-                fib=None, divg=None, elliott=None) -> str:
+                fib=None, divg=None, elliott=None, obo=None) -> str:
     sat = [f"Güncel fiyat: {_f(fiyat)}", f"Senaryo: {yon}"]
     if myapi is not None:
         from .yapi import metin as _yapi_metin
@@ -295,6 +300,9 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
     if elliott is not None:
         from .elliott import metin as _ell_metin
         sat.append(_ell_metin(elliott))
+    if obo is not None:
+        from .obo import metin as _obo_metin
+        sat.append(_obo_metin(obo))
     if mtf is not None:
         ikon = {"problemli": "⚠️", "sağlıklı": "✅", "nötr": "•"}.get(mtf, "•")
         sat.append(f"{ikon} Üst zaman dilimi yapısı: {mtf.upper()}" +

@@ -30,6 +30,7 @@
 | İndikatörler RSI/EMA/SMA/MACD (hoca) | `indikator.py` | `test_indikator.py` |
 | RSI divergence / trend yorgunluğu (hoca) | `divergence.py` | `test_indikator.py` |
 | Elliott Wave itme/düzeltme (hoca) | `elliott.py` | `test_indikator.py` |
+| OBO / TOBO (omuz-baş-omuz / H&S) (hoca) | `obo.py` | `test_obo.py` |
 | Göreceli güç: ALT/BTC, BTC/Altın, genel RASYO | `oran.py` | `test_oran.py` |
 | Çoklu-bölge yol haritası | `yol_haritasi.py` | `test_yol_haritasi.py` |
 | TradingView/Miraz tarzı grafik | `grafik.py` | `test_grafik.py` |
@@ -42,7 +43,8 @@
 | **R-bazlı risk / pozisyon boyutlama** | 🔨 bu turda eklendi → `risk.py` | risk.md'deki ½R, RR, pozisyon tipleri |
 | USDT/USDC Dominance barometresi | ❌ beklemede | Binance.US'ta dom. serisi gerekiyor (dış veri); arşivde 139 kez geçiyor |
 | CME GAP kuralı | ❌ beklemede | Hafta sonu GAP tespiti (BTC) — mekanikleştirilebilir |
-| OBO / TOBO (omuz-baş-omuz) | ❌ beklemede | Arşivde geçiyor ("OBO yaptığını belirtmiştim"); çift tepe/dip'e benzer, eklenebilir |
+| OBO / TOBO (omuz-baş-omuz) | ✅ uygulandı | `obo.py` (hoca grafiğinde "Sol Omuz/Baş/Sağ Omuz" doğrulandı) |
+| Veri kaynağı: MEXC (fallback) | ✅ uygulandı | `veri.py` — Binance.US → MEXC; 1h→60m eşlemesi, daha çok altcoin |
 | Kademeli giriş (kademe kademe alım) | 🟡 kısmen | risk.py tek giriş veriyor; "birinci/ikinci kademe" çoklu giriş eklenebilir |
 | Likidite süpürme (sweep) | 🟡 kısmen | fitil toleransı var; açık sweep tespiti yok |
 | Eski destek → yeni direnç (flip) | 🟡 kısmen | kutu tipi var; otomatik flip etiketi yok |
