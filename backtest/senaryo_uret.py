@@ -23,6 +23,10 @@ def main() -> None:
     ap.add_argument("--pivot-n", type=int, default=5)
     ap.add_argument("--tolerans", type=float, default=0.015)
     ap.add_argument("--min-guc", type=float, default=50.0)
+    ap.add_argument("--grafik", action="store_true",
+                    help="Senaryoyu PNG grafiğe de çiz")
+    ap.add_argument("--son-n", type=int, default=260,
+                    help="Grafikte gösterilecek mum sayısı")
     ap.add_argument("--gun", type=int, default=500)
     args = ap.parse_args()
 
@@ -36,6 +40,14 @@ def main() -> None:
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
                                 min_guc=args.min_guc)
             sn.yazdir(sembol, tf, s)
+
+            if args.grafik:
+                from miraz import grafik
+                cikti = Path("data/grafikler") / f"{sembol}_{tf}_senaryo.png"
+                yol = grafik.senaryo_ciz(
+                    df, s, dosya=cikti, son_n=args.son_n,
+                    baslik=f"{sembol} / {tf} — Senaryo: {s.yon}")
+                print(f"✅ Grafik: {yol}")
 
 
 if __name__ == "__main__":
