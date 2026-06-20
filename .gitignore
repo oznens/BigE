@@ -1,6 +1,7 @@
 data/*.parquet
 data/*.csv
 data/grafikler/
+data/miraz_tweet/
 __pycache__/
 *.py[cod]
 *.egg-info/
