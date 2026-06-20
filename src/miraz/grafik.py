@@ -86,6 +86,44 @@ def _fiyat_etiketi(ax, y: float, renk: str, metin: str | None = None,
         bbox=dict(boxstyle="square,pad=0.3", fc=renk, ec="none"))
 
 
+def _harmonik_ciz(ax, df, pattern, ofset, x):
+    """Harmonik XABCD'yi TAO tarzı kırmızı gölgeli polygon olarak çizer."""
+    import numpy as np
+    from matplotlib.patches import Polygon
+    idxler = [pattern.X_idx, pattern.A_idx, pattern.B_idx,
+              pattern.C_idx, pattern.D_idx]
+    fiyatlar = [pattern.X, pattern.A, pattern.B, pattern.C, pattern.D]
+    pts = []
+    for gi, fy in zip(idxler, fiyatlar):
+        yerel = gi - ofset
+        if 0 <= yerel < len(x):
+            pts.append((x[yerel], fy))
+    if len(pts) < 4:
+        return
+    # Gölgeli polygon (XABCD zikzak alanı) — Miraz'ın kırmızı harmonik gölgesi
+    ax.add_patch(Polygon(pts, closed=True, facecolor="#f23645", alpha=0.16,
+                         edgecolor="#f23645", linewidth=1.0, zorder=2))
+    # X-A-B-C-D kırılım çizgisi
+    xs, ys = zip(*pts)
+    ax.plot(xs, ys, color="#f23645", linewidth=1.0, alpha=0.5, zorder=2)
+
+
+def _proje_oku_ciz(ax, x_bas, y_bas, x_son, y_son):
+    """TAO tarzı dalgalı (el çizimi) projeksiyon oku — sinüs + ok ucu."""
+    import numpy as np
+    t = np.linspace(0, 1, 80)
+    taban = y_bas + (y_son - y_bas) * t            # düz ilerleme
+    genlik = abs(y_son - y_bas) * 0.18 + (y_bas * 0.004)
+    dalga = genlik * np.sin(t * np.pi * 4)         # 2 tam salınım
+    xs = x_bas + (x_son - x_bas) * t
+    ys = taban + dalga
+    ax.plot(xs, ys, color="#131722", linewidth=1.4, alpha=0.85, zorder=7)
+    # ok ucu
+    ax.annotate("", xy=(xs[-1], ys[-1]), xytext=(xs[-3], ys[-3]),
+                arrowprops=dict(arrowstyle="-|>", color="#131722", lw=1.6),
+                zorder=7)
+
+
 def _mum_ciz_tv(ax, df: pd.DataFrame) -> None:
     """TradingView stili mum: yükselen siyah, düşen turuncu."""
     x = mdates.date2num(df.index.to_pydatetime())
@@ -367,6 +405,10 @@ def yol_haritasi_ciz(
     ax.set_facecolor(_TV["bg"])
     _mum_ciz_tv(ax, dfg)
 
+    # Kırmızı gölgeli harmonik patternler (TAO tarzı)
+    for p in (yh.patternler or []):
+        _harmonik_ciz(ax, df, p, ofset, x)
+
     for b in yh.bolgeler:
         if b.rol == "SHORT":
             fc, ec = _TV["direnc_fc"], _TV["direnc_ec"]
@@ -387,6 +429,11 @@ def yol_haritasi_ciz(
     ax.axhline(yh.fiyat, color=_TV["fiyat_tag"], linewidth=0.8,
                linestyle=(0, (1, 2)), alpha=0.75, zorder=4)
     _fiyat_etiketi(ax, yh.fiyat, _TV["fiyat_tag"])
+
+    # TAO tarzı dalgalı projeksiyon oku: güncel fiyattan hedefe doğru
+    if yh.hedef is not None:
+        _proje_oku_ciz(ax, x1 + bar_w * 3, yh.fiyat,
+                       x1 + bar_w * 22, yh.hedef)
 
     ax.set_xlim(x0 - bar_w, x_sag)
     ax.yaxis.tick_right()

@@ -46,6 +46,8 @@ class YolHaritasi:
     fiyat: float
     bolgeler: list[Bolge]   # fiyata göre azalan (üst→alt) sıralı
     metin: str
+    patternler: list = None  # grafikte gösterilecek harmonik patternler (HarmonikSonuc)
+    hedef: float | None = None  # projeksiyon oku hedefi (en yakın long üstü direnç)
 
 
 def yol_haritasi_uret(
@@ -95,9 +97,19 @@ def yol_haritasi_uret(
                      key=lambda b: b.guc, reverse=True)[:max_yon]
     secili = sorted(shortlar + longlar, key=lambda b: b.merkez, reverse=True)
 
+    # Grafikte gösterilecek harmonikler: en kaliteli, en yeni birkaç pattern
+    en_iyi_pat = sorted(patternler, key=lambda p: (p.kalite, p.D_idx),
+                        reverse=True)[:3]
+
+    # Projeksiyon oku hedefi: fiyatın üstündeki en yakın SHORT bölgesi
+    ust_shortlar = sorted([b for b in shortlar if b.merkez > fiyat],
+                          key=lambda b: b.merkez)
+    hedef = ust_shortlar[0].alt if ust_shortlar else None
+
     metin = _metin_uret(symbol, interval, fiyat, secili)
     return YolHaritasi(symbol=symbol, interval=interval, fiyat=fiyat,
-                       bolgeler=secili, metin=metin)
+                       bolgeler=secili, metin=metin, patternler=en_iyi_pat,
+                       hedef=hedef)
 
 
 def _metin_uret(symbol, interval, fiyat, bolgeler) -> str:
