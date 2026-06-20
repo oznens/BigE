@@ -1,0 +1,42 @@
+"""Güncel piyasa için Miraz tarzı senaryo planı üretir.
+
+Kullanım:
+    python backtest/senaryo_uret.py --sembol ETHUSDT --tf 4h
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from miraz import senaryo as sn
+from miraz import veri
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Senaryo planı üretici")
+    ap.add_argument("--sembol", nargs="+", default=["ETHUSDT"])
+    ap.add_argument("--tf", nargs="+", default=["4h"])
+    ap.add_argument("--pivot-n", type=int, default=5)
+    ap.add_argument("--tolerans", type=float, default=0.015)
+    ap.add_argument("--min-guc", type=float, default=50.0)
+    ap.add_argument("--gun", type=int, default=500)
+    args = ap.parse_args()
+
+    for sembol in args.sembol:
+        for tf in args.tf:
+            try:
+                df = veri.indir(sembol, tf, gun=args.gun)
+            except Exception as e:
+                print(f"  HATA {sembol}/{tf}: {e}")
+                continue
+            s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
+                                min_guc=args.min_guc)
+            sn.yazdir(sembol, tf, s)
+
+
+if __name__ == "__main__":
+    main()
