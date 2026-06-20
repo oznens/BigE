@@ -55,3 +55,32 @@ Klasik dönüş formasyonu, Miraz açıkça kullanıyor:
 
 > Tam arşiv tarandı; en değerli yeni mekanikleştirilebilir formasyon
 > (çift tepe/dip) sisteme yansıtıldı. ✅ 65/65 test geçiyor.
+
+---
+
+## Grafik (görsel) incelemesi
+
+Metin madenciliğine ek olarak, arşivdeki **1.344 grafik** içinden tarih ve
+varlık çeşitliliğine göre temsili bir örneklem (16 grafik) indirilip görsel
+olarak incelendi (medya URL'leri tweet verisinde; ekstra API maliyeti yok).
+
+### Doğrulanan görsel kavramlar (sistemde mevcut)
+| Grafik | Gözlem | Modül |
+|---|---|---|
+| BTC çift tepe (28 Nis) | "Çift tepe" kutusu + "Trend kırılımı" boyun + ölçülü düşüş | `ikili.py` ✅ birebir |
+| Spot Altın üçgen (27 Kas) | İki kesikli diagonal apekse yakınsıyor | `flama.py` ✅ |
+| ETH Dominance (1 Mar) | "Diagonal" düşen kanal + harmonik D + kutular | `flama.py`/`kutular.py` ✅ |
+| BTC/Gold OBO (15 Eki) | Harmonik + kutu + daire projeksiyon | `harmonik.py`/`grafik.py` ✅ |
+| Altın (3 Mar) | Bullish harmonik + "Fraktal tepesi!" + projeksiyon oku | mevcut ✅ |
+
+### Yeni görsel öğeler (niş — uygulanmadı)
+- **Divergence + momentum osilatörü**: yalnızca **Dominance** (USDT/ETH dom.)
+  makro grafiğinde görüldü; fiyat-aksiyon setuplarında yok. "İndikatör
+  kullanmıyorum" ilkesine makroya özel istisna. → dominance entegre edilirse
+  birlikte değerlendirilebilir.
+- **"2-618 Stratejisi"**: Fibonacci 2.618 uzantı seviyesine dayalı isimli
+  strateji (g05/g13'te etiket). Tekil hedef seviyesi olarak eklenebilir.
+
+> Sonuç: Görsel söz dağarcığı sistemde mevcut. `ikili.py` ve `flama.py`,
+> Miraz'ın gerçek grafik etiketleriyle ("Çift tepe", "Trend kırılımı",
+> "Diagonal") birebir örtüşüyor. Eksik kalan öğeler makro/niş.
