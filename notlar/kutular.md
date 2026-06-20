@@ -45,3 +45,22 @@ Her rengin farklı bir anlamı var.
 3. Kapanış önemli — "X$ altında KAPANIŞ" kriteri vardır (fitil yetmez)
 4. Bölge kaybedilince direnç görevi görür (eski destek → yeni direnç)
 5. Alt zaman diliminde dönüş yapısı görülmeden büyük pozisyon alınmaz
+
+## Otomatik Tespit (src/miraz/kutular.py)
+Elle çizilen kutuları mekanikleştirmek için:
+1. **Pivot kümeleme**: swing high/low pivotları fiyat bandına göre (%1.5 tol.)
+   gruplanır; ≥2 pivotun değdiği band = aday bölge.
+2. **Güç puanı (0–100)**: dokunuş sayısı (%50) + tazelik (%25) + bölge hacmi
+   (%25). Çok dokunulan + taze + hacimli bölge = güçlü.
+3. **Renge çevirme** (mevcut fiyata göre):
+   - Fiyatın altı, güç≥65 → 🔵 Mavi | 45–65 → 🟢 Yeşil | <45 → 🟠 Turuncu
+   - Fiyatın altı, >%25 uzak + güçlü → 🔴 Kırmızı (uzun vade dip)
+   - Fiyatın üstü, ≤%25 + güç≥55 → 🟣 Mor (kar alma) | <55 → 🟠 Turuncu
+   - Fiyatın üstü, >%25 uzak → 🔴 Kırmızı
+4. **Mesafe filtresi**: ±%35'ten uzak bölgeler elenir (işlem yapılabilir
+   bölgelere odak). Çıktı fiyata yakınlığa göre sıralanır.
+
+> Uyarı: orijinal kutular elle çizildiğinden bu sınıflandırma sezgiseldir;
+> amaç tradermiraz mantığını otomatikleştirmek, birebir taklit değil.
+
+Çalıştırma: `python backtest/kutu_tara.py --sembol BTCUSDT --tf 4h --min-guc 50`
