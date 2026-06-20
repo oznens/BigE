@@ -278,6 +278,16 @@ def senaryo_ciz(
         ax.plot([gx0, x_sag], [y0, y1 + egim * (x_sag - x1)],
                 color="#131722", linewidth=1.2, linestyle="-", zorder=4)
 
+    # --- Mavi daire (harmonik D ∩ destek = en yüksek güvenli giriş) ---
+    if senaryo.mavi_daire is not None:
+        if senaryo.mavi_daire_idx is not None and senaryo.mavi_daire_idx >= ofset:
+            mx = mdates.date2num(df.index[senaryo.mavi_daire_idx].to_pydatetime())
+        else:
+            mx = x1
+        ax.scatter([mx], [senaryo.mavi_daire], s=520, facecolor="#26c6da",
+                   edgecolor="#0097a7", linewidth=1.6, alpha=0.65, zorder=6)
+        _fiyat_etiketi(ax, senaryo.mavi_daire, "#0097a7")
+
     # --- Güncel fiyat etiketi (koyu) ---
     ax.axhline(senaryo.fiyat, color=_TV["fiyat_tag"], linewidth=0.7,
                linestyle=(0, (1, 2)), alpha=0.7, zorder=4)

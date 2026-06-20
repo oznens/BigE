@@ -20,7 +20,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from . import harmonik as hrm
 from . import kutular as kt
+from . import pivotlar as pv
 from . import trend as tr
 from .kutular import Kutu
 from .trend import TrendCizgisi
@@ -54,6 +56,23 @@ def gelis_hacim_orani(df, gelis_n: int = _HACIM_GELIS_N,
     return son / taban if taban else 1.0
 
 
+def _mavi_daire_bul(df, n: int, bolge_alt: float, bolge_ust: float,
+                    min_kalite: float = 40.0):
+    """Destek bölgesinde tamamlanan bullish harmonik D = en yüksek güvenli giriş.
+
+    TAO'daki "mavi daire" kavramı: harmonik PRZ (D) ∩ en güçlü destek.
+    Döndürür: en kaliteli HarmonikSonuc veya None.
+    """
+    pivlar = pv.pivot_listesi(df, n=n)
+    patternler = hrm.tara(df, pivlar, min_kalite=min_kalite)
+    pay = max((bolge_ust - bolge_alt) * 0.5, bolge_alt * 0.01)
+    adaylar = [p for p in patternler if p.yon == "Bullish"
+               and (bolge_alt - pay) <= p.D <= (bolge_ust + pay)]
+    if not adaylar:
+        return None
+    return max(adaylar, key=lambda p: (p.kalite, p.D_idx))
+
+
 @dataclass
 class Senaryo:
     fiyat: float
@@ -67,6 +86,9 @@ class Senaryo:
     trend: TrendCizgisi | None    # sadece yükselen destek çizgisi
     gelis_hacim: float = 1.0      # bölgeye geliş hacim oranı
     kirilma_riski: bool = False   # hacimli geliş → kırılma adayı, işlem alma
+    mavi_daire: float | None = None       # harmonik D ∩ destek = en yüksek güven
+    mavi_daire_idx: int | None = None     # D barı (grafikte daire konumu)
+    mavi_daire_isim: str | None = None    # harmonik pattern adı
     metin: str = ""               # okunabilir plan
 
 
@@ -130,6 +152,15 @@ def senaryo_uret(
     if trend_cizgi is not None and trend_cizgi.yon != "Yükselen":
         trend_cizgi = None
 
+    # Mavi daire: destek bölgesinde tamamlanan bullish harmonik D = en yüksek güven
+    mavi_daire = mavi_daire_idx = mavi_daire_isim = None
+    if bolge_alt is not None:
+        md = _mavi_daire_bul(df, n, bolge_alt, bolge_ust)
+        if md is not None:
+            mavi_daire = round(md.D, 4)
+            mavi_daire_idx = md.D_idx
+            mavi_daire_isim = md.isim
+
     # Hacim filtresi: bölgeye hacimli geliş = kırılma adayı (TAO yeşil kutu dersi)
     hacim_orani = round(gelis_hacim_orani(df), 2)
     kirilma_riski = (destek_kutu is not None and hacim_orani >= _HACIM_ESIK)
@@ -144,24 +175,32 @@ def senaryo_uret(
 
     metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
                         hedef_kutu, kritik, fitil, trend_cizgi,
-                        hacim_orani, kirilma_riski)
+                        hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim)
 
     return Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
         bolge_alt=bolge_alt, bolge_ust=bolge_ust,
         hedef_kutu=hedef_kutu, kritik_seviye=kritik, fitil_seviye=fitil,
         trend=trend_cizgi, gelis_hacim=hacim_orani,
-        kirilma_riski=kirilma_riski, metin=metin)
+        kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
+        mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
+        metin=metin)
 
 
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
-                kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False) -> str:
+                kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
+                mavi_daire=None, mavi_daire_isim=None) -> str:
     sat = [f"Güncel fiyat: {fiyat:,.2f}", f"Senaryo: {yon}", ""]
 
     if destek is not None:
         sat.append(
             f"📍 Destek bölgesi: {bolge_alt:,.2f}–{bolge_ust:,.2f} "
             f"(en güçlü kutu {destek.renk}, güç {destek.guc:.0f})")
+        if mavi_daire is not None:
+            sat.append(
+                f"   🔵 MAVİ DAİRE {mavi_daire:,.2f} — burada Bullish "
+                f"{mavi_daire_isim} harmonik D noktası tamamlanıyor "
+                f"(PRZ ∩ destek = EN YÜKSEK GÜVENLİ long girişi).")
         if kirilma_riski:
             sat.append(
                 f"   ⚠️ Fiyat bu bölgeye HACİMLİ geliyor "
@@ -220,6 +259,12 @@ def miraz_yorumu(symbol: str, s: Senaryo, vade: str = "Kısa vade") -> str:
             f"Fiyatın {renk} kutuya kadar geri çekilmesini bekliyorduk. "
             f"Bu bölgede ({_tr_para(s.bolge_alt)}$ – {_tr_para(s.bolge_ust)}$) "
             f"fiyatın dönüş yapısı oluşturabileceğini takip ediyoruz.")
+        if s.mavi_daire is not None:
+            sat.append("")
+            sat.append(
+                f"Mavi daire ({_tr_para(s.mavi_daire)}$) bölgesinde Bullish "
+                f"{s.mavi_daire_isim} harmonik yapısı tamamlanıyor — burası en "
+                f"güvendiğim long girişi. Mavide alım düşünüyorum.")
         sat.append("")
         sat.append(
             f"Bu bölgede aranacak dönüşlerin {_tr_para(s.kritik_seviye)}$ "
