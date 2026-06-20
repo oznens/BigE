@@ -115,6 +115,7 @@ class Senaryo:
     market_yapisi: object = None          # bu TF market yapısı (MarketYapisi)
     flama: object = None                  # yakınsayan üçgen (Flama) veya None
     ikili: object = None                  # çift tepe/dip (IkiliFormasyon) veya None
+    fib: object = None                    # Fibonacci retracement (FibRetr) — hoca tarzı
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -217,6 +218,10 @@ def senaryo_uret(
     from .ikili import ikili_bul as _ikili_bul
     ikili = _ikili_bul(df, n=n)
 
+    # Fibonacci retracement (hoca @finansalTRader dersi — "Fib.Retr 0.618 bölgesi")
+    from .fib import fib_retracement as _fib_retr
+    fib = _fib_retr(df, n=n)
+
     # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
     if destek_kutu is None:
         yon = "Nötr"
@@ -228,7 +233,7 @@ def senaryo_uret(
     metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
                         hedef_kutu, kritik, fitil, trend_cizgi,
                         hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
-                        ara_hedef, mtf, gguc, myapi, flama, ikili)
+                        ara_hedef, mtf, gguc, myapi, flama, ikili, fib)
 
     s = Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
@@ -238,7 +243,7 @@ def senaryo_uret(
         kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
-        market_yapisi=myapi, flama=flama, ikili=ikili, metin=metin)
+        market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib, metin=metin)
 
     # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
     from .karar import karar_uret
@@ -259,7 +264,8 @@ def senaryo_uret(
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
                 mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
-                mtf=None, gguc=None, myapi=None, flama=None, ikili=None) -> str:
+                mtf=None, gguc=None, myapi=None, flama=None, ikili=None,
+                fib=None) -> str:
     sat = [f"Güncel fiyat: {_f(fiyat)}", f"Senaryo: {yon}"]
     if myapi is not None:
         from .yapi import metin as _yapi_metin
@@ -270,6 +276,9 @@ def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
     if ikili is not None:
         from .ikili import metin as _ikili_metin
         sat.append(_ikili_metin(ikili))
+    if fib is not None:
+        from .fib import metin as _fib_metin
+        sat.append(_fib_metin(fib))
     if mtf is not None:
         ikon = {"problemli": "⚠️", "sağlıklı": "✅", "nötr": "•"}.get(mtf, "•")
         sat.append(f"{ikon} Üst zaman dilimi yapısı: {mtf.upper()}" +

@@ -26,6 +26,7 @@
 | Çift Tepe / Çift Dip (boyun kırılımı + ölçülü hareket) | `ikili.py` | `test_ikili.py` |
 | Karar motoru (Trade/Watch/Skip + A-D kalite + güven) | `karar.py` | `test_karar.py` |
 | R-bazlı risk + kademeli giriş | `risk.py` | `test_risk.py` |
+| Fibonacci retracement / golden pocket (hoca @finansalTRader) | `fib.py` | `test_fib.py` |
 | Göreceli güç: ALT/BTC, BTC/Altın, genel RASYO | `oran.py` | `test_oran.py` |
 | Çoklu-bölge yol haritası | `yol_haritasi.py` | `test_yol_haritasi.py` |
 | TradingView/Miraz tarzı grafik | `grafik.py` | `test_grafik.py` |
@@ -47,7 +48,16 @@
 | Temas davranışı istatistiği (0/1/2/3+ dokunuş) | ❌ beklemede | PriceActionLab "Temas Davranışı" paneli |
 | GAP bölgeleri (doldurulacak fiyat boşlukları) | ❌ beklemede | "potansiyel GAP" — CME GAP ile birlikte |
 
+## Hoca @finansalTRader — indikatör-bazlı araçlar (felsefeye göre opsiyonel)
+| Kavram | Durum | Not |
+|---|---|---|
+| RSI + divergence (trend yorgunluğu) | ❌ beklemede | indikatör; mekanikleştirilebilir |
+| Elliott Wave (itme/düzeltme/ABC) | ❌ beklemede | karmaşık |
+| EMA / SMA / MACD | ❌ beklemede | hareketli ortalama indikatörleri |
+| DXY / VIX makro | ❌ beklemede | dominance ile birlikte |
+| Wedge (takoz) | ❌ beklemede | flama'nın yönlü varyantı |
+
 ## Notlar
-- 6 vaka çalışması: TAO, Gümüş, ETH/BTC, BTC/Altın, MSTR, Altın/Gümüş — her birinin
-  dersleri ilgili modüllere yansıtıldı (vaka dosyalarındaki "yapılacaklar" kutuları).
-- Bu matris her yeni floodda güncellenir.
+- 8 vaka çalışması: TAO, Gümüş, ETH/BTC, BTC/Altın, MSTR, Altın/Gümüş, Arşiv,
+  finansalTRader — her birinin dersleri ilgili modüllere yansıtıldı.
+- Bu matris her yeni floodda/kaynakta güncellenir.
