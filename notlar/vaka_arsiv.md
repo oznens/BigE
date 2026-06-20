@@ -84,3 +84,39 @@ olarak incelendi (medya URL'leri tweet verisinde; ekstra API maliyeti yok).
 > Sonuç: Görsel söz dağarcığı sistemde mevcut. `ikili.py` ve `flama.py`,
 > Miraz'ın gerçek grafik etiketleriyle ("Çift tepe", "Trend kırılımı",
 > "Diagonal") birebir örtüşüyor. Eksik kalan öğeler makro/niş.
+
+---
+
+## 🔑 BÜYÜK BULGU: PriceActionLab ekran görüntüsü (terminalMiraz mimarisi)
+
+Eğitici grafikleri incelerken (5 Nis) Miraz'ın **PriceActionLab** yazılımının
+ekran görüntüsü çıktı — bu projenin taklit ettiği hedef mimari:
+
+| Panel | İçerik |
+|---|---|
+| **Karar etiketi** | Trade / Watch / Skip (244 setup → 31/23/190) |
+| **Kalite notu** | A+ / A / B / C / D + confidence % |
+| **Ortalama RR** | 1.87 |
+| **Stop modeli** | Structural / Hybrid |
+| **TP modeli** | Reaction / Hybrid TP |
+| **Temas Davranışı** | 0/1/2/3+ dokunuş → Trade/Skip/TP% istatistiği |
+| **Cluster Hafızası** | benzer setup'ları gruplar, geçmişten öğrenir |
+| **Setup Intelligence** | güven, stop/TP önerisi, benzerlik %, örnek sayısı, "Learned Behavior" |
+
+### Bu turda uygulanan: Karar Motoru (`karar.py`)
+PriceActionLab'ın "Setup Intelligence" karar katmanı mekanikleştirildi:
+- `karar_uret(senaryo, rr)` → **Trade / Watch / Skip** + **A-D kalite** + **güven %**
+- Senaryodaki tüm sinyalleri (mavi daire, MTF, market yapısı, hacim riski, RR,
+  çift tepe/dip, trend, destek gücü) tek güven skoruna bağlar; gerekçe listesi.
+- Senaryoya entegre: plan başına "✅ KARAR: Trade | Kalite: A | Güven: %76".
+- Canlı: ETH 4h→Watch/C, SOL 4h→Trade/A, BTC 4h→Skip/D.
+
+### PriceActionLab'dan kalan beklemedeki katmanlar
+- [ ] **Cluster hafızası**: güncel setup'ı geçmiş benzer setup'larla karşılaştır
+- [ ] **Temas davranışı istatistiği**: bölge kaç kez dokunulmuş → TP/Skip oranı
+- [ ] **Backtest motoru**: geçmiş veride win-rate / RR ölçümü
+- [ ] **GAP bölgeleri** (e01'de "potansiyel GAP" etiketi)
+
+> "Eksik bir şey var mı?" → Evet: terminalMiraz'ın **karar/kalite motoru**
+> katmanı eksikti. İlk sürümü (`karar.py`) eklendi. Geriye **öğrenen katman**
+> (cluster + backtest) kaldı — projenin bir sonraki büyük adımı.

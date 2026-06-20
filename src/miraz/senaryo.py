@@ -115,6 +115,7 @@ class Senaryo:
     market_yapisi: object = None          # bu TF market yapısı (MarketYapisi)
     flama: object = None                  # yakınsayan üçgen (Flama) veya None
     ikili: object = None                  # çift tepe/dip (IkiliFormasyon) veya None
+    karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
 
@@ -239,12 +240,18 @@ def senaryo_uret(
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, metin=metin)
 
-    # R-bazlı risk planı (r_dolar verilmişse plana eklenir)
+    # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
+    from .karar import karar_uret
+    _rr = None
     if r_dolar > 0:
         from .risk import risk_plani
         rp = risk_plani(s, r_dolar=r_dolar)
         if rp is not None:
+            _rr = rp.rr_orani
             s.metin = s.metin + "\n\n" + rp.aciklama
+    k = karar_uret(s, rr=_rr)
+    s.karar = k
+    s.metin = k.metin + "\n" + s.metin
 
     return s
 

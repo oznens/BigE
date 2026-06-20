@@ -24,6 +24,8 @@
 | Market yapısı (HH/HL, BOS/CHoCH) | `yapi.py` | `test_yapi.py` |
 | Flama / diagonal (yakınsayan üçgen) | `flama.py` | `test_flama.py` |
 | Çift Tepe / Çift Dip (boyun kırılımı + ölçülü hareket) | `ikili.py` | `test_ikili.py` |
+| Karar motoru (Trade/Watch/Skip + A-D kalite + güven) | `karar.py` | `test_karar.py` |
+| R-bazlı risk + kademeli giriş | `risk.py` | `test_risk.py` |
 | Göreceli güç: ALT/BTC, BTC/Altın, genel RASYO | `oran.py` | `test_oran.py` |
 | Çoklu-bölge yol haritası | `yol_haritasi.py` | `test_yol_haritasi.py` |
 | TradingView/Miraz tarzı grafik | `grafik.py` | `test_grafik.py` |
@@ -41,6 +43,9 @@
 | Likidite süpürme (sweep) | 🟡 kısmen | fitil toleransı var; açık sweep tespiti yok |
 | Eski destek → yeni direnç (flip) | 🟡 kısmen | kutu tipi var; otomatik flip etiketi yok |
 | Backtest motoru (win-rate ölçümü) | ❌ beklemede | "next logical step" |
+| Cluster hafızası / benzerlik öğrenmesi | ❌ beklemede | PriceActionLab'da var: geçmiş benzer setup'larla karşılaştırma |
+| Temas davranışı istatistiği (0/1/2/3+ dokunuş) | ❌ beklemede | PriceActionLab "Temas Davranışı" paneli |
+| GAP bölgeleri (doldurulacak fiyat boşlukları) | ❌ beklemede | "potansiyel GAP" — CME GAP ile birlikte |
 
 ## Notlar
 - 6 vaka çalışması: TAO, Gümüş, ETH/BTC, BTC/Altın, MSTR, Altın/Gümüş — her birinin
