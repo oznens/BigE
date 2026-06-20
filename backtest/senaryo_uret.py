@@ -43,10 +43,17 @@ def main() -> None:
 
             if args.grafik:
                 from miraz import grafik
+                _ad = {"BTCUSDT": "Bitcoin / TetherUS",
+                       "ETHUSDT": "Ethereum / TetherUS",
+                       "SOLUSDT": "Solana / TetherUS"}.get(
+                           sembol, f"{sembol[:-4]} / TetherUS")
+                _tf = {"1h": "1sa", "4h": "4sa", "1d": "1g",
+                       "15m": "15dk"}.get(tf, tf)
                 cikti = Path("data/grafikler") / f"{sembol}_{tf}_senaryo.png"
                 yol = grafik.senaryo_ciz(
                     df, s, dosya=cikti, son_n=args.son_n,
-                    baslik=f"{sembol} / {tf} — Senaryo: {s.yon}")
+                    symbol=_ad, interval=_tf, borsa="Binance",
+                    baslik=f"miraz otomatik senaryo — {s.yon}")
                 print(f"✅ Grafik: {yol}")
 
 
