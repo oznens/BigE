@@ -53,11 +53,17 @@ def senaryo_uret(
     tolerans: float = 0.015,
     min_guc: float = 50.0,
     adaptif: bool = True,
+    hedef_min_mesafe: float = 6.0,
+    hedef_min_guc: float = 80.0,
 ) -> Senaryo:
     """Güncel piyasa yapısından koşullu bir plan üretir.
 
     adaptif=True ise kutu kümeleme toleransı ATR oynaklığına göre ayarlanır
     (Miraz'ın geniş bölgelerine daha yakın).
+
+    Hedef = "ana hedef" mantığı: yakın küçük dirençleri (engeller) atlayıp,
+    fiyattan ≥ hedef_min_mesafe % uzak VE güç ≥ hedef_min_guc olan ilk büyük
+    direnç bölgesini seçer. Miraz'ın kar-alma hedefiyle örtüşür.
     """
     fiyat = float(df["close"].iloc[-1])
 
@@ -84,8 +90,15 @@ def senaryo_uret(
         kritik = bolge_alt                          # bitişik zonun dibi
         fitil = round(kritik * (1 - _FITIL_TOL), 4)
 
-    hedef_kutu = min((k for k in direncler if k.merkez > fiyat),
-                     key=lambda k: k.merkez - fiyat, default=None)
+    # Ana hedef: yakın küçük dirençleri atla, ilk büyük güçlü zonu seç.
+    ust_direncler = sorted((k for k in direncler if k.merkez > fiyat),
+                           key=lambda k: k.merkez)
+    hedef_kutu = next(
+        (k for k in ust_direncler
+         if k.mesafe_yuzde >= hedef_min_mesafe and k.guc >= hedef_min_guc),
+        None)
+    if hedef_kutu is None:                 # uygun büyük zon yoksa en yakını
+        hedef_kutu = ust_direncler[0] if ust_direncler else None
 
     # Trend devam formasyonu = yerel (son ~90 bar) yükselen destek çizgisi.
     # Geniş pencere genel düşüş trendini yakalar; Miraz yerel çizgi çizer.
