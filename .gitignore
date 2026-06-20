@@ -1,22 +1,7 @@
-# Veri cache (büyük dosyalar)
 data/*.parquet
 data/*.csv
-
-# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.eggs/
-build/
-dist/
 .venv/
-venv/
-
-# Raporlar (üretilen)
-backtest/raporlar/*.csv
-backtest/raporlar/*.png
-
-# Editör
-.vscode/
-.idea/
-.DS_Store
+.pytest_cache/
