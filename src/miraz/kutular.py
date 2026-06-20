@@ -43,6 +43,35 @@ class Kutu:
 
 
 # ---------------------------------------------------------------------------
+# Adaptif tolerans (ATR tabanlı)
+# ---------------------------------------------------------------------------
+
+def atr_yuzde(df: pd.DataFrame, periyot: int = 14) -> float:
+    """ATR'yi fiyatın yüzdesi olarak döndürür (oynaklık ölçüsü).
+
+    Wilder ATR = True Range'in periyot ortalaması. Sonuç fiyata bölünür,
+    böylece kümeleme toleransı oynaklığa göre ölçeklenebilir.
+    """
+    h = df["high"]
+    l = df["low"]
+    onceki_c = df["close"].shift(1)
+    tr = pd.concat([h - l, (h - onceki_c).abs(), (l - onceki_c).abs()],
+                   axis=1).max(axis=1)
+    atr = tr.rolling(periyot).mean().iloc[-1]
+    fiyat = df["close"].iloc[-1]
+    if not fiyat or pd.isna(atr):
+        return 0.015
+    return float(atr / fiyat)
+
+
+def adaptif_tolerans(df: pd.DataFrame, carpan: float = 1.0,
+                     taban: float = 0.008, tavan: float = 0.035) -> float:
+    """ATR%'ye göre kümeleme toleransı (taban/tavan ile sınırlı)."""
+    deger = atr_yuzde(df) * carpan
+    return max(taban, min(tavan, deger))
+
+
+# ---------------------------------------------------------------------------
 # Kümeleme
 # ---------------------------------------------------------------------------
 
@@ -118,11 +147,13 @@ def _renk_ata(tip: str, guc: float, mesafe_yuzde: float) -> str:
 def kutulari_bul(
     df: pd.DataFrame,
     n: int = 5,
-    tolerans: float = 0.015,
+    tolerans: float | None = 0.015,
     min_dokunus: int = 2,
     min_guc: float = 0.0,
     mesafe_limit: float = 35.0,
     max_kutu: int | None = None,
+    adaptif: bool = False,
+    atr_carpan: float = 1.2,
 ) -> list[Kutu]:
     """OHLCV verisinden renkli destek/direnç kutularını çıkarır.
 
@@ -130,15 +161,22 @@ def kutulari_bul(
     ------------
     df           : open/high/low/close/volume kolonlu UTC indeksli DataFrame
     n            : swing pivot pencere boyutu
-    tolerans     : kümeleme fiyat toleransı (0.015 = %1.5 band)
+    tolerans     : kümeleme fiyat toleransı (0.015 = %1.5 band).
+                   adaptif=True ise yok sayılır, ATR'den hesaplanır.
     min_dokunus  : bir bölgenin geçerli olması için minimum pivot sayısı
     min_guc      : güç eşiği (altındakiler elenir)
     mesafe_limit : mevcut fiyattan bu %'den uzak bölgeler elenir
                    (işlem yapılabilir bölgelere odaklanmak için; None = sınırsız)
     max_kutu     : döndürülecek maksimum kutu sayısı (None = hepsi)
+    adaptif      : True ise tolerans ATR%'ye göre belirlenir (oynak piyasada
+                   daha geniş kutular — Miraz'ın el çizimi bölgelerine yakın)
+    atr_carpan   : adaptif toleransta ATR% çarpanı
 
     Döndürür: mevcut fiyata yakınlığa göre sıralı Kutu listesi (yakın → uzak).
     """
+    if adaptif or tolerans is None:
+        tolerans = adaptif_tolerans(df, carpan=atr_carpan)
+
     pivlar = pivot_listesi(df, n=n)
     if not pivlar:
         return []

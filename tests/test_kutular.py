@@ -7,7 +7,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.kutular import kutulari_bul, _kumeler, _renk_ata, _guc_puani
+from miraz.kutular import (
+    kutulari_bul, _kumeler, _renk_ata, _guc_puani,
+    atr_yuzde, adaptif_tolerans,
+)
 
 
 def _df(closes: list[float], hacimler: list[float] | None = None) -> pd.DataFrame:
@@ -75,3 +78,30 @@ def test_destek_direnc_tespiti():
 def test_bos_veri():
     df = _df([100, 101, 100])
     assert kutulari_bul(df, n=5) == []
+
+
+def test_atr_yuzde_oynaklikla_artar():
+    """Oynak seri daha yüksek ATR% vermeli."""
+    sakin = _df([100 + 0.1 * (i % 2) for i in range(60)])
+    oynak = _df([100 + 5 * (i % 2) for i in range(60)])
+    assert atr_yuzde(oynak) > atr_yuzde(sakin)
+    assert 0 < atr_yuzde(sakin) < 1
+
+
+def test_adaptif_tolerans_sinirlari():
+    """Adaptif tolerans taban/tavan içinde kalmalı."""
+    cok_oynak = _df([100 + 30 * (i % 2) for i in range(60)])
+    t = adaptif_tolerans(cok_oynak, carpan=1.2, taban=0.008, tavan=0.035)
+    assert 0.008 <= t <= 0.035
+
+
+def test_adaptif_kutu_uretir():
+    """adaptif=True ile kutu üretimi çalışmalı (tolerans None olsa bile)."""
+    seviyeler = []
+    for _ in range(4):
+        seviyeler += list(np.linspace(125, 100, 8))
+        seviyeler += list(np.linspace(100, 150, 8))
+        seviyeler += list(np.linspace(150, 125, 8))
+    df = _df(seviyeler)
+    kutular = kutulari_bul(df, n=3, tolerans=None, adaptif=True, min_dokunus=2)
+    assert isinstance(kutular, list)

@@ -52,29 +52,36 @@ def senaryo_uret(
     n: int = 5,
     tolerans: float = 0.015,
     min_guc: float = 50.0,
+    adaptif: bool = True,
 ) -> Senaryo:
-    """Güncel piyasa yapısından koşullu bir plan üretir."""
+    """Güncel piyasa yapısından koşullu bir plan üretir.
+
+    adaptif=True ise kutu kümeleme toleransı ATR oynaklığına göre ayarlanır
+    (Miraz'ın geniş bölgelerine daha yakın).
+    """
     fiyat = float(df["close"].iloc[-1])
 
     kutular = kt.kutulari_bul(df, n=n, tolerans=tolerans, mesafe_limit=30,
-                              min_guc=min_guc)
+                              min_guc=min_guc, adaptif=adaptif)
     direncler = [k for k in kutular if k.tip == "Direnç"]
+    destekler = [k for k in kutular if k.tip == "Destek"]
 
-    # Tepki bölgesi: fiyatın hemen altındaki/içindeki destekleri birleştir.
-    # Kutu, [fiyat*(1-menzil), fiyat*1.005] aralığıyla ÖRTÜŞÜYORSA dahil edilir
-    # (dibi biraz taşsa bile üstü yakınsa bölgeye girer).
+    # Tepki bölgesi: fiyatın hemen altındaki en GÜÇLÜ destek = birincil.
+    # Bölge, birincil kutuyla ÖRTÜŞEN (bitişik) kutularla genişletilir;
+    # uzaktaki zayıf kutular katılmaz (kritik seviye aşağı kaymasın).
     alt_sinir = fiyat * (1 - _BOLGE_MENZIL)
     ust_sinir = fiyat * 1.005
-    bolge_destekler = [
-        k for k in kutular
-        if k.tip == "Destek" and k.alt <= ust_sinir and k.ust >= alt_sinir
-    ]
+    yakin = [k for k in destekler if k.alt <= ust_sinir and k.ust >= alt_sinir]
+
     destek_kutu = bolge_alt = bolge_ust = kritik = fitil = None
-    if bolge_destekler:
-        bolge_alt = round(min(k.alt for k in bolge_destekler), 4)
-        bolge_ust = round(min(max(k.ust for k in bolge_destekler), fiyat), 4)
-        destek_kutu = min(bolge_destekler, key=lambda k: abs(k.merkez - fiyat))
-        kritik = bolge_alt                          # en alttaki destek dibi
+    if yakin:
+        birincil = max(yakin, key=lambda k: k.guc)
+        grup = [k for k in destekler
+                if k.alt <= birincil.ust and k.ust >= birincil.alt]
+        bolge_alt = round(min(k.alt for k in grup), 4)
+        bolge_ust = round(min(max(k.ust for k in grup), fiyat), 4)
+        destek_kutu = birincil
+        kritik = bolge_alt                          # bitişik zonun dibi
         fitil = round(kritik * (1 - _FITIL_TOL), 4)
 
     hedef_kutu = min((k for k in direncler if k.merkez > fiyat),
