@@ -147,19 +147,24 @@ def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
                 fontweight="bold", zorder=7)
 
 
-def _proje_oku_ciz(ax, x_bas, y_bas, x_son, y_son):
-    """TAO tarzı dalgalı (el çizimi) projeksiyon oku — sinüs + ok ucu."""
+def _proje_oku_ciz(ax, noktalar):
+    """TAO tarzı dalgalı projeksiyon oku — sıralı (x,y) noktalarından geçer,
+    ok ucu son segmentin yönünü (yukarı/aşağı) gösterir."""
     import numpy as np
-    t = np.linspace(0, 1, 80)
-    taban = y_bas + (y_son - y_bas) * t            # düz ilerleme
-    genlik = abs(y_son - y_bas) * 0.18 + (y_bas * 0.004)
-    dalga = genlik * np.sin(t * np.pi * 4)         # 2 tam salınım
-    xs = x_bas + (x_son - x_bas) * t
-    ys = taban + dalga
-    ax.plot(xs, ys, color="#131722", linewidth=1.4, alpha=0.85, zorder=7)
-    # ok ucu
-    ax.annotate("", xy=(xs[-1], ys[-1]), xytext=(xs[-3], ys[-3]),
-                arrowprops=dict(arrowstyle="-|>", color="#131722", lw=1.6),
+    xs_all, ys_all = [], []
+    for i in range(len(noktalar) - 1):
+        x0, y0 = noktalar[i]
+        x1, y1 = noktalar[i + 1]
+        t = np.linspace(0, 1, 45)
+        taban = y0 + (y1 - y0) * t
+        genlik = abs(y1 - y0) * 0.13 + abs(y0) * 0.003
+        dalga = genlik * np.sin(t * np.pi * 3)
+        xs_all.extend(x0 + (x1 - x0) * t)
+        ys_all.extend(taban + dalga)
+    ax.plot(xs_all, ys_all, color="#131722", linewidth=1.4, alpha=0.85, zorder=7)
+    ax.annotate("", xy=(xs_all[-1], ys_all[-1]),
+                xytext=(xs_all[-4], ys_all[-4]),
+                arrowprops=dict(arrowstyle="-|>", color="#131722", lw=1.8),
                 zorder=7)
 
 
@@ -473,10 +478,33 @@ def yol_haritasi_ciz(
                linestyle=(0, (1, 2)), alpha=0.75, zorder=4)
     _fiyat_etiketi(ax, yh.fiyat, _TV["fiyat_tag"])
 
-    # TAO tarzı dalgalı projeksiyon oku: güncel fiyattan hedefe doğru
-    if yh.hedef is not None:
-        _proje_oku_ciz(ax, x1 + bar_w * 3, yh.fiyat,
-                       x1 + bar_w * 22, yh.hedef)
+    # TAO tarzı dalgalı projeksiyon oku — yöne göre
+    oh = yh.olusan
+    if oh is not None:
+        # Fiyat önce PRZ'ye (D) gider, sonra dönüş yönüne hareket eder.
+        xD = x1 + bar_w * 7
+        if oh.yon == "Bullish":
+            # D aşağıda → in, sonra YUKARI dön (en yakın direnç üstü hedef)
+            ust = [b.merkez for b in yh.bolgeler if b.merkez > yh.fiyat]
+            rev = min(ust) if ust else yh.fiyat * 1.06
+            stop = oh.prz_alt * 0.995          # Bull: stop PRZ ALTI
+        else:
+            # D yukarıda → çık, sonra AŞAĞI dön (en yakın destek altı hedef)
+            alt = [b.merkez for b in yh.bolgeler if b.merkez < yh.fiyat]
+            rev = max(alt) if alt else yh.fiyat * 0.94
+            stop = oh.prz_ust * 1.005          # Bear: stop PRZ ÜSTÜ
+        _proje_oku_ciz(ax, [(x1 + bar_w * 2, yh.fiyat), (xD, oh.D),
+                            (xD + bar_w * 12, rev)])
+        # Stop çizgisi (PRZ'nin ters tarafı)
+        ax.plot([xD - bar_w * 2, xD + bar_w * 3], [stop, stop],
+                color="#d62728", linewidth=1.3, linestyle=(0, (4, 2)), zorder=6)
+        ax.annotate(f"stop {stop:,.0f}", (xD + bar_w * 3, stop),
+                    textcoords="offset points", xytext=(4, 0), ha="left",
+                    va="center", fontsize=7.5, color="#d62728",
+                    fontweight="bold", zorder=7)
+    elif yh.hedef is not None:
+        _proje_oku_ciz(ax, [(x1 + bar_w * 3, yh.fiyat),
+                            (x1 + bar_w * 22, yh.hedef)])
 
     ax.set_xlim(x0 - bar_w, x_sag)
     ax.yaxis.tick_right()
