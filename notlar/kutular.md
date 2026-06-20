@@ -40,6 +40,14 @@ Her rengin farklı bir anlamı var.
   düşüp burada harmonik D'yi tamamladı, Miraz "Mavide aldım" dedi, +%20 yükseldi.
 - Detay: notlar/vaka_tao.md
 
+## 🟣 Mor ÇİZGİ (Purple Line) — kutudan farklı!
+- **Anlam**: Tek yatay fiyat seviyesi (bölge değil). Giriş ile ana hedef
+  arasındaki **ara kâr-alma (scale-out) seviyesi**.
+- **Kural**: "Mor çizgilerde yavaş yavaş pozisyondan ayrılın" = kısmi kâr al.
+- **Kaynak**: önceki konsolidasyon/swing'in yatay seviyesi.
+- **Gümüş örneği**: mavi kutu girişi (63-65) → mor çizgi 69 (ara kâr) →
+  kırmızı kutu 81-82 (ana hedef). Detay: notlar/vaka_gumus.md
+
 ## 🟠 Turuncu Kutu (Orange Box)
 - **Anlam**: Ara nefes bölgesi, geçici destek
 - **Örnek tweet**: "Turuncu bölge ara bir nefes alanı olarak çalışacaktır."
