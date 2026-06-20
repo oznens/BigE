@@ -111,6 +111,7 @@ class Senaryo:
     mavi_daire_isim: str | None = None    # harmonik pattern adı
     ara_hedef: float | None = None        # 🟣 mor çizgi — ilk kâr-alma seviyesi
     mtf_yapi: str | None = None           # üst zaman dilimi yapısı
+    goreceli_guc: object = None           # ALT/BTC göreceli güç (GoreceliGuc)
     metin: str = ""               # okunabilir plan
 
 
@@ -123,6 +124,7 @@ def senaryo_uret(
     hedef_min_mesafe: float = 6.0,
     hedef_min_guc: float = 80.0,
     df_ust: pd.DataFrame | None = None,
+    gguc: object = None,
 ) -> Senaryo:
     """Güncel piyasa yapısından koşullu bir plan üretir.
 
@@ -209,7 +211,7 @@ def senaryo_uret(
     metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
                         hedef_kutu, kritik, fitil, trend_cizgi,
                         hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
-                        ara_hedef, mtf)
+                        ara_hedef, mtf, gguc)
 
     return Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
@@ -218,19 +220,22 @@ def senaryo_uret(
         trend=trend_cizgi, gelis_hacim=hacim_orani,
         kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
-        ara_hedef=ara_hedef, mtf_yapi=mtf, metin=metin)
+        ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc, metin=metin)
 
 
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
                 mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
-                mtf=None) -> str:
+                mtf=None, gguc=None) -> str:
     sat = [f"Güncel fiyat: {fiyat:,.2f}", f"Senaryo: {yon}"]
     if mtf is not None:
         ikon = {"problemli": "⚠️", "sağlıklı": "✅", "nötr": "•"}.get(mtf, "•")
         sat.append(f"{ikon} Üst zaman dilimi yapısı: {mtf.upper()}" +
                    (" — long açısından temkinli ol, küçük pozisyon."
                     if mtf == "problemli" else ""))
+    if gguc is not None:
+        from .oran import metin as _oran_metin
+        sat.append(_oran_metin(gguc))
     sat.append("")
 
     if destek is not None:

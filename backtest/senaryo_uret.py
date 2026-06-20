@@ -47,8 +47,11 @@ def main() -> None:
                     df_ust = veri.indir(sembol, _ust_tf, gun=args.gun)
                 except Exception:
                     df_ust = None
+            # ALT/BTC göreceli güç (makro filtre)
+            from miraz import oran
+            gguc = oran.goreceli_guc(sembol)
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
-                                min_guc=args.min_guc, df_ust=df_ust)
+                                min_guc=args.min_guc, df_ust=df_ust, gguc=gguc)
             sn.yazdir(sembol, tf, s, vade=args.vade)
 
             if args.grafik:
