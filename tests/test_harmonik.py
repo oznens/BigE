@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.harmonik import (
     tara, _bullish_oranlar, _bearish_oranlar, _kontrol_et, HarmonikSonuc,
+    olusan_harmonik, OlusanHarmonik,
 )
 from miraz.pivotlar import pivot_listesi, swing_high_maske, swing_low_maske
 
@@ -116,6 +117,26 @@ def test_gartley_tespit():
     sonuclar = tara(df, pivlar, min_kalite=0.0)
     isimler = [s.isim for s in sonuclar]
     assert "Gartley" in isimler, f"Gartley tespit edilemedi. Bulunanlar: {isimler}"
+
+
+def test_olusan_harmonik_projeksiyon():
+    """X-A-B-C verilince D PRZ olarak ileriye projekte edilmeli (Bullish)."""
+    # Bullish: X(L) A(H) B(L) C(H), D aşağıda projekte edilir
+    X, A = 100.0, 200.0
+    B = A - 61.8        # AB/XA = 0.618 (Gartley)
+    C = B + 30.9        # BC/AB = 0.5
+    pivlar = [(0, X, "L"), (8, A, "H"), (16, B, "L"), (24, C, "H")]
+    df = _df([C] * 30)  # güncel fiyat C civarı (D'nin üstünde)
+    oh = olusan_harmonik(df, pivlar)
+    assert oh is not None, "Oluşan harmonik bulunmalı"
+    assert oh.yon == "Bullish"
+    assert oh.D < df["close"].iloc[-1], "Projekte D güncel fiyatın altında olmalı"
+    assert oh.prz_alt <= oh.D <= oh.prz_ust
+
+
+def test_olusan_harmonik_yetersiz_pivot():
+    df = _df([100, 110, 100])
+    assert olusan_harmonik(df, [(0, 100, "L"), (1, 110, "H")]) is None
 
 
 def test_tarama_bos_df():

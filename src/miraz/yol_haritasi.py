@@ -48,6 +48,7 @@ class YolHaritasi:
     metin: str
     patternler: list = None  # grafikte gösterilecek harmonik patternler (HarmonikSonuc)
     hedef: float | None = None  # projeksiyon oku hedefi (en yakın long üstü direnç)
+    olusan: object = None    # oluşmakta olan harmonik (OlusanHarmonik | None)
 
 
 def yol_haritasi_uret(
@@ -106,16 +107,26 @@ def yol_haritasi_uret(
                           key=lambda b: b.merkez)
     hedef = ust_shortlar[0].alt if ust_shortlar else None
 
-    metin = _metin_uret(symbol, interval, fiyat, secili)
+    # Oluşmakta olan (D henüz tamamlanmamış) harmonik
+    olusan = hrm.olusan_harmonik(df, pivlar)
+
+    metin = _metin_uret(symbol, interval, fiyat, secili, olusan)
     return YolHaritasi(symbol=symbol, interval=interval, fiyat=fiyat,
                        bolgeler=secili, metin=metin, patternler=en_iyi_pat,
-                       hedef=hedef)
+                       hedef=hedef, olusan=olusan)
 
 
-def _metin_uret(symbol, interval, fiyat, bolgeler) -> str:
+def _metin_uret(symbol, interval, fiyat, bolgeler, olusan=None) -> str:
     coin = _COIN_AD.get(symbol, symbol.replace("USDT", "")) if symbol else ""
     sat = [f"{coin} | Yol haritası ({interval})".strip(" |"),
            f"Güncel fiyat: {fiyat:,.4f}", ""]
+
+    if olusan is not None:
+        sat.append(
+            f"🔶 OLUŞMAKTA OLAN {olusan.yon} {olusan.isim}: D henüz tamamlanmadı, "
+            f"PRZ projeksiyonu {olusan.prz_alt:,.2f}–{olusan.prz_ust:,.2f} "
+            f"(merkez {olusan.D:,.2f}). Fiyat buraya gelirse pattern tamamlanır.")
+        sat.append("")
 
     shortlar = [b for b in bolgeler if b.rol == "SHORT"]
     longlar = [b for b in bolgeler if b.rol == "LONG"]

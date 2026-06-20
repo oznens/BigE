@@ -108,6 +108,42 @@ def _harmonik_ciz(ax, df, pattern, ofset, x):
     ax.plot(xs, ys, color="#f23645", linewidth=1.0, alpha=0.5, zorder=2)
 
 
+def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
+    """Oluşmakta olan harmoniği çizer: X-A-B-C kesintisiz, C→D projeksiyonu
+    kesikli, D'de PRZ kutusu (Miraz'ın TAO'da D'yi ileriye çizmesi gibi)."""
+    from matplotlib.patches import Polygon, Rectangle
+    abcd_idx = [oh.X_idx, oh.A_idx, oh.B_idx, oh.C_idx]
+    abcd_fy = [oh.X, oh.A, oh.B, oh.C]
+    pts = []
+    for gi, fy in zip(abcd_idx, abcd_fy):
+        yerel = gi - ofset
+        if 0 <= yerel < len(x):
+            pts.append((x[yerel], fy))
+    if len(pts) < 3:
+        return
+    xs, ys = zip(*pts)
+    # X-A-B-C kesintisiz kırmızı çizgi
+    ax.plot(xs, ys, color="#f23645", linewidth=1.3, zorder=5)
+    # Projekte D (gelecekte, sağda)
+    xD = x1 + bar_w * 7
+    ax.plot([xs[-1], xD], [ys[-1], oh.D], color="#f23645", linewidth=1.3,
+            linestyle="--", zorder=5)
+    # X-A-B-C-D gölgeli polygon
+    ax.add_patch(Polygon(list(pts) + [(xD, oh.D)], closed=True,
+                         facecolor="#f23645", alpha=0.13, edgecolor="none",
+                         zorder=2))
+    # PRZ kutusu (projeksiyon belirsizliği) + D işareti
+    ax.add_patch(Rectangle((xD - bar_w * 2, oh.prz_alt), bar_w * 5,
+                           oh.prz_ust - oh.prz_alt, facecolor="#f23645",
+                           alpha=0.18, edgecolor="#f23645", linewidth=1.0,
+                           zorder=3))
+    ax.scatter([xD], [oh.D], s=70, color="#f23645", marker="o", zorder=6)
+    ax.annotate(f"D? ({oh.isim})\nPRZ {oh.prz_alt:,.0f}–{oh.prz_ust:,.0f}",
+                (xD, oh.D), textcoords="offset points", xytext=(6, 0),
+                ha="left", va="center", fontsize=7.5, color="#c0392b",
+                fontweight="bold", zorder=7)
+
+
 def _proje_oku_ciz(ax, x_bas, y_bas, x_son, y_son):
     """TAO tarzı dalgalı (el çizimi) projeksiyon oku — sinüs + ok ucu."""
     import numpy as np
@@ -408,6 +444,10 @@ def yol_haritasi_ciz(
     # Kırmızı gölgeli harmonik patternler (TAO tarzı)
     for p in (yh.patternler or []):
         _harmonik_ciz(ax, df, p, ofset, x)
+
+    # Oluşmakta olan harmonik (D projeksiyonu — TAO'da olduğu gibi)
+    if yh.olusan is not None:
+        _olusan_harmonik_ciz(ax, df, yh.olusan, ofset, x, x1, bar_w)
 
     for b in yh.bolgeler:
         if b.rol == "SHORT":

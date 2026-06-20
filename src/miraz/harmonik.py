@@ -313,3 +313,103 @@ def tara(
     # D en yakın olan (en yeni) üste gelsin
     sonuclar.sort(key=lambda s: s.D_idx, reverse=True)
     return sonuclar
+
+
+# ---------------------------------------------------------------------------
+# Oluşmakta olan (henüz tamamlanmamış) harmonik — D projeksiyonu
+# ---------------------------------------------------------------------------
+
+@dataclass
+class OlusanHarmonik:
+    isim: str
+    yon: str               # "Bullish" / "Bearish"
+    X_idx: int
+    A_idx: int
+    B_idx: int
+    C_idx: int
+    X: float
+    A: float
+    B: float
+    C: float
+    D: float               # projekte edilen PRZ merkezi (gelecek)
+    prz_alt: float         # PRZ alt sınır
+    prz_ust: float         # PRZ üst sınır
+    oranlar: dict = field(default_factory=dict)
+
+
+def _orta(aralik: tuple[float, float]) -> float:
+    return (aralik[0] + aralik[1]) / 2
+
+
+def _olusan_tek(p4, fiyat) -> Optional[OlusanHarmonik]:
+    """Tek bir X-A-B-C (4 pivot) penceresinden oluşan harmonik dener."""
+    tipler = [x[2] for x in p4]
+    (Xi, X, _), (Ai, A, _), (Bi, B, _), (Ci, C, _) = p4
+
+    if tipler == ["L", "H", "L", "H"]:        # Bullish: D aşağıda beklenir
+        yon = "Bullish"
+        XA, AB, BC = A - X, A - B, C - B
+    elif tipler == ["H", "L", "H", "L"]:      # Bearish: D yukarıda beklenir
+        yon = "Bearish"
+        XA, AB, BC = X - A, B - A, B - C
+    else:
+        return None
+    if XA <= 0 or AB <= 0 or BC <= 0:
+        return None
+
+    ab_xa, bc_ab = AB / XA, BC / AB
+    en_iyi, en_iyi_hata = None, 1e9
+    for isim, t in PATTERN_TANIMLARI.items():
+        if not (_oran_iceride(ab_xa, t["AB_XA"]) and
+                _oran_iceride(bc_ab, t["BC_AB"])):
+            continue
+        xd, cd = _orta(t["XD_XA"]), _orta(t["CD_BC"])
+        if yon == "Bullish":
+            D_xd, D_cd = A - xd * XA, C - cd * BC
+        else:
+            D_xd, D_cd = A + xd * XA, C + cd * BC
+        D = (D_xd + D_cd) / 2
+        # D henüz ULAŞILMAMIŞ olmalı (oluşmakta = projeksiyon ileride)
+        if yon == "Bullish" and D >= fiyat:
+            continue
+        if yon == "Bearish" and D <= fiyat:
+            continue
+        prz_alt, prz_ust = sorted([D_xd, D_cd])
+        hata = (abs(ab_xa - _orta(t["AB_XA"])) +
+                abs(bc_ab - _orta(t["BC_AB"])))
+        if hata < en_iyi_hata:
+            en_iyi_hata = hata
+            en_iyi = OlusanHarmonik(
+                isim=isim, yon=yon, X_idx=Xi, A_idx=Ai, B_idx=Bi, C_idx=Ci,
+                X=X, A=A, B=B, C=C, D=round(D, 4),
+                prz_alt=round(prz_alt, 4), prz_ust=round(prz_ust, 4),
+                oranlar={"AB_XA": ab_xa, "BC_AB": bc_ab})
+    return en_iyi
+
+
+def olusan_harmonik(df, pivotlar: list, son_n_pivot: int = 12
+                    ) -> Optional[OlusanHarmonik]:
+    """Oluşmakta olan (D henüz tamamlanmamış) harmonik — D'yi PRZ'ye projekte eder.
+
+    Son `son_n_pivot` pivot içindeki tüm X-A-B-C (4 ardışık pivot) pencerelerini
+    tarar; projekte D'si fiyatın henüz ulaşmadığı tarafta olan, oranları en
+    temiz pattern'i döndürür. Miraz'ın TAO'da D'yi ileriye çizmesi gibi.
+    """
+    if len(pivotlar) < 4:
+        return None
+    fiyat = float(df["close"].iloc[-1])
+    pencere = pivotlar[-son_n_pivot:] if len(pivotlar) > son_n_pivot else pivotlar
+
+    adaylar = []
+    for i in range(len(pencere) - 3):
+        oh = _olusan_tek(pencere[i:i + 4], fiyat)
+        if oh is None:
+            continue
+        # PRZ darlığı filtresi: iki projeksiyon %8'den fazla ayrışmasın
+        if oh.D and (oh.prz_ust - oh.prz_alt) / abs(oh.D) > 0.08:
+            continue
+        adaylar.append(oh)
+    if not adaylar:
+        return None
+    # En yeni C'ye sahip (en güncel) olanı seç
+    return max(adaylar, key=lambda o: o.C_idx)
