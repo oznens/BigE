@@ -1,5 +1,6 @@
 data/*.parquet
 data/*.csv
+data/grafikler/
 __pycache__/
 *.py[cod]
 *.egg-info/
