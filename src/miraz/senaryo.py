@@ -113,6 +113,7 @@ class Senaryo:
     mtf_yapi: str | None = None           # üst zaman dilimi yapısı
     goreceli_guc: object = None           # ALT/BTC göreceli güç (GoreceliGuc)
     market_yapisi: object = None          # bu TF market yapısı (MarketYapisi)
+    flama: object = None                  # yakınsayan üçgen (Flama) veya None
     metin: str = ""               # okunabilir plan
 
 
@@ -205,6 +206,10 @@ def senaryo_uret(
     from .yapi import market_yapisi as _market_yapisi
     myapi = _market_yapisi(df, n=n)
 
+    # Flama / Diagonal (Altın/Gümüş rasyo dersi — yakınsayan üçgen)
+    from .flama import flama_bul as _flama_bul
+    flama = _flama_bul(df, n=n)
+
     # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
     if destek_kutu is None:
         yon = "Nötr"
@@ -216,7 +221,7 @@ def senaryo_uret(
     metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
                         hedef_kutu, kritik, fitil, trend_cizgi,
                         hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
-                        ara_hedef, mtf, gguc, myapi)
+                        ara_hedef, mtf, gguc, myapi, flama)
 
     return Senaryo(
         fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
@@ -226,17 +231,20 @@ def senaryo_uret(
         kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
-        market_yapisi=myapi, metin=metin)
+        market_yapisi=myapi, flama=flama, metin=metin)
 
 
 def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
                 kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
                 mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
-                mtf=None, gguc=None, myapi=None) -> str:
+                mtf=None, gguc=None, myapi=None, flama=None) -> str:
     sat = [f"Güncel fiyat: {fiyat:,.2f}", f"Senaryo: {yon}"]
     if myapi is not None:
         from .yapi import metin as _yapi_metin
         sat.append(_yapi_metin(myapi))
+    if flama is not None:
+        from .flama import metin as _flama_metin
+        sat.append(_flama_metin(flama))
     if mtf is not None:
         ikon = {"problemli": "⚠️", "sağlıklı": "✅", "nötr": "•"}.get(mtf, "•")
         sat.append(f"{ikon} Üst zaman dilimi yapısı: {mtf.upper()}" +

@@ -89,6 +89,42 @@ def goreceli_guc(symbol: str, interval: str = "1d", n: int = 30,
                        degisim_yuzde=round(degisim * 100, 2), durum=durum)
 
 
+def rasyo(sembol_a: str, sembol_b: str, interval: str = "1d", n: int = 30,
+          esik: float = 0.04, gun: int = 400) -> GoreceliGuc | None:
+    """Genel RASYO: herhangi iki varlığın A/B oranının göreceli gücü.
+
+    @tradermiraz "RASYO grafiği bize hangi paritenin daha güçlü kaldığını
+    gösterir" diyor (ör. Altın/Gümüş). Oran yükseliyorsa A, B'ye karşı
+    güçleniyor; düşüyorsa zayıflıyor. ALT/BTC ve BTC/Altın bunun özel
+    halleridir.
+    """
+    try:
+        a = veri.indir(sembol_a, interval, gun=gun)["close"]
+        b = veri.indir(sembol_b, interval, gun=gun)["close"]
+    except Exception:
+        return None
+    df = pd.concat([a, b], axis=1, keys=["a", "b"]).dropna()
+    seri = df["a"] / df["b"]
+    if len(seri) < n + 1:
+        return None
+    son = float(seri.iloc[-1])
+    onceki = float(seri.iloc[-n])
+    if onceki <= 0:
+        return None
+    degisim = (son - onceki) / onceki
+    if degisim > esik:
+        durum = "güçleniyor"
+    elif degisim < -esik:
+        durum = "zayıflıyor"
+    else:
+        durum = "nötr"
+    ad_a = sembol_a.replace("USDT", "")
+    ad_b = sembol_b.replace("USDT", "")
+    return GoreceliGuc(parite=f"{ad_a}/{ad_b}", benchmark=ad_b,
+                       deger=round(son, 8),
+                       degisim_yuzde=round(degisim * 100, 2), durum=durum)
+
+
 def metin(gg: GoreceliGuc | None) -> str:
     """Göreceli gücü okunabilir bir satıra çevirir."""
     if gg is None:
