@@ -135,6 +135,22 @@ _KAYNAKLAR = [
 ]
 
 
+def _cache_oku(yol: Path):
+    """Parquet cache'i okur; motor (pyarrow/fastparquet) yoksa None döner."""
+    try:
+        return pd.read_parquet(yol)
+    except Exception:
+        return None
+
+
+def _cache_yaz(df: pd.DataFrame, yol: Path) -> None:
+    """Parquet cache yazar; motor yoksa sessizce atlar (veri yine döner)."""
+    try:
+        df.to_parquet(yol)
+    except Exception:
+        pass
+
+
 def indir(symbol: str = "BTCUSDT", interval: str = "4h",
           gun: int = 500, force: bool = False,
           borsa: str | None = None, max_bar: int | None = None) -> pd.DataFrame:
@@ -156,7 +172,9 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
         alt_iv, kural = _TUREV[interval]
         yol_t = DATA_DIR / f"{symbol}_{interval}.parquet"
         if yol_t.exists() and not force:
-            return pd.read_parquet(yol_t)
+            onbellek = _cache_oku(yol_t)
+            if onbellek is not None:
+                return onbellek
         # 2h için yeterli alt-TF mumu (oran kadar fazlası) çek
         alt_bar = None
         if max_bar:
@@ -165,12 +183,14 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
         alt = indir(symbol, alt_iv, gun=gun, force=force, borsa=borsa,
                     max_bar=alt_bar)
         df_t = _resample(alt, kural)
-        df_t.to_parquet(yol_t)
+        _cache_yaz(df_t, yol_t)
         return df_t
 
     yol = DATA_DIR / f"{symbol}_{interval}.parquet"
     if yol.exists() and not force:
-        return pd.read_parquet(yol)
+        onbellek = _cache_oku(yol)
+        if onbellek is not None:
+            return onbellek
 
     end_ms = int(time.time() * 1000)
     start_ms = end_ms - gun * 24 * 3600 * 1000
@@ -203,7 +223,7 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
     for k in ["open", "high", "low", "close", "volume"]:
         df[k] = df[k].astype(float)
     df = df[["open", "high", "low", "close", "volume"]].sort_index()
-    df.to_parquet(yol)
+    _cache_yaz(df, yol)
     return df
 
 
