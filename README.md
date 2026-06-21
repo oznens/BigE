@@ -1,24 +1,36 @@
-# BigE
+# miraz
 
-Big E trader'ın trading modelini koda dökme + backtest projesi.
+@tradermiraz metodolojisini öğrenme, belgeleme ve koda dökme projesi.
 
-## Klasör yapısı
+## Aşamalar
+1. **Öğrenme** — Tweet analizi → `notlar/metodoloji.md`
+2. **Modelleme** — Kuralları Python'a çevir → `src/miraz/`
+3. **Backtest** — Geçmiş veriyle test → `backtest/`
+
+## Canlı pano (terminalMiraz tarzı)
+
+Sistemi tarayıcıdan açılan canlı bir web paneli olarak çalıştır:
+
+```bash
+pip install -e .
+python backtest/evren.py --guncelle --n 90        # mcap evrenini bir kez kur
+python backtest/sunucu.py --mcap --mtf --taraf her  # → http://localhost:8000
 ```
-kaynak/      # Big E'ye ait kaynaklar (PDF, video, görsel, not) — sen yüklüyorsun
-notlar/      # Kaynaklardan çıkarılmış kurallar, özetler, model taslağı
-src/bige/    # Modelin Python implementasyonu
-backtest/    # Geçmiş veri üzerinde test, sonuç raporları
-data/        # Fiyat verisi (OHLCV vs.) — büyük dosyalar git'e girmez
-tests/       # Unit testler
+
+Sunucu arka planda sürekli tarar; tarayıcı paneli kendi tazeler. Sekmeler:
+**Dashboard** (execution metrikleri + Kiraz status + aday akışı + sonuçlar),
+**PNL Analytics**, **Memory**. CMD panosu isteyenler için: `backtest/dashboard.py`.
+
+## Klasörler
 ```
-
-## Zaman dilimi
-Tüm tarih/saat işlemleri **Türkiye saati (Europe/Istanbul, UTC+3)** üzerinden yapılır.
-Veri kaynağı UTC veriyorsa, koddaki yardımcı fonksiyon ile İstanbul saatine çevrilir.
-
-## Akış
-1. **Kaynak toplama** — `kaynak/` klasörüne dosyaları at
-2. **Öğrenme** — kaynaklar incelenir, `notlar/model_kurallari.md` çıkarılır
-3. **Modelleme** — `src/bige/` altında kural motoru yazılır
-4. **Backtest** — geçmiş veri üzerinde performans ölçülür
-5. **İyileştirme** — sonuca göre parametre/kural revizyonu
+notlar/          # Metodoloji belgeleri (tweet analizinden çıkarılan)
+  metodoloji.md  # Ana kural kitabı
+  kutular.md     # Renkli kutu konsepti
+  harmonik.md    # Harmonik pattern kuralları
+  risk.md        # Risk yönetimi
+  grafikler/     # Referans grafik örnekleri
+src/miraz/       # Python implementasyonu
+backtest/        # Backtest scriptleri
+data/            # Fiyat verisi cache
+tests/           # Unit testler
+```

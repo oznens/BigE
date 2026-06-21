@@ -1,39 +1,16 @@
-# Python
+data/*.parquet
+data/*.csv
+data/*.png
+data/grafikler/
+data/miraz_tweet/
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-env/
 *.egg-info/
+.venv/
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
 
-# Notebooks
-.ipynb_checkpoints/
-
-# Veri (büyük dosyalar)
-data/*.csv
-data/*.parquet
-data/*.feather
-data/raw/
-data/processed/
-!data/.gitkeep
-
-# Backtest çıktıları
-backtest/results/
-backtest/*.html
-backtest/*.png
-
-# IDE
-.vscode/
-.idea/
-*.swp
-.DS_Store
-
-# Env
-.env
-.env.local
+# Paper-trading / cluster çalışma durumu (yerel, üretilen)
+portfoy.json
+cluster.json
+data/evren.json
+defter.json

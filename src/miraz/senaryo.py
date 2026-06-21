@@ -1,0 +1,606 @@
+"""Senaryo motoru — kutular + trend + "kapanış altında iptal" kuralı.
+
+@tradermiraz'ın planlarını mekanikleştirir. Örnek (ETH, 18 Haz):
+  "1652$ altında kapanış yapmadığımız sürece destek bölgesinden tepki
+   bekliyorum. 1629$ fitili senaryoyu bozmaz."
+
+Mantık:
+  - Fiyatın altındaki en yakın güçlü destek kutusu = tepki bölgesi.
+  - O kutunun ALT sınırı = kritik seviye (altında KAPANIŞ = iptal).
+  - Kritik seviyenin biraz altı = fitil toleransı (fitil iptal etmez).
+  - Fiyatın üstündeki en yakın güçlü direnç (Mor) = yukarı hedef.
+  - Varsa yükselen trend çizgisi senaryoyu destekler.
+
+Kural kaynağı: notlar/kutular.md → "X$ altında KAPANIŞ, fitil yetmez".
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import pandas as pd
+
+from . import harmonik as hrm
+from . import kutular as kt
+from . import pivotlar as pv
+from . import trend as tr
+from .kutular import Kutu
+from .trend import TrendCizgisi
+
+# Fitil toleransı: kritik seviyenin bu kadar altına fitil senaryoyu bozmaz
+_FITIL_TOL = 0.015  # %1.5
+
+
+# Fiyatın bu kadar altındaki destekler tek "tepki bölgesi" sayılır
+_BOLGE_MENZIL = 0.06  # %6
+
+# Hacim filtresi: destek bölgesine geliş hacmi bu kattan fazlaysa kırılma riski
+_HACIM_ESIK = 1.5
+_HACIM_GELIS_N = 8     # son kaç bar "geliş" sayılır
+_HACIM_TABAN_N = 60    # uzun dönem hacim ortalaması penceresi
+
+
+def gelis_hacim_orani(df, gelis_n: int = _HACIM_GELIS_N,
+                      taban_n: int = _HACIM_TABAN_N) -> float:
+    """Fiyatın bölgeye gelişindeki hacmin uzun dönem ortalamaya oranı.
+
+    Son `gelis_n` barın ortalama hacmi / son `taban_n` barın ortalama hacmi.
+    >1 = normalden hacimli geliş (TAO'da yeşil kutuya hacimli geliş gibi).
+    """
+    vol = df["volume"]
+    if len(vol) < gelis_n + 1:
+        return 1.0
+    son = float(vol.iloc[-gelis_n:].mean())
+    taban = float(vol.iloc[-taban_n:].mean()) if len(vol) >= taban_n \
+        else float(vol.mean())
+    return son / taban if taban else 1.0
+
+
+def _mavi_daire_bul(df, n: int, bolge_alt: float, bolge_ust: float,
+                    min_kalite: float = 40.0):
+    """Destek bölgesinde tamamlanan bullish harmonik D = en yüksek güvenli giriş.
+
+    TAO'daki "mavi daire" kavramı: harmonik PRZ (D) ∩ en güçlü destek.
+    Döndürür: en kaliteli HarmonikSonuc veya None.
+    """
+    pivlar = pv.pivot_listesi(df, n=n)
+    patternler = hrm.tara(df, pivlar, min_kalite=min_kalite)
+    pay = max((bolge_ust - bolge_alt) * 0.5, bolge_alt * 0.01)
+    adaylar = [p for p in patternler if p.yon == "Bullish"
+               and (bolge_alt - pay) <= p.D <= (bolge_ust + pay)]
+    if not adaylar:
+        return None
+    return max(adaylar, key=lambda p: (p.kalite, p.D_idx))
+
+
+def _mtf_yapi(df_ust, n: int = 20) -> str:
+    """Üst zaman dilimi yapısını değerlendirir (long açısından).
+
+    Döndürür: "sağlıklı" / "problemli" / "nötr".
+    """
+    kapanis = df_ust["close"]
+    if len(kapanis) < n + 1:
+        return "nötr"
+    son = float(kapanis.iloc[-1])
+    onceki = float(kapanis.iloc[-n])
+    if onceki <= 0:
+        return "nötr"
+    degisim = (son - onceki) / onceki
+    if degisim < -0.04:
+        return "problemli"     # üst zaman aşağı yapıda → long riskli
+    if degisim > 0.04:
+        return "sağlıklı"
+    return "nötr"
+
+
+@dataclass
+class Senaryo:
+    fiyat: float
+    yon: str                      # "Yükseliş tepkisi" / "Düşüş riski" / "Nötr"
+    destek_kutu: Kutu | None      # tepki bölgesinin en yakın kutusu
+    bolge_alt: float | None       # birleşik destek bölgesinin alt sınırı
+    bolge_ust: float | None       # birleşik destek bölgesinin üst sınırı
+    hedef_kutu: Kutu | None       # ana yukarı hedef (büyük direnç)
+    kritik_seviye: float | None   # altında KAPANIŞ = iptal
+    fitil_seviye: float | None    # bu seviyeye fitil senaryoyu bozmaz
+    trend: TrendCizgisi | None    # sadece yükselen destek çizgisi
+    gelis_hacim: float = 1.0      # bölgeye geliş hacim oranı
+    kirilma_riski: bool = False   # hacimli geliş → kırılma adayı, işlem alma
+    mavi_daire: float | None = None       # harmonik D ∩ destek = en yüksek güven
+    mavi_daire_idx: int | None = None     # D barı (grafikte daire konumu)
+    mavi_daire_isim: str | None = None    # harmonik pattern adı
+    pamonic: bool = False                 # harmonik D ∩ GÜÇLÜ PA kutusu (PaMonic)
+    ara_hedef: float | None = None        # 🟣 mor çizgi — ilk kâr-alma seviyesi
+    mtf_yapi: str | None = None           # üst zaman dilimi yapısı
+    goreceli_guc: object = None           # ALT/BTC göreceli güç (GoreceliGuc)
+    market_yapisi: object = None          # bu TF market yapısı (MarketYapisi)
+    flama: object = None                  # yakınsayan üçgen (Flama) veya None
+    ikili: object = None                  # çift tepe/dip (IkiliFormasyon) veya None
+    fib: object = None                    # Fibonacci retracement (FibRetr) — hoca tarzı
+    divergence: object = None             # RSI divergence (Divergence) — hoca tarzı
+    elliott: object = None                # Elliott dalga sayımı — hoca tarzı
+    obo: object = None                    # omuz-baş-omuz (OBO/TOBO) — hoca tarzı
+    rsi: float | None = None              # güncel RSI (hoca tarzı)
+    macd_yon: str | None = None           # "AL" / "SAT" (hoca tarzı)
+    olusan: object = None                 # oluşmakta olan harmonik (D projeksiyonu)
+    temas: object = None                  # destek bölgesi temas davranışı (TemasSonuc)
+    cluster: object = None                # cluster hafızası benzerlik sonucu (ClusterSonuc)
+    karar: object = None                  # Setup Intelligence kararı (KararSonuc)
+    metin: str = ""               # okunabilir plan
+
+
+def senaryo_uret(
+    df: pd.DataFrame,
+    n: int = 5,
+    tolerans: float = 0.015,
+    min_guc: float = 50.0,
+    adaptif: bool = True,
+    hedef_min_mesafe: float = 6.0,
+    hedef_min_guc: float = 80.0,
+    df_ust: pd.DataFrame | None = None,
+    gguc: object = None,
+    r_dolar: float = 0.0,
+    cluster_hafiza: object = None,
+) -> Senaryo:
+    """Güncel piyasa yapısından koşullu bir plan üretir.
+
+    adaptif=True ise kutu kümeleme toleransı ATR oynaklığına göre ayarlanır
+    (Miraz'ın geniş bölgelerine daha yakın).
+
+    Hedef = "ana hedef" mantığı: yakın küçük dirençleri (engeller) atlayıp,
+    fiyattan ≥ hedef_min_mesafe % uzak VE güç ≥ hedef_min_guc olan ilk büyük
+    direnç bölgesini seçer. Miraz'ın kar-alma hedefiyle örtüşür.
+    """
+    fiyat = float(df["close"].iloc[-1])
+
+    kutular = kt.kutulari_bul(df, n=n, tolerans=tolerans, mesafe_limit=30,
+                              min_guc=min_guc, adaptif=adaptif)
+    direncler = [k for k in kutular if k.tip == "Direnç"]
+    destekler = [k for k in kutular if k.tip == "Destek"]
+
+    # Tepki bölgesi: fiyatın hemen altındaki en GÜÇLÜ destek = birincil.
+    # Bölge, birincil kutuyla ÖRTÜŞEN (bitişik) kutularla genişletilir;
+    # uzaktaki zayıf kutular katılmaz (kritik seviye aşağı kaymasın).
+    alt_sinir = fiyat * (1 - _BOLGE_MENZIL)
+    ust_sinir = fiyat * 1.005
+    yakin = [k for k in destekler if k.alt <= ust_sinir and k.ust >= alt_sinir]
+
+    destek_kutu = bolge_alt = bolge_ust = kritik = fitil = None
+    if yakin:
+        birincil = max(yakin, key=lambda k: k.guc)
+        grup = [k for k in destekler
+                if k.alt <= birincil.ust and k.ust >= birincil.alt]
+        bolge_alt = round(min(k.alt for k in grup), 4)
+        bolge_ust = round(min(max(k.ust for k in grup), fiyat), 4)
+        destek_kutu = birincil
+        kritik = bolge_alt                          # bitişik zonun dibi
+        fitil = round(kritik * (1 - _FITIL_TOL), 4)
+
+    # Ana hedef: yakın küçük dirençleri atla, ilk büyük güçlü zonu seç.
+    ust_direncler = sorted((k for k in direncler if k.merkez > fiyat),
+                           key=lambda k: k.merkez)
+    hedef_kutu = next(
+        (k for k in ust_direncler
+         if k.mesafe_yuzde >= hedef_min_mesafe and k.guc >= hedef_min_guc),
+        None)
+    if hedef_kutu is None:                 # uygun büyük zon yoksa en yakını
+        hedef_kutu = ust_direncler[0] if ust_direncler else None
+
+    # 🟣 Mor çizgi (ara kâr-alma): en yakın direnç, ana hedeften ÖNCE ise
+    ara_hedef = None
+    if ust_direncler:
+        en_yakin = ust_direncler[0]
+        if hedef_kutu is None or en_yakin.merkez < hedef_kutu.merkez:
+            ara_hedef = round(en_yakin.alt, 4)   # ilk dokunulacak seviye
+
+    # Trend devam formasyonu = yerel (son ~90 bar) yükselen destek çizgisi.
+    # Geniş pencere genel düşüş trendini yakalar; Miraz yerel çizgi çizer.
+    trend_cizgi = tr.trend_cizgisi_bul(df, "Destek", n=n, min_dokunus=2,
+                                       son_n=90)
+    if trend_cizgi is not None and trend_cizgi.yon != "Yükselen":
+        trend_cizgi = None
+
+    # Oluşmakta olan harmonik (gelecek D projeksiyonu + PRZ) — grafikte gösterilir
+    _piv_h = pv.pivot_listesi(df, n=n)
+    olusan = hrm.olusan_harmonik(df, _piv_h)
+
+    # Mavi daire: destek bölgesinde tamamlanan bullish harmonik D = en yüksek güven
+    mavi_daire = mavi_daire_idx = mavi_daire_isim = None
+    pamonic = False
+    if bolge_alt is not None:
+        md = _mavi_daire_bul(df, n, bolge_alt, bolge_ust)
+        if md is not None:
+            mavi_daire = round(md.D, 4)
+            mavi_daire_idx = md.D_idx
+            mavi_daire_isim = md.isim
+            # PaMonic: harmonik D, GÜÇLÜ bir PA destek kutusu (OrderBlock) ile
+            # çakışıyorsa (her ikisi de kaliteli) — nadir ama güçlü birleşim.
+            if destek_kutu is not None and getattr(destek_kutu, "guc", 0) >= 70 \
+                    and md.kalite >= 60:
+                pamonic = True
+
+    # Hacim filtresi: bölgeye hacimli geliş = kırılma adayı (TAO yeşil kutu dersi)
+    hacim_orani = round(gelis_hacim_orani(df), 2)
+    kirilma_riski = (destek_kutu is not None and hacim_orani >= _HACIM_ESIK)
+
+    # MTF: üst zaman dilimi yapısı (Gümüş dersi — "günlük yapı problemli")
+    mtf = _mtf_yapi(df_ust) if df_ust is not None else None
+
+    # Market yapısı (MSTR dersi — "teknik olarak market yapısı aşağıya dönmüş")
+    from .yapi import market_yapisi as _market_yapisi
+    myapi = _market_yapisi(df, n=n)
+
+    # Flama / Diagonal (Altın/Gümüş rasyo dersi — yakınsayan üçgen)
+    from .flama import flama_bul as _flama_bul
+    flama = _flama_bul(df, n=n)
+
+    # Çift tepe/dip (arşiv dersi — "çift tepe sonrası trend kırılımı")
+    from .ikili import ikili_bul as _ikili_bul
+    ikili = _ikili_bul(df, n=n)
+
+    # Fibonacci retracement (hoca @finansalTRader dersi — "Fib.Retr 0.618 bölgesi")
+    from .fib import fib_retracement as _fib_retr
+    fib = _fib_retr(df, n=n)
+
+    # RSI divergence + Elliott (hoca @finansalTRader dersleri)
+    from .divergence import divergence_bul as _div_bul
+    from .elliott import elliott_bul as _ell_bul
+    divg = _div_bul(df, n=n)
+    elliott = _ell_bul(df, n=n)
+
+    # OBO/TOBO omuz-baş-omuz (hoca @finansalTRader dersi — "TOBO oluşumu")
+    from .obo import obo_bul as _obo_bul
+    obo = _obo_bul(df, n=n)
+
+    # İndikatör anlık görüntüsü (hoca tarzı yorum için): RSI + MACD yönü
+    from .indikator import rsi as _rsi_f, macd as _macd_f
+    try:
+        _rsi_seri = _rsi_f(df["close"])
+        rsi_deg = float(_rsi_seri.iloc[-1]) if pd.notna(_rsi_seri.iloc[-1]) else None
+        _m = _macd_f(df["close"])
+        macd_yon = "AL" if _m["macd"].iloc[-1] > _m["sinyal"].iloc[-1] else "SAT"
+    except Exception:
+        rsi_deg = macd_yon = None
+
+    # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
+    if destek_kutu is None:
+        yon = "Nötr"
+    elif kirilma_riski:
+        yon = "Tepki (kırılma riski)"
+    else:
+        yon = "Yükseliş tepkisi"
+
+    metin = _metin_uret(fiyat, yon, destek_kutu, bolge_alt, bolge_ust,
+                        hedef_kutu, kritik, fitil, trend_cizgi,
+                        hacim_orani, kirilma_riski, mavi_daire, mavi_daire_isim,
+                        ara_hedef, mtf, gguc, myapi, flama, ikili, fib,
+                        divg, elliott, obo)
+
+    s = Senaryo(
+        fiyat=round(fiyat, 4), yon=yon, destek_kutu=destek_kutu,
+        bolge_alt=bolge_alt, bolge_ust=bolge_ust,
+        hedef_kutu=hedef_kutu, kritik_seviye=kritik, fitil_seviye=fitil,
+        trend=trend_cizgi, gelis_hacim=hacim_orani,
+        kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
+        mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
+        pamonic=pamonic,
+        ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
+        market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
+        divergence=divg, elliott=elliott, obo=obo,
+        rsi=rsi_deg, macd_yon=macd_yon, olusan=olusan, metin=metin)
+
+    # Temas davranışı (destek bölgesi geçmişte tepki mi verdi, kırıldı mı?)
+    if destek_kutu is not None and bolge_alt is not None and bolge_ust is not None:
+        from .temas import temas_analizi
+        s.temas = temas_analizi(df, float(bolge_alt), float(bolge_ust))
+        s.metin = s.metin + "\n" + s.temas.metin
+
+    # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
+    from .karar import karar_uret
+    _rr = None
+    if r_dolar > 0:
+        from .risk import risk_plani
+        rp = risk_plani(s, r_dolar=r_dolar)
+        if rp is not None:
+            _rr = rp.rr_orani
+            s.metin = s.metin + "\n\n" + rp.aciklama
+    # 1. geçiş: temel karar (cluster yok)
+    s.karar = karar_uret(s, rr=_rr)
+
+    # 2. geçiş: cluster hafızası verilmişse imzaya göre güveni düzelt
+    if cluster_hafiza is not None:
+        from .cluster import benzerlik
+        cl = benzerlik(s, cluster_hafiza, rr=_rr)
+        s.cluster = cl
+        if cl.bulundu and cl.guven_etkisi:
+            s.karar = karar_uret(s, rr=_rr, ek_guven=cl.guven_etkisi,
+                                 ek_gerekce=cl.metin)
+        s.metin = s.metin + "\n" + cl.metin
+
+    s.metin = s.karar.metin + "\n" + s.metin
+
+    return s
+
+
+def _metin_uret(fiyat, yon, destek, bolge_alt, bolge_ust, hedef,
+                kritik, fitil, trend, hacim_orani=1.0, kirilma_riski=False,
+                mavi_daire=None, mavi_daire_isim=None, ara_hedef=None,
+                mtf=None, gguc=None, myapi=None, flama=None, ikili=None,
+                fib=None, divg=None, elliott=None, obo=None) -> str:
+    sat = [f"Güncel fiyat: {_f(fiyat)}", f"Senaryo: {yon}"]
+    if myapi is not None:
+        from .yapi import metin as _yapi_metin
+        sat.append(_yapi_metin(myapi))
+    if flama is not None:
+        from .flama import metin as _flama_metin
+        sat.append(_flama_metin(flama))
+    if ikili is not None:
+        from .ikili import metin as _ikili_metin
+        sat.append(_ikili_metin(ikili))
+    if fib is not None:
+        from .fib import metin as _fib_metin
+        sat.append(_fib_metin(fib))
+    if divg is not None:
+        from .divergence import metin as _div_metin
+        sat.append(_div_metin(divg))
+    if elliott is not None:
+        from .elliott import metin as _ell_metin
+        sat.append(_ell_metin(elliott))
+    if obo is not None:
+        from .obo import metin as _obo_metin
+        sat.append(_obo_metin(obo))
+    if mtf is not None:
+        ikon = {"problemli": "⚠️", "sağlıklı": "✅", "nötr": "•"}.get(mtf, "•")
+        sat.append(f"{ikon} Üst zaman dilimi yapısı: {mtf.upper()}" +
+                   (" — long açısından temkinli ol, küçük pozisyon."
+                    if mtf == "problemli" else ""))
+    if gguc is not None:
+        from .oran import metin as _oran_metin
+        sat.append(_oran_metin(gguc))
+    sat.append("")
+
+    if destek is not None:
+        sat.append(
+            f"📍 Destek bölgesi: {_f(bolge_alt)}–{_f(bolge_ust)} "
+            f"(en güçlü kutu {destek.renk}, güç {destek.guc:.0f})")
+        if mavi_daire is not None:
+            sat.append(
+                f"   🔵 MAVİ DAİRE {_f(mavi_daire)} — burada Bullish "
+                f"{mavi_daire_isim} harmonik D noktası tamamlanıyor "
+                f"(PRZ ∩ destek = EN YÜKSEK GÜVENLİ long girişi).")
+        if kirilma_riski:
+            sat.append(
+                f"   ⚠️ Fiyat bu bölgeye HACİMLİ geliyor "
+                f"(geliş hacmi {hacim_orani:.1f}× ortalama) — KIRILMA RİSKİ. "
+                f"İşlem alma, önce bölgede dönüş/teyit bekle.")
+        sat.append(
+            f"   → {_f(kritik)} altında KAPANIŞ yapılmadıkça bu bölgeden "
+            f"tepki bekleniyor.")
+        sat.append(
+            f"   → {_f(fitil)} bölgesine gelecek FİTİL senaryoyu bozmaz "
+            f"(kapanış kritik, fitil değil).")
+    else:
+        sat.append("📍 Yakında güçlü destek kutusu yok — temkinli ol.")
+
+    if ara_hedef is not None:
+        sat.append(
+            f"🟣 Mor çizgi (ilk kâr-alma): {_f(ara_hedef)} — burada "
+            f"kademeli kâr al, kalanı ana hedefe taşı.")
+
+    if hedef is not None:
+        sat.append(
+            f"🎯 Ana hedef: {_f(hedef.alt)}–{_f(hedef.ust)} "
+            f"({hedef.renk} direnç, güç {hedef.guc:.0f})")
+
+    if trend is not None:
+        sat.append(
+            f"📈 {trend.yon} trend çizgisi {_f(trend.guncel_deger)} "
+            f"seviyesinde ({trend.dokunus} dokunuş) — yapıyı destekliyor.")
+
+    if kritik is not None:
+        sat.append("")
+        sat.append(
+            f"❌ İPTAL: {_f(kritik)} altında KAPANIŞ → yükseliş senaryosu "
+            f"geçersiz, aşağı risk açılır.")
+
+    return "\n".join(sat)
+
+
+# Coin sembol → Türkçe konuşma dilindeki ad
+_COIN_AD = {
+    "BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL",
+    "BNBUSDT": "BNB", "XRPUSDT": "XRP", "AVAXUSDT": "AVAX",
+}
+
+
+def _ondalik(v: float) -> int:
+    """Büyüklüğe göre ondalık hane (kuruş-altı coinlerde hassasiyet)."""
+    a = abs(v)
+    if a >= 1:
+        return 2
+    if a >= 0.1:
+        return 4
+    if a >= 0.01:
+        return 5
+    if a >= 0.0001:
+        return 6
+    return 8
+
+
+def _f(v: float) -> str:
+    """Plan metni için hassasiyet-duyarlı sayı (İngilizce ayraç)."""
+    return f"{v:,.{_ondalik(v)}f}"
+
+
+def _tr_para(v: float) -> str:
+    """1728.53 → '1.728,53' (Türkçe biçim). Küçük fiyatlarda hassasiyet artar."""
+    s = f"{v:,.{_ondalik(v)}f}"
+    return s.replace(",", "§").replace(".", ",").replace("§", ".")
+
+
+def miraz_yorumu(symbol: str, s: Senaryo, vade: str = "Kısa vade") -> str:
+    """Senaryoyu @tradermiraz üslubunda düz metin (tweet) yorumuna çevirir."""
+    coin = _COIN_AD.get(symbol, symbol.replace("USDT", ""))
+    renk = s.destek_kutu.renk.lower() if s.destek_kutu else "destek"
+
+    sat = [f"{coin} | {vade} plan - Güncelleme", ""]
+
+    if s.destek_kutu is not None:
+        sat.append(
+            f"Fiyatın {renk} kutuya kadar geri çekilmesini bekliyorduk. "
+            f"Bu bölgede ({_tr_para(s.bolge_alt)}$ – {_tr_para(s.bolge_ust)}$) "
+            f"fiyatın dönüş yapısı oluşturabileceğini takip ediyoruz.")
+        if s.mavi_daire is not None:
+            sat.append("")
+            sat.append(
+                f"Mavi daire ({_tr_para(s.mavi_daire)}$) bölgesinde Bullish "
+                f"{s.mavi_daire_isim} harmonik yapısı tamamlanıyor — burası en "
+                f"güvendiğim long girişi. Mavide alım düşünüyorum.")
+        sat.append("")
+        sat.append(
+            f"Bu bölgede aranacak dönüşlerin {_tr_para(s.kritik_seviye)}$ "
+            f"altında iptal olması gerekir.")
+        sat.append(
+            f"{_tr_para(s.kritik_seviye)}$ altında KAPANIŞ gelmediği sürece "
+            f"yükseliş senaryosunu koruyorum.")
+        if s.fitil_seviye is not None:
+            sat.append(
+                f"Fitil ihtimalini de hesaba kattığımızda, "
+                f"{_tr_para(s.fitil_seviye)}$ bölgesine gelecek bir fitil "
+                f"senaryoyu bozmaz (kapanış kritik, fitil değil).")
+        if s.kirilma_riski:
+            sat.append("")
+            sat.append(
+                f"Ancak dikkat: fiyat bu bölgeye oldukça hacimli geliyor "
+                f"(geliş hacmi ~{s.gelis_hacim:.1f}× ortalama). Bu yüzden "
+                f"direkt işlem almıyorum; bölgede dönüş yapısı teyit edilmeden "
+                f"pozisyon açmam (hacimli geliş kırılma getirebilir).")
+        if s.mtf_yapi == "problemli":
+            sat.append("")
+            sat.append(
+                "Ancak büyük resimde dikkatli olmamız gereken bir nokta var: "
+                "üst zaman dilimi yapısı hâlâ problemli görünüyor. Bu yüzden "
+                "pozisyonu büyük tutmuyorum.")
+    else:
+        sat.append("Fiyat net bir destek kutusunun dışında; "
+                   "yeni bölge oluşana kadar temkinli takip ediyorum.")
+
+    if s.ara_hedef is not None:
+        sat.append("")
+        sat.append(
+            f"Mor çizgide ({_tr_para(s.ara_hedef)}$) yavaş yavaş pozisyondan "
+            f"ayrılmaya, kademeli kâr almaya bakarım.")
+
+    if s.hedef_kutu is not None:
+        sat.append(
+            f"Ana hedef {_tr_para(s.hedef_kutu.alt)}$ – "
+            f"{_tr_para(s.hedef_kutu.ust)}$ ({s.hedef_kutu.renk.lower()} kutu) "
+            f"bölgesidir.")
+
+    if s.trend is not None:
+        sat.append(
+            f"Yükselen trend çizgisi ({_tr_para(s.trend.guncel_deger)}$) "
+            f"yapıyı destekliyor.")
+
+    return "\n".join(sat)
+
+
+def finansaltrader_yorumu(symbol: str, s: Senaryo,
+                          vade: str = "Kısa vade") -> str:
+    """Senaryoyu @finansalTRader (Miraz'ın hocası) üslubunda yoruma çevirir.
+
+    Hocanın araç seti: Fibonacci Retracement (0.618 golden pocket), RSI,
+    MACD, divergence (trend yorgunluğu), Elliott dalga, OBO/TOBO.
+    """
+    coin = _COIN_AD.get(symbol, symbol.replace("USDT", ""))
+    sat = [f"Günaydın arkadaşlar.. #{coin}USD.. Güncelleme.. ({vade})", ""]
+
+    # RSI + MACD momentum okuması
+    if s.rsi is not None:
+        if s.rsi >= 70:
+            rsi_yorum = f"RSI {s.rsi:.0f} — aşırı alım, tepki/yorgunluk riski"
+        elif s.rsi <= 30:
+            rsi_yorum = f"RSI {s.rsi:.0f} — aşırı satım, tepki alınabilir"
+        elif s.rsi >= 55:
+            rsi_yorum = f"RSI {s.rsi:.0f} — momentum yukarı tarafta"
+        elif s.rsi <= 45:
+            rsi_yorum = f"RSI {s.rsi:.0f} — momentum zayıf"
+        else:
+            rsi_yorum = f"RSI {s.rsi:.0f} — nötr bölge"
+        macd_txt = (f", MACD {s.macd_yon.lower()} tarafında"
+                    if s.macd_yon else "")
+        sat.append(f"✍️ Momentum: {rsi_yorum}{macd_txt}.")
+
+    # Fibonacci Retracement — hocanın imza aracı
+    if s.fib is not None:
+        rol = "destek" if s.fib.yon == "Yükseliş" else "direnç"
+        if s.fib.fiyat_golden_icinde:
+            sat.append(
+                f"📐 Fiyat tam Fib.Retr 0,618 golden pocket "
+                f"({_tr_para(s.fib.golden_alt)}–{_tr_para(s.fib.golden_ust)}$) "
+                f"içinde — buradan {rol} tepkisi izlenir.")
+        else:
+            sat.append(
+                f"📐 Fib.Retr 0,618 bölgesi "
+                f"{_tr_para(s.fib.golden_alt)}–{_tr_para(s.fib.golden_ust)}$ "
+                f"({rol}) — fiyatın bu bölgeye tepkisi belirleyici.")
+
+    # Divergence (trend yorgunluğu)
+    if s.divergence is not None:
+        if s.divergence.tip == "Bearish":
+            sat.append(
+                "📉 Dikkat: Bearish divergence gelişiyor — trend yorgunluğu "
+                "var, bear (satış) hareketi gelebilir.")
+        else:
+            sat.append(
+                "📈 Bullish divergence gelişiyor — düşüş yoruluyor, "
+                "tepki/dönüş ihtimali artıyor.")
+    else:
+        sat.append("• Henüz belirgin bir divergence (trend yorgunluğu) yok.")
+
+    # Market yapısı
+    if s.market_yapisi is not None:
+        my = s.market_yapisi
+        if my.durum == "yükseliş":
+            sat.append("✅ Market yapısı yukarı (HH+HL) — yapı sağlam.")
+        elif my.durum == "düşüş":
+            sat.append("⚠️ Market yapısı aşağı (LH+LL) — tepkiler satış fırsatı.")
+        elif my.kirilim and "aşağı" in my.kirilim:
+            sat.append("⚠️ Market yapısı kırılımla aşağı döndü (CHoCH).")
+
+    # Elliott
+    if s.elliott is not None:
+        sat.append(f"🌊 {s.elliott.aciklama}")
+
+    # OBO/TOBO
+    if s.obo is not None:
+        sat.append(f"👤 {s.obo.tip} yapısı: {s.obo.aciklama}")
+
+    # Hedef özet (Fib + kutu)
+    if s.hedef_kutu is not None:
+        sat.append(
+            f"🎯 Yukarıda {_tr_para(s.hedef_kutu.alt)}–"
+            f"{_tr_para(s.hedef_kutu.ust)}$ direnci hedef/referans.")
+
+    return "\n".join(sat)
+
+
+def yazdir(symbol: str, interval: str, s: Senaryo, yorum: bool = True,
+           vade: str = "Kısa vade", hoca: str = "her ikisi") -> None:
+    """Senaryo planını ve seçili yorum(lar)ı yazdırır.
+
+    hoca: "miraz" / "finansaltrader" / "her ikisi" (iki ayrı yorum).
+    """
+    print(f"\n{'='*64}\n{symbol} / {interval} — Senaryo Planı\n{'='*64}")
+    print(s.metin)
+    print("=" * 64)
+    if not yorum:
+        return
+    if hoca in ("miraz", "her ikisi"):
+        print("\n--- @tradermiraz tarzı yorum (saf Price Action) ---\n")
+        print(miraz_yorumu(symbol, s, vade=vade))
+        print()
+    if hoca in ("finansaltrader", "her ikisi"):
+        print("\n--- @finansalTRader tarzı yorum (Fib + RSI + indikatör) ---\n")
+        print(finansaltrader_yorumu(symbol, s, vade=vade))
+        print()

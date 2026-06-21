@@ -1,0 +1,54 @@
+name: Sürekli Tarama (Pages)
+
+# terminalMiraz panelini GitHub Pages'te canlı tutar: her 30 dakikada bir
+# tarama çalışır, statik snapshot üretilip yayınlanır. Makinen kapalı olsa da
+# GitHub'ın sunucusunda döner.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"      # her 30 dk (UTC)
+  workflow_dispatch:            # elle de tetiklenebilir
+
+# Pages dağıtımı için gerekli izinler
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Aynı anda tek dağıtım; yenisi gelince eskisini iptal et
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  tarama:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Bağımlılıkları kur
+        run: pip install pandas numpy requests
+
+      - name: Tarama + statik site üret
+        run: python backtest/statik_site.py --cikti site --mtf --taraf her
+
+      - name: Pages artefaktını yükle
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: tarama
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Pages'e dağıt
+        id: deployment
+        uses: actions/deploy-pages@v4
