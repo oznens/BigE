@@ -40,7 +40,7 @@ Price Action + Harmonik trade terminali:
 | TP/Giriş/Stop Lab (parametre taraması) | `lab.lab_tara` | ✅ **bu turda** |
 | **Cluster hafızası / benzerlik** | — | ⏳ |
 | **Temas davranışı istatistiği** | — | ⏳ |
-| **Aktif işlem yönetimi + canlı P&L** | — | ⏳ paper-trading motoru |
+| **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -90,13 +90,27 @@ Her boyutu (Giriş/Stop/TP) ayrı ayrı tarar; senaryo noktaları sembol başın
 daha iyi. (Tümü hâlâ hafif negatif; kalite filtresi `min_guven` ile A setuplara
 daraltınca pozitife döner — bkz. lab.py ilk bulgu.)
 
+## Bu turda eklenen: Portföy / Paper-Trading Motoru (`portfoy.py`)
+
+```
+python backtest/portfoy.py --ekle-radar --semboller BTCUSDT ETHUSDT SOLUSDT
+python backtest/portfoy.py --guncelle
+python backtest/portfoy.py
+```
+
+- Radar taramasındaki Trade sinyallerini `ekle()` ile Bekliyor listesine alır.
+- `guncelle(sembol, interval, df)` her çalışmada: limit giriş dolar mı? → TP mi
+  STOP mu? Aynı barda ikisi → muhafazakâr STOP (lab motoruyla tutarlı).
+- Durum geçişleri: **Bekliyor → Açık → TP / STOP / Manuel**
+- R-bazlı P&L: toplam R, günlük R, WR% — terminalMiraz tablo formatında.
+- Kalıcılık: `portfoy.json`'a kaydedilir, sonraki çalışmada yüklenir.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Aktif işlem yönetimi (paper-trading)** — Trade kararlarını sanal portföyde
-   açıp TP/STOP takibi, R-bazlı P&L, günlük istatistik.
-3. **Cluster hafızası** — güncel setup'ı geçmiş benzerlerle karşılaştırıp güven.
-4. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.
-5. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
+1. **Cluster hafızası** — güncel setup'ı geçmiş benzerlerle karşılaştırıp güven.
+2. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.
+3. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
+4. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
 > atıldı. Sıradaki: Price Action Labs backtest motoru.
