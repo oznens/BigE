@@ -598,6 +598,21 @@ klines'tan MEXC **futures** (contract) klines'a çevrildi; spot yedek kaldı.
 - Web grafik: aday yokken bile boş kalmasın diye snapshot'a `varsayilan_grafik`
   (ilk taranan sembol) eklendi; ilk scan yavaşken bile grafik bir şey gösterir.
 
+## Bu turda eklenen: Rate-limit dayanıklılık + bayat bölge filtresi
+
+- **Rate-limit retry** (`veri._get`): 429/418/5xx → `Retry-After` kadar backoff,
+  4 deneme. 90 parite × 4 TF taramada MEXC limitine takılmayı önler.
+- **max_bar sınırı** (`veri.indir(max_bar=)`): pencereyi en çok N mumla
+  sınırlar. Web sunucu canlı taramada **900 mum** kullanır → intraday TF'lerde
+  (15m/30m) 120 gün yerine ~9 gün indirir, ilk tarama çok hızlanır. radar_tara
+  / Gözlemci üzerinden geçer; backtest'te varsayılan None (tam geçmiş).
+- **Bayat bölge filtresi** (`radar._hedef_zaten_gorundu`): @tradermiraz'ın
+  bizzat anlattığı hata — "Short bölgesi çoktan çiğnenmiş olmasına rağmen
+  tarama hâlâ aktif setup listeliyor; oysa bölge artık direnç değil destek".
+  Hedef yakın geçmişte (son 40 mum) zaten görülmüşse (short: düşük ≤ hedef,
+  long: yüksek ≥ hedef) hareket olmuş demektir → setup **Elenen** ("bölge
+  çiğnenmiş (hedef zaten görüldü)"). Late filtresinin tamamlayıcısı.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).

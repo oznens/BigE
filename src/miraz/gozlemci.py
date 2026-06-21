@@ -254,7 +254,7 @@ class DonguSonuc:
 class Gozlemci:
     def __init__(self, semboller, intervallar, taraf="long", rr_hedef=1.0,
                  cluster_hafiza=None, r_dolar=25.0, gun=120, max_bekleme=24,
-                 goreceli=False, portfoy=None, defter=None):
+                 goreceli=False, portfoy=None, defter=None, max_bar=None):
         self.semboller = semboller
         self.intervallar = intervallar
         self.taraf = taraf
@@ -264,6 +264,7 @@ class Gozlemci:
         self.gun = gun
         self.max_bekleme = max_bekleme
         self.goreceli = goreceli
+        self.max_bar = max_bar
         self.portfoy = portfoy or Portfoy(r_dolar=r_dolar)
         self.defter = defter or Defter()
 
@@ -273,7 +274,8 @@ class Gozlemci:
         rapor = radar_tara(
             self.semboller, self.intervallar, r_dolar=self.r_dolar,
             gun=self.gun, cluster_hafiza=self.cluster_hafiza,
-            goreceli=self.goreceli, taraf=self.taraf, rr_hedef=self.rr_hedef)
+            goreceli=self.goreceli, taraf=self.taraf, rr_hedef=self.rr_hedef,
+            max_bar=self.max_bar)
 
         # 2. Trade sinyallerini portföye + deftere ekle
         eklenen = radar_sinyallerini_ekle(self.portfoy, rapor)
@@ -287,7 +289,8 @@ class Gozlemci:
         for (sem, ivl) in aktif_sem:
             try:
                 df_sozluk[(sem, ivl)] = veri.indir(sem, ivl, gun=self.gun,
-                                                    force=True)
+                                                    force=True,
+                                                    max_bar=self.max_bar)
             except Exception:
                 continue
         degisenler = self.portfoy.guncelle_hepsi(

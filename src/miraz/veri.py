@@ -41,6 +41,19 @@ _TUREV = {
 }
 
 
+def _get(url: str, params: dict, deneme: int = 4):
+    """Rate-limit/sunucu hatalarına dayanıklı GET (429/418/5xx → backoff)."""
+    r = None
+    for i in range(deneme):
+        r = requests.get(url, params=params, timeout=15, headers=_BASLIK)
+        if r.status_code in (429, 418, 500, 502, 503, 504):
+            bekle = float(r.headers.get("Retry-After", 0) or 0) or 1.5 * (i + 1)
+            time.sleep(min(bekle, 12))
+            continue
+        return r
+    return r
+
+
 def _resample(df: pd.DataFrame, kural: str) -> pd.DataFrame:
     """OHLCV df'i daha üst bir zaman dilimine toplar (örn. 1h → 2h)."""
     o = df.resample(kural, label="left", closed="left").agg({
@@ -71,9 +84,8 @@ def _mexc_futures_cek(symbol: str, interval: str, start_ms: int,
     son_s = end_ms // 1000
     while imlec < son_s:
         bitis = min(imlec + pencere, son_s)
-        r = requests.get(f"{MEXC_FUT_BASE}/{sym}", params={
-            "interval": iv, "start": imlec, "end": bitis,
-        }, timeout=15, headers=_BASLIK)
+        r = _get(f"{MEXC_FUT_BASE}/{sym}", {
+            "interval": iv, "start": imlec, "end": bitis})
         r.raise_for_status()
         j = r.json()
         d = j.get("data") or {}
@@ -100,10 +112,9 @@ def _mexc_spot_cek(symbol: str, interval: str, start_ms: int,
     parcalar: list = []
     imlec = start_ms
     while imlec < end_ms:
-        r = requests.get(MEXC_SPOT_BASE, params={
+        r = _get(MEXC_SPOT_BASE, {
             "symbol": symbol, "interval": iv,
-            "startTime": imlec, "endTime": end_ms, "limit": 1000,
-        }, timeout=15, headers=_BASLIK)
+            "startTime": imlec, "endTime": end_ms, "limit": 1000})
         r.raise_for_status()
         chunk = r.json()
         if not chunk:
@@ -126,12 +137,15 @@ _KAYNAKLAR = [
 
 def indir(symbol: str = "BTCUSDT", interval: str = "4h",
           gun: int = 500, force: bool = False,
-          borsa: str | None = None) -> pd.DataFrame:
+          borsa: str | None = None, max_bar: int | None = None) -> pd.DataFrame:
     """OHLCV veriyi indirir, parquet cache kullanır.
 
     Kaynaklar sırayla denenir: **MEXC Futures → MEXC Spot**; biri başarısız olur
     veya sembolü sunmazsa diğerine geçilir. borsa verilirse ("mexc-futures" /
     "mexc-spot") yalnızca o kaynak kullanılır.
+
+    max_bar verilirse pencere en çok o kadar mumla sınırlanır (intraday TF'lerde
+    120 günlük 15m gibi devasa indirmeleri önler — canlı tarama hızlanır).
 
     Döndürür: UTC indeksli, float kolonlu OHLCV DataFrame.
     """
@@ -143,7 +157,13 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
         yol_t = DATA_DIR / f"{symbol}_{interval}.parquet"
         if yol_t.exists() and not force:
             return pd.read_parquet(yol_t)
-        alt = indir(symbol, alt_iv, gun=gun, force=force, borsa=borsa)
+        # 2h için yeterli alt-TF mumu (oran kadar fazlası) çek
+        alt_bar = None
+        if max_bar:
+            oran = _IV_SANIYE[interval] // _IV_SANIYE[alt_iv]
+            alt_bar = max_bar * max(oran, 1)
+        alt = indir(symbol, alt_iv, gun=gun, force=force, borsa=borsa,
+                    max_bar=alt_bar)
         df_t = _resample(alt, kural)
         df_t.to_parquet(yol_t)
         return df_t
@@ -154,6 +174,11 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
 
     end_ms = int(time.time() * 1000)
     start_ms = end_ms - gun * 24 * 3600 * 1000
+    # mum sayısı sınırı: pencereyi kısaltarak intraday indirmeyi bound'la
+    if max_bar:
+        sec = _IV_SANIYE.get(interval)
+        if sec:
+            start_ms = max(start_ms, end_ms - max_bar * sec * 1000)
 
     kaynaklar = [k for k in _KAYNAKLAR if borsa is None or k[0] == borsa]
     parcalar: list = []

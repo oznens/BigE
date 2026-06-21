@@ -115,6 +115,24 @@ def test_gec_kalmis_eksik_veri():
     assert _gec_kalmis(100, 100, 100, "Long") is False   # toplam 0
 
 
+# ---- Bayat bölge filtresi (_hedef_zaten_gorundu) ----
+
+def test_hedef_zaten_gorundu():
+    import pandas as pd
+    from miraz.radar import _hedef_zaten_gorundu
+    # Short: hedef 90; son barlarda düşük 88 görülmüş → hedef zaten görüldü
+    df = pd.DataFrame({"high": [105, 104, 103], "low": [100, 88, 95]})
+    assert _hedef_zaten_gorundu(df, 90, "Short") is True
+    # Short: düşük hiç 90'a inmemiş → taze
+    df2 = pd.DataFrame({"high": [105, 104], "low": [100, 98]})
+    assert _hedef_zaten_gorundu(df2, 90, "Short") is False
+    # Long: hedef 110; son yüksek 112 → zaten görüldü
+    df3 = pd.DataFrame({"high": [108, 112, 109], "low": [100, 101, 102]})
+    assert _hedef_zaten_gorundu(df3, 110, "Long") is True
+    # eksik veri
+    assert _hedef_zaten_gorundu(None, 90, "Short") is False
+
+
 # ---- PaMonic notu ----
 
 def test_pamonic_notu():

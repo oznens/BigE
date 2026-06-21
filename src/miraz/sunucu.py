@@ -177,13 +177,13 @@ def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
 
 
 def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
-                gun: int = 60, bar: int = 160) -> dict:
+                gun: int = 60, bar: int = 160, max_bar: int | None = None) -> dict:
     """Bir sembol/TF için mum + MACD + setup seviyeleri (ZONE dâhil) döndürür.
 
     ZONE, taze senaryo motorundan (bolge_alt/üst) hesaplanır; setup seviyeleri
     (giriş/stop/hedef) son tarama anlık görüntüsünden alınır.
     """
-    df = veri.indir(symbol, interval, gun=gun).tail(bar)
+    df = veri.indir(symbol, interval, gun=gun, max_bar=max_bar).tail(bar)
     mac = indikator.macd(df["close"])
 
     def _kolon(seri):
@@ -294,12 +294,14 @@ class Sunucu:
                  cluster_hafiza=None, r_dolar=25.0, gun=120, max_bekleme=24,
                  goreceli=False, aralik=180, port=8000, host="127.0.0.1",
                  portfoy=None, defter=None, borsa=None, otomatik=False,
+                 max_bar=900,
                  defter_dosya=DEFTER_DOSYA, portfoy_dosya=PORTFOY_DOSYA):
         self.gozlemci = Gozlemci(
             semboller=semboller, intervallar=intervallar, taraf=taraf,
             rr_hedef=rr_hedef, cluster_hafiza=cluster_hafiza, r_dolar=r_dolar,
-            gun=gun, max_bekleme=max_bekleme, goreceli=goreceli,
+            gun=gun, max_bekleme=max_bekleme, goreceli=goreceli, max_bar=max_bar,
             portfoy=portfoy or Portfoy(r_dolar=r_dolar), defter=defter or Defter())
+        self.max_bar = max_bar
         self.aralik = aralik
         self.port = port
         self.host = host
@@ -347,7 +349,7 @@ class Sunucu:
 
     def grafik_veri(self, symbol: str, interval: str) -> dict:
         return grafik_veri(symbol, interval, durum=self.depo.oku(),
-                           gun=self.gozlemci.gun)
+                           gun=self.gozlemci.gun, max_bar=self.max_bar)
 
     def _tarama_dongusu(self) -> None:
         while not self._dur.is_set():

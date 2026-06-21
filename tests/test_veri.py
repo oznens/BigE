@@ -16,6 +16,8 @@ def test_fut_sembol():
 
 
 class _Cevap:
+    status_code = 200
+    headers: dict = {}
     def __init__(self, govde):
         self._g = govde
     def raise_for_status(self):
@@ -84,6 +86,40 @@ def test_indir_spot_yedege_duser(monkeypatch, tmp_path):
     df = veri.indir("BTCUSDT", "1h", gun=1, force=True)
     assert cagrilanlar == ["futures", "spot"]         # ikisi de denendi
     assert len(df) == 1
+
+
+def test_get_rate_limit_retry(monkeypatch):
+    """429 → Retry-After kadar bekleyip yeniden dener, sonunda 200 döner."""
+    durumlar = [429, 429, 200]
+    uyku = []
+
+    class C:
+        def __init__(self, kod):
+            self.status_code = kod
+            self.headers = {"Retry-After": "0"}
+
+    def sahte_get(url, params=None, timeout=None, headers=None):
+        return C(durumlar.pop(0))
+
+    monkeypatch.setattr(veri.requests, "get", sahte_get)
+    monkeypatch.setattr(veri.time, "sleep", lambda s: uyku.append(s))
+    r = veri._get("u", {}, deneme=4)
+    assert r.status_code == 200 and len(uyku) == 2     # 2 kez bekledi
+
+
+def test_max_bar_pencereyi_kisitlar(monkeypatch, tmp_path):
+    """max_bar verilince start_ms en çok max_bar mum kadar geriye gider."""
+    monkeypatch.setattr(veri, "DATA_DIR", tmp_path)
+    yakalanan = {}
+
+    def fut(symbol, interval, s, e):
+        yakalanan["span_sec"] = (e - s) // 1000
+        return [[s, 1, 2, 0.5, 1.5, 1, s, 0]]
+
+    monkeypatch.setattr(veri, "_KAYNAKLAR", [("mexc-futures", fut)])
+    # 1h, max_bar=100 → pencere ≈ 100*3600 sn
+    veri.indir("BTCUSDT", "1h", gun=120, force=True, max_bar=100)
+    assert yakalanan["span_sec"] <= 100 * 3600 + 5
 
 
 def test_indir_hepsi_basarisiz_hata(monkeypatch, tmp_path):

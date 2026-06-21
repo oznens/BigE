@@ -200,12 +200,29 @@ def _gec_kalmis(fiyat, giris, hedef, taraf: str, esik: float = _LATE_ESIK) -> bo
     return (katedilen / toplam) >= esik
 
 
+def _hedef_zaten_gorundu(df, hedef, taraf: str, bar: int = 40) -> bool:
+    """Son `bar` mumda fiyat hedefe (veya ötesine) zaten ulaştıysa True.
+
+    terminalMiraz'ın @tradermiraz'ın anlattığı hatası: bölge çoktan çiğnenmiş
+    (hareket olmuş) olmasına rağmen setup hâlâ aktif listeleniyor. Beklenen
+    hareket yakın geçmişte zaten gerçekleştiyse setup bayat → Elenen.
+      Short: son düşük ≤ hedef (düşüş zaten oldu)
+      Long : son yüksek ≥ hedef (yükseliş zaten oldu)
+    """
+    if hedef is None or df is None or len(df) == 0:
+        return False
+    son = df.tail(bar)
+    if taraf == "Short":
+        return float(son["low"].min()) <= hedef
+    return float(son["high"].max()) >= hedef
+
+
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
                cluster_hafiza: object = None,
                goreceli: bool = True, taraf: str = "long",
-               rr_hedef: float = 1.0) -> RadarRapor:
+               rr_hedef: float = 1.0, max_bar: int | None = None) -> RadarRapor:
     """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
 
     cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
@@ -222,9 +239,10 @@ def radar_tara(semboller: list[str] | None = None,
     for sym in semboller:
         for tf in intervallar:
             try:
-                df = veri.indir(sym, tf, gun=gun)
+                df = veri.indir(sym, tf, gun=gun, max_bar=max_bar)
                 ust_tf = _UST_TF.get(tf)
-                df_ust = veri.indir(sym, ust_tf, gun=gun) if ust_tf else None
+                df_ust = (veri.indir(sym, ust_tf, gun=gun, max_bar=max_bar)
+                          if ust_tf else None)
             except Exception as e:
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
                 continue
@@ -250,6 +268,12 @@ def radar_tara(semboller: list[str] | None = None,
                             s.fiyat, rp.giris, rp.hedef, "Long"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
+                    # Bayat bölge: hedef yakın geçmişte zaten görüldü → Elenen
+                    elif rp and kategori in ("Trade", "Watch") and \
+                            _hedef_zaten_gorundu(df, rp.hedef, "Long"):
+                        kategori = "Elenen"
+                        notu = "bölge çiğnenmiş (hedef zaten görüldü)" + (
+                            f" · {notu}" if notu else "")
                     # kaynak motoru belirleme (terminalMiraz Result Journal)
                     _pat = s.mavi_daire_isim
                     if "Late" in notu:
@@ -294,6 +318,12 @@ def radar_tara(semboller: list[str] | None = None,
                             ks.fiyat, s_giris, s_hedef, "Short"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
+                    # Bayat bölge (short): hedef yakın geçmişte zaten görüldü
+                    elif kategori in ("Trade", "Watch") and \
+                            _hedef_zaten_gorundu(df, s_hedef, "Short"):
+                        kategori = "Elenen"
+                        notu = "bölge çiğnenmiş (hedef zaten görüldü)" + (
+                            f" · {notu}" if notu else "")
                     # kaynak motoru belirleme (short)
                     _s_pat = ks.harmonik_isim
                     if "Late" in notu:
