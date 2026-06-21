@@ -62,6 +62,12 @@ def main() -> None:
     ap.add_argument("--benzerlik", default=None,
                     help="Bir sembol için güncel setup benzerlik raporu")
     ap.add_argument("--min-n", type=int, default=8)
+    ap.add_argument("--giris", default="ust", choices=["ust", "orta", "alt"],
+                    help="öğrenmede giriş modu (lab doğrulaması: ust)")
+    ap.add_argument("--stop", default="fitil",
+                    choices=["fitil", "yapisal", "genis"])
+    ap.add_argument("--tp", default="ara", choices=["ana", "ara", "rr2"],
+                    help="öğrenmede TP modu (lab doğrulaması: ara/hızlı)")
     ap.add_argument("--dosya", default=str(CLUSTER_DOSYA))
     args = ap.parse_args()
 
@@ -75,7 +81,8 @@ def main() -> None:
                 dfs[sym] = veri.indir(sym, args.tf, gun=args.gun)
             except Exception as e:
                 print(f"  ⚠️  {sym}: {e}")
-        h = cluster_ogren(dfs, pencere=args.pencere)
+        h = cluster_ogren(dfs, pencere=args.pencere, giris_mod=args.giris,
+                          stop_mod=args.stop, tp_mod=args.tp)
         h.kaydet(dosya)
         print(f"✅ {h.toplam_setup} setup, {len(h.clusterlar)} imza kaydedildi "
               f"→ {dosya.name}")

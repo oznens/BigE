@@ -107,8 +107,13 @@ def _kategori_belirle(s) -> tuple[str, str]:
 
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
-               r_dolar: float = 25.0, gun: int = 400) -> RadarRapor:
-    """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür."""
+               r_dolar: float = 25.0, gun: int = 400,
+               cluster_hafiza: object = None) -> RadarRapor:
+    """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
+
+    cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
+    başarısına göre düzeltilir (terminalMiraz cluster katmanı).
+    """
     semboller = semboller or VARSAYILAN_EVREN
     intervallar = intervallar or ["4h"]
     rapor = RadarRapor()
@@ -125,7 +130,8 @@ def radar_tara(semboller: list[str] | None = None,
                 except Exception:
                     gguc = None
                 s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
-                                    r_dolar=r_dolar)
+                                    r_dolar=r_dolar,
+                                    cluster_hafiza=cluster_hafiza)
             except Exception as e:
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
                 continue

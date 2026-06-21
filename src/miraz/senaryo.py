@@ -123,6 +123,7 @@ class Senaryo:
     macd_yon: str | None = None           # "AL" / "SAT" (hoca tarzı)
     olusan: object = None                 # oluşmakta olan harmonik (D projeksiyonu)
     temas: object = None                  # destek bölgesi temas davranışı (TemasSonuc)
+    cluster: object = None                # cluster hafızası benzerlik sonucu (ClusterSonuc)
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -138,6 +139,7 @@ def senaryo_uret(
     df_ust: pd.DataFrame | None = None,
     gguc: object = None,
     r_dolar: float = 0.0,
+    cluster_hafiza: object = None,
 ) -> Senaryo:
     """Güncel piyasa yapısından koşullu bir plan üretir.
 
@@ -294,9 +296,20 @@ def senaryo_uret(
         if rp is not None:
             _rr = rp.rr_orani
             s.metin = s.metin + "\n\n" + rp.aciklama
-    k = karar_uret(s, rr=_rr)
-    s.karar = k
-    s.metin = k.metin + "\n" + s.metin
+    # 1. geçiş: temel karar (cluster yok)
+    s.karar = karar_uret(s, rr=_rr)
+
+    # 2. geçiş: cluster hafızası verilmişse imzaya göre güveni düzelt
+    if cluster_hafiza is not None:
+        from .cluster import benzerlik
+        cl = benzerlik(s, cluster_hafiza, rr=_rr)
+        s.cluster = cl
+        if cl.bulundu and cl.guven_etkisi:
+            s.karar = karar_uret(s, rr=_rr, ek_guven=cl.guven_etkisi,
+                                 ek_gerekce=cl.metin)
+        s.metin = s.metin + "\n" + cl.metin
+
+    s.metin = s.karar.metin + "\n" + s.metin
 
     return s
 

@@ -41,6 +41,7 @@ Price Action + Harmonik trade terminali:
 | **Cluster hafızası / benzerlik** | `cluster.py` | ✅ **bu turda** |
 | **Temas davranışı istatistiği** | `temas.py` | ✅ **bu turda** |
 | **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
+| **Karar–cluster canlı entegrasyon** | `senaryo_uret(cluster_hafiza=)` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -145,12 +146,32 @@ seferinde sert tepki vermiş bölge en güçlüsüdür."
 BTC 4h destek bölgesi 17 kez test edilmiş (15 tepki/2 kırılma, %88) — ama çok
 yıpranmış olduğu için net güven +1; SOL bölgesi 8 olay %88 → temiz +1.
 
+## Bu turda eklenen: Karar–Cluster Entegrasyonu (canlı)
+
+```
+python backtest/cluster.py --ogren --giris ust --tp ara   # önce öğret
+python backtest/radar.py --tf 4h --cluster                # sonra uygula
+```
+
+- `senaryo_uret(df, cluster_hafiza=...)` **iki-geçişli**: önce temel karar
+  üretilir (imza için kalite gerekir), sonra `cluster.benzerlik()` ile geçmiş
+  başarı bulunup `karar_uret(..., ek_guven=...)` ile nihai güven düzeltilir.
+- `karar.py`: `ek_guven` / `ek_gerekce` parametreleri (cluster katkısı skora
+  ve gerekçe listesine girer).
+- `radar_tara(..., cluster_hafiza=...)` ve `backtest/radar.py --cluster`.
+- Döngüsel import (`cluster→lab→senaryo`) fonksiyon-içi import ile çözüldü.
+
+### Önemli: öğrenme modu ayrıştırmayı belirler
+Cluster `tp ana` (agresif) ile öğrenilirse tüm WR'lar düşük (~%12-24) → etki hep
+−10 (ayrıştırıcı değil). Lab'ın doğruladığı `giris ust + tp ara` (hızlı kâr-al)
+ile öğrenilince WR'lar **%54-87** aralığına yayılır → cluster gerçek ayrıştırıcı
+olur. Canlı: BTC %59→+5, SOL %64→+5 (A→A+). cluster.json yereldir (gitignore).
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
 2. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
-3. **Karar–cluster entegrasyonu** — `benzerlik.guven_etkisi`yi radar/karar
-   güvenine canlı uygula (hafıza yüklenmişse).
+3. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
 > atıldı. Sıradaki: Price Action Labs backtest motoru.

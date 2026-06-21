@@ -83,3 +83,24 @@ def test_gerekceler_dolu():
     k = karar_uret(s, rr=1.5)
     assert len(k.gerekceler) >= 2
     assert "Mavi daire" in " ".join(k.gerekceler)
+
+
+def test_ek_guven_cluster_pozitif():
+    """Cluster ek güveni skoru yükseltir ve gerekçeye yansır."""
+    # Düşük tabanlı setup (tavana çarpmasın): 50 + 3(güç) + 3(rr) = 56
+    s = _Sen(destek_kutu=_Kutu(guc=60))
+    temel = karar_uret(s, rr=1.5)
+    artmis = karar_uret(s, rr=1.5, ek_guven=10.0,
+                        ek_gerekce="Cluster: WR %80")
+    assert artmis.guven == temel.guven + 10.0
+    assert "Cluster" in " ".join(artmis.gerekceler)
+
+
+def test_ek_guven_negatif_karar_dusurur():
+    """Negatif cluster etkisi güveni düşürür."""
+    # Taban 50 + 6(güç) + 10(mtf) = 66 (tavana uzak)
+    s = _Sen(destek_kutu=_Kutu(guc=70), mtf_yapi="sağlıklı")
+    temel = karar_uret(s, rr=1.5)
+    dusuk = karar_uret(s, rr=1.5, ek_guven=-12.0)
+    assert dusuk.guven < temel.guven
+    assert dusuk.guven == temel.guven - 12.0

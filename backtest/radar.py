@@ -15,6 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.radar import radar_tara, VARSAYILAN_EVREN
+from miraz.cluster import ClusterHafiza
+
+CLUSTER_DOSYA = Path(__file__).resolve().parents[1] / "cluster.json"
 
 
 def main() -> None:
@@ -27,11 +30,21 @@ def main() -> None:
     ap.add_argument("--sadece", default=None,
                     choices=["Trade", "Watch", "Skip", "Elenen"],
                     help="sadece bu kategoriyi göster")
+    ap.add_argument("--cluster", action="store_true",
+                    help="cluster.json hafızasını güvene uygula")
     args = ap.parse_args()
+
+    hafiza = None
+    if args.cluster and CLUSTER_DOSYA.exists():
+        hafiza = ClusterHafiza.yukle(CLUSTER_DOSYA)
+        print(f"🧬 Cluster hafızası yüklendi ({hafiza.toplam_setup} setup).")
+    elif args.cluster:
+        print("⚠️  cluster.json yok — önce: python backtest/cluster.py --ogren")
 
     print(f"\n📡 PİYASA RADAR — {len(args.sembol or VARSAYILAN_EVREN)} parite × "
           f"{len(args.tf)} TF taranıyor...\n")
-    rapor = radar_tara(args.sembol, args.tf, r_dolar=args.r, gun=args.gun)
+    rapor = radar_tara(args.sembol, args.tf, r_dolar=args.r, gun=args.gun,
+                       cluster_hafiza=hafiza)
     print(rapor.tablo(sadece=args.sadece))
     if rapor.hatalar:
         print(f"\n⚠️ {len(rapor.hatalar)} hata: " +

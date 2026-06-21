@@ -38,11 +38,17 @@ def _kalite(guven: float) -> str:
     return "D"
 
 
-def karar_uret(senaryo, rr: float | None = None) -> KararSonuc:
+def karar_uret(senaryo, rr: float | None = None,
+               ek_guven: float = 0.0, ek_gerekce: str | None = None
+               ) -> KararSonuc:
     """Senaryoyu Trade/Watch/Skip kararına ve A-D kalitesine bağlar.
 
     Güven skoru 50 tabanından başlar; her sinyal +/− katkı yapar. Sert
     engeller (destek yok / hacimli kırılma riski) kararı sınırlar.
+
+    ek_guven: dışarıdan (ör. cluster hafızası) gelen güven düzeltmesi. İki-geçişli
+    akış için: önce ek_guven=0 ile temel karar üretilir, imzaya göre cluster
+    bulunur, sonra ek_guven verilerek nihai karar üretilir.
     """
     guven = 50.0
     ger: list[str] = []
@@ -132,6 +138,11 @@ def karar_uret(senaryo, rr: float | None = None) -> KararSonuc:
     # Hedef tanımlı
     if getattr(senaryo, "hedef_kutu", None) is not None:
         guven += 4; ger.append("Ana hedef tanımlı (+4)")
+
+    # Dışarıdan gelen düzeltme (cluster hafızası — geçmiş benzer setup başarısı)
+    if ek_guven:
+        guven += ek_guven
+        ger.append(ek_gerekce or f"Cluster hafızası ({ek_guven:+.0f})")
 
     guven = max(0.0, min(100.0, guven))
     kalite = _kalite(guven)
