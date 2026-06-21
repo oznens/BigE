@@ -66,8 +66,8 @@ def main() -> None:
                     help="öğrenmede giriş modu (lab doğrulaması: ust)")
     ap.add_argument("--stop", default="fitil",
                     choices=["fitil", "yapisal", "genis"])
-    ap.add_argument("--tp", default="ara", choices=["ana", "ara", "rr2"],
-                    help="öğrenmede TP modu (lab doğrulaması: ara/hızlı)")
+    ap.add_argument("--tp", default="rr", choices=["rr", "rr2", "ara", "ana"],
+                    help="öğrenmede TP modu (terminalMiraz: rr=1R uzaklık)")
     ap.add_argument("--yon", default="long", choices=["long", "short"],
                     help="öğrenmede yön: long (varsayılan) | short")
     ap.add_argument("--dosya", default=str(CLUSTER_DOSYA))

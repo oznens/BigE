@@ -158,14 +158,6 @@ def _short_kategori(ks) -> tuple[str, str]:
     return karar, ", ".join(notlar)
 
 
-def _short_rr(ks) -> float | None:
-    if ks.bolge_alt is None or ks.fitil_seviye is None or ks.hedef is None:
-        return None
-    risk = ks.fitil_seviye - ks.bolge_alt
-    odul = ks.bolge_alt - ks.hedef
-    return round(odul / risk, 2) if risk > 0 and odul > 0 else None
-
-
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
@@ -223,14 +215,22 @@ def radar_tara(semboller: list[str] | None = None,
             if short_acik:
                 try:
                     from .kisa import kisa_senaryo
+                    from .risk import mesafe_hedef
                     ks = kisa_senaryo(df, df_ust=df_ust)
                     kategori, notu = _short_kategori(ks)
+                    # terminalMiraz tarzı short TP: girişe stop mesafesi kadar (1R)
+                    s_giris = ks.bolge_alt
+                    s_hedef = s_rr = None
+                    if (s_giris is not None and ks.fitil_seviye is not None
+                            and ks.fitil_seviye > s_giris):
+                        s_hedef = round(mesafe_hedef(s_giris, ks.fitil_seviye), 6)
+                        s_rr = 1.0
                     rapor.satirlar.append(RadarSatiri(
                         symbol=sym, interval=tf, fiyat=ks.fiyat,
                         kategori=kategori,
                         kalite=ks.karar.kalite if ks.karar else "D",
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
-                        giris=ks.bolge_alt, hedef=ks.hedef, rr=_short_rr(ks),
+                        giris=s_giris, hedef=s_hedef, rr=s_rr,
                         not_=notu, taraf="Short"))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")

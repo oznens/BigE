@@ -32,7 +32,8 @@ def main() -> None:
     ap.add_argument("--giris", default="orta", choices=["ust", "orta", "alt"])
     ap.add_argument("--stop", default="fitil",
                     choices=["fitil", "yapisal", "genis"])
-    ap.add_argument("--tp", default="ana", choices=["ana", "ara", "rr2"])
+    ap.add_argument("--tp", default="rr", choices=["rr", "rr2", "ara", "ana"],
+                    help="TP: rr(terminalMiraz 1R) | rr2 | ara(mor çizgi) | ana(mor kutu)")
     ap.add_argument("--kisa", action="store_true",
                     help="KISA (short) senaryoları backtest et")
     ap.add_argument("--gun", type=int, default=500)
@@ -62,8 +63,7 @@ def main() -> None:
             if args.kisa:
                 r = backtest_kisa(df, adim=args.adim, max_bar=args.max_bar,
                                   pencere=args.pencere, min_guven=args.min_guven,
-                                  sadece_trade=args.sadece_trade,
-                                  tp_mod=args.tp if args.tp != "ana" else "ara")
+                                  sadece_trade=args.sadece_trade, tp_mod=args.tp)
             else:
                 r = backtest(df, adim=args.adim, max_bar=args.max_bar,
                              pencere=args.pencere, min_guven=args.min_guven,

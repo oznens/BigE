@@ -22,6 +22,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+# terminalMiraz standart TP: hedefi girişe, STOP mesafesi kadar simetrik
+# uzaklığa koyar (R/R = 1R). Görsellerde (Deep Crab TAOUSDT, dashboard
+# HBAR/ALGO) entry↔TP mesafesi = entry↔SL mesafesi → mor kutu/yapısal hedef
+# DEĞİL, sabit R uzaklığı. Bu çarpan kaç R uzağa TP koyulacağını belirler.
+RR_HEDEF = 1.0
+
+
+def mesafe_hedef(giris: float, stop: float,
+                 rr_carpan: float = RR_HEDEF) -> float:
+    """Girişe, risk mesafesinin rr_carpan katı uzaklıkta TP (terminalMiraz tarzı).
+
+    Long  (stop < giriş): hedef = giriş + rr_carpan·(giriş − stop)  → üstte
+    Short (stop > giriş): hedef = giriş − rr_carpan·(stop − giriş)  → altta
+    """
+    risk = abs(giris - stop)
+    return giris + rr_carpan * risk if stop < giris else giris - rr_carpan * risk
+
+
 def _f(v: float) -> str:
     """Fiyat için hassasiyet-duyarlı format (kuruş-altı coinler)."""
     a = abs(v)
@@ -84,12 +102,14 @@ def _karsi_trend(senaryo) -> bool:
 
 
 def risk_plani(senaryo, r_dolar: float = 25.0,
-               kar_al_birincil: float = 0.65) -> RiskPlan | None:
+               kar_al_birincil: float = 0.65,
+               rr_hedef: float = RR_HEDEF) -> RiskPlan | None:
     """Senaryodan R-bazlı uygulanabilir bir risk planı üretir.
 
     Giriş  = mavi daire varsa orası, yoksa destek bölgesinin ortası.
     Stop   = fitil seviyesi (kritik kapanışın hemen altı).
-    Hedef  = ara hedef (mor çizgi) varsa o, yoksa ana hedef kutusunun altı.
+    Hedef  = terminalMiraz tarzı: girişe STOP mesafesi kadar uzaklık (1R).
+             Mor kutu / yapısal hedef değil — sabit R çarpanı (rr_hedef).
     Karşı trendde pozisyon yarıya indirilir (½R).
     """
     if getattr(senaryo, "destek_kutu", None) is None:
@@ -115,12 +135,8 @@ def risk_plani(senaryo, r_dolar: float = 25.0,
     if stop >= giris:                    # stop girişin altında olmalı (long)
         return None
 
-    # Hedef: önce ara hedef (mor çizgi), yoksa ana hedef kutusu
-    hedef = None
-    if getattr(senaryo, "ara_hedef", None) is not None:
-        hedef = float(senaryo.ara_hedef)
-    elif getattr(senaryo, "hedef_kutu", None) is not None:
-        hedef = float(senaryo.hedef_kutu.alt)
+    # Hedef: terminalMiraz tarzı — girişe stop mesafesi kadar uzaklık (rr_hedef·R)
+    hedef = round(mesafe_hedef(giris, stop, rr_hedef), 6)
 
     # Karşı trend → ½R, pozisyon tipi
     karsi = _karsi_trend(senaryo)
@@ -260,11 +276,8 @@ def kademeli_plan(senaryo, r_dolar: float = 25.0,
 
     ort_giris = round(toplam_dolar / toplam_miktar, 4) if toplam_miktar else 0.0
 
-    hedef = None
-    if getattr(senaryo, "ara_hedef", None) is not None:
-        hedef = float(senaryo.ara_hedef)
-    elif getattr(senaryo, "hedef_kutu", None) is not None:
-        hedef = float(senaryo.hedef_kutu.alt)
+    # Hedef: ortalama girişe stop mesafesi kadar uzaklık (terminalMiraz, rr_hedef·R)
+    hedef = round(mesafe_hedef(ort_giris, stop), 6) if ort_giris > stop else None
 
     rr = None
     if hedef is not None and hedef > ort_giris and ort_giris > stop:

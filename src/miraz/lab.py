@@ -169,11 +169,12 @@ def _kisa_noktalari(df: pd.DataFrame, adim: int, pencere: int,
     return noktalar
 
 
-def _kur_kisa(ks, tp_mod: str = "ara"):
+def _kur_kisa(ks, tp_mod: str = "rr"):
     """Kısa senaryodan (giriş, stop, hedef, rr) üretir (short).
 
     giriş = direnç bandı altı (dirence satış); stop = fitil (bandın üstü);
-    hedef = 'ara'(en yakın destek) | 'ana'(aşağı ana hedef) | 'rr2'(sabit 2R).
+    hedef = 'rr'(terminalMiraz 1R uzaklık) | 'rr2'(2R) |
+            'ara'(en yakın destek) | 'ana'(aşağı ana hedef).
     """
     if ks.bolge_alt is None or ks.fitil_seviye is None:
         return None
@@ -183,10 +184,11 @@ def _kur_kisa(ks, tp_mod: str = "ara"):
         return None
     if tp_mod == "ara" and ks.ara_hedef is not None and ks.ara_hedef < giris:
         hedef = float(ks.ara_hedef)
-    elif tp_mod == "rr2":
-        hedef = giris - 2.0 * (stop - giris)
-    else:                                # ana
+    elif tp_mod == "ana":
         hedef = float(ks.hedef) if ks.hedef is not None else None
+    else:                                # "rr" (varsayılan) / "rr2"
+        carpan = 2.0 if tp_mod == "rr2" else 1.0
+        hedef = giris - carpan * (stop - giris)
     if hedef is None or hedef >= giris:
         return None
     rr = (giris - hedef) / (stop - giris)
@@ -222,12 +224,16 @@ def _kur_islem(s, giris_mod: str, stop_mod: str, tp_mod: str):
     if stop >= giris:
         return None
     # Hedef
+    #   rr   → terminalMiraz tarzı: girişe stop mesafesi kadar uzaklık (1R)
+    #   rr2  → sabit 2R uzaklık
+    #   ara  → yapısal ara hedef (mor çizgi)   ·  ana → ana hedef kutusu (mor kutu)
     if tp_mod == "ara" and s.ara_hedef is not None:
         hedef = float(s.ara_hedef)
-    elif tp_mod == "rr2":
-        hedef = giris + 2.0 * (giris - stop)
-    else:  # ana
+    elif tp_mod == "ana":
         hedef = s.hedef_kutu.alt if s.hedef_kutu is not None else None
+    else:  # "rr" (varsayılan) / "rr2"
+        carpan = 2.0 if tp_mod == "rr2" else 1.0
+        hedef = giris + carpan * (giris - stop)
     if hedef is None or hedef <= giris:
         return None
     rr = (hedef - giris) / (giris - stop)
@@ -278,7 +284,7 @@ def backtest(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
 def backtest_kisa(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
                   pencere: int = 600, min_bar: int = 200,
                   sadece_trade: bool = False, min_guven: float = 0.0,
-                  tp_mod: str = "ara") -> LabRapor:
+                  tp_mod: str = "rr") -> LabRapor:
     """Geçmiş veride KISA (short) senaryoları test eder (look-ahead yok)."""
     noktalar = _kisa_noktalari(df, adim, pencere, min_bar)
     rapor = LabRapor()
@@ -312,7 +318,7 @@ def backtest_kisa(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
 _LAB_MODLAR = {
     "Giriş": ("giris_mod", ["ust", "orta", "alt"]),
     "Stop":  ("stop_mod", ["fitil", "yapisal", "genis"]),
-    "TP":    ("tp_mod", ["ana", "ara", "rr2"]),
+    "TP":    ("tp_mod", ["rr", "rr2", "ara", "ana"]),
 }
 
 

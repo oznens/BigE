@@ -66,8 +66,26 @@ def test_risk_plani_trend_yonu():
     assert rp.yon == "Long"
     assert rp.giris == 105.0          # bölge ortası
     assert rp.stop == 98.0
-    assert rp.hedef == 130.0
+    # terminalMiraz tarzı: hedef girişe stop mesafesi kadar (1R) → 105+(105-98)=112
+    assert rp.hedef == 112.0
+    assert rp.rr_orani == 1.0
     assert "½R" not in rp.pozisyon_tipi
+
+
+def test_risk_plani_rr_hedef_carpani():
+    # rr_hedef=2 → hedef = 105 + 2*(105-98) = 119
+    rp = risk_plani(_senaryo(), r_dolar=25, rr_hedef=2.0)
+    assert rp.hedef == 119.0
+    assert rp.rr_orani == 2.0
+
+
+def test_mesafe_hedef_long_short():
+    from miraz.risk import mesafe_hedef
+    # long: stop altta → hedef üstte
+    assert mesafe_hedef(100, 95, 1.0) == 105.0
+    assert mesafe_hedef(100, 95, 2.0) == 110.0
+    # short: stop üstte → hedef altta
+    assert mesafe_hedef(100, 105, 1.0) == 95.0
 
 
 def test_risk_plani_karsi_trend_yari_r():

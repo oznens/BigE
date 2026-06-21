@@ -95,7 +95,9 @@ def test_kur_islem_giris_modlari():
 def test_kur_islem_tp_modlari():
     s = _S(hedef_kutu=_Kutu(alt=130.0))
     assert _kur_islem(s, "orta", "fitil", "ara")[2] == 116.0   # mor çizgi
-    assert _kur_islem(s, "orta", "fitil", "ana")[2] == 130.0   # ana hedef
+    assert _kur_islem(s, "orta", "fitil", "ana")[2] == 130.0   # ana hedef (mor kutu)
+    # rr: terminalMiraz 1R — giriş 105, stop 98 → hedef = 105 + 1*(105-98) = 112
+    assert _kur_islem(s, "orta", "fitil", "rr")[2] == 112.0
     # rr2: giriş 105, stop 98 → hedef = 105 + 2*(105-98) = 119
     assert _kur_islem(s, "orta", "fitil", "rr2")[2] == 119.0
 
@@ -170,6 +172,8 @@ def test_kur_kisa_tp_modlari():
     assert _kur_kisa(ks, "ara")[2] == 95.0
     # ana → ana hedef
     assert _kur_kisa(ks, "ana")[2] == 85.0
+    # rr: terminalMiraz 1R — giriş=110, stop=117 → hedef = 110 - 1*(117-110) = 103
+    assert _kur_kisa(ks, "rr")[2] == 103.0
     # rr2: giriş=110, stop=117 → hedef = 110 - 2*(117-110) = 96
     assert _kur_kisa(ks, "rr2")[2] == 96.0
 
