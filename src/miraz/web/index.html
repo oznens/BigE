@@ -451,9 +451,11 @@ async function tik(){
       `İzle ${d.ozet.Watch} · Atla ${d.ozet.Skip} · Elenen ${d.ozet.Elenen}`;
     $("#adaylar").innerHTML = d.adaylar.length?
       d.adaylar.map(adayKart).join(""):`<div class="bos">setup yok</div>`;
-    // ilk açılışta ilk adayın grafiğini otomatik yükle
-    if(!grafikSecili && d.adaylar.length)
-      grafikYukle(d.adaylar[0].symbol, d.adaylar[0].interval);
+    // ilk açılışta grafiği otomatik yükle: aday varsa ilki, yoksa varsayılan
+    if(!grafikSecili){
+      const vg = d.adaylar[0] || d.varsayilan_grafik;
+      if(vg && vg.symbol) grafikYukle(vg.symbol, vg.interval);
+    }
     $("#bildirimler").innerHTML = d.bildirimler.length?
       d.bildirimler.map(bildirimSatir).join(""):`<div class="bos">kapanan kayıt yok</div>`;
     pnlEkran(d.pnl);

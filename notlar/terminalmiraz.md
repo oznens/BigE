@@ -580,6 +580,24 @@ python backtest/sunucu.py --mcap --mtf --taraf her --borsa
 python backtest/sunucu.py --mcap --mtf --taraf her --borsa --otomatik
 ```
 
+## Bu turda eklenen: Veri kaynağı → MEXC Futures (terminalMiraz pariteleri)
+
+terminalMiraz **USDT-M Futures** üzerinde çalışıyor. Veri kaynağı MEXC **spot**
+klines'tan MEXC **futures** (contract) klines'a çevrildi; spot yedek kaldı.
+
+- `veri.py`: `_mexc_futures_cek` — `contract.mexc.com/api/v1/contract/kline/
+  {BTC_USDT}` (sembol `BTCUSDT→BTC_USDT`, TF enum `Min60/Hour4/…`, start/end
+  **saniye**, **dizi** yanıt → 8-kolon satır). Kaynak sırası: **futures →
+  spot**. `indir(borsa="mexc-futures"|"mexc-spot")` ile zorlanabilir.
+- `evren.py`: `_mexc_usdt()` artık önce futures kontratlarını
+  (`contract/detail`, `BTC_USDT→BTCUSDT`) dener, sonra spot'a düşer — evren
+  gerçekten futures'ta işlem gören paritelerden oluşur.
+- Neden: bazı bölgelerde (ör. TR) MEXC **spot** kısıtlı olabilir → tarama hiç
+  veri çekemiyordu; futures erişilebilir. (Sandbox'ta tam tersi: spot 200,
+  futures 403 — bu yüzden çift kaynak + yedek.)
+- Web grafik: aday yokken bile boş kalmasın diye snapshot'a `varsayilan_grafik`
+  (ilk taranan sembol) eklendi; ilk scan yavaşken bile grafik bir şey gösterir.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).

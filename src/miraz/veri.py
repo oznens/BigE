@@ -1,4 +1,4 @@
-"""OHLCV veri çekme — Binance.US klines, parquet cache."""
+"""OHLCV veri çekme — MEXC Futures (birincil) + Spot (yedek), parquet cache."""
 
 from __future__ import annotations
 
@@ -8,16 +8,27 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-BASE = "https://api.binance.us/api/v3/klines"
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
-# Tek veri kaynağı: MEXC (kullanıcı tercihi). MEXC saatlik için "60m" kullanır
-# (Binance "1h"); interval_map bunu eşler. Gerekirse listeye yeni borsa eklenir.
-_BORSALAR = [
-    ("mexc", "https://api.mexc.com/api/v3/klines", {"1h": "60m"}),
-]
+_BASLIK = {"User-Agent": "Mozilla/5.0"}
 
-# Binance 12, MEXC 8 kolon döndürür; ilk 8 ortak ve bize yeten kısım.
+# --- MEXC Futures (contract) — terminalMiraz USDT-M Futures pariteleri ---
+# Sembol BTCUSDT → BTC_USDT; zaman dilimi enum; start/end saniye; dizi yanıt.
+MEXC_FUT_BASE = "https://contract.mexc.com/api/v1/contract/kline"
+_MEXC_FUT_IV = {
+    "1m": "Min1", "5m": "Min5", "15m": "Min15", "30m": "Min30",
+    "1h": "Min60", "4h": "Hour4", "8h": "Hour8", "1d": "Day1", "1w": "Week1",
+}
+_IV_SANIYE = {
+    "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600,
+    "4h": 14400, "8h": 28800, "1d": 86400, "1w": 604800,
+}
+
+# --- MEXC Spot (yedek) — saatlik "60m" ister ---
+MEXC_SPOT_BASE = "https://api.mexc.com/api/v3/klines"
+_MEXC_SPOT_IV = {"1h": "60m"}
+
+# Klines ortak satır şeması (ilk 8 kolon).
 _KOLONLAR = [
     "open_time", "open", "high", "low", "close", "volume",
     "close_time", "quote_volume",
@@ -38,24 +49,67 @@ def _resample(df: pd.DataFrame, kural: str) -> pd.DataFrame:
     return o
 
 
-def _borsadan_cek(base: str, symbol: str, interval: str, start_ms: int,
-                  end_ms: int) -> list:
-    """Tek bir borsadan sayfalı klines çeker (boş liste = veri yok)."""
+def _fut_sembol(symbol: str) -> str:
+    """BTCUSDT → BTC_USDT (MEXC futures sembol biçimi)."""
+    for kote in ("USDT", "USDC"):
+        if symbol.endswith(kote) and "_" not in symbol:
+            return symbol[: -len(kote)] + "_" + kote
+    return symbol
+
+
+def _mexc_futures_cek(symbol: str, interval: str, start_ms: int,
+                      end_ms: int) -> list:
+    """MEXC **futures** kline (dizi yanıt) → ortak 8-kolon satır listesi."""
+    iv = _MEXC_FUT_IV.get(interval)
+    if iv is None:
+        raise RuntimeError(f"futures TF desteklenmiyor: {interval}")
+    sec = _IV_SANIYE[interval]
+    sym = _fut_sembol(symbol)
+    pencere = 2000 * sec                    # istek başına en çok ~2000 mum
+    rows: list = []
+    imlec = start_ms // 1000
+    son_s = end_ms // 1000
+    while imlec < son_s:
+        bitis = min(imlec + pencere, son_s)
+        r = requests.get(f"{MEXC_FUT_BASE}/{sym}", params={
+            "interval": iv, "start": imlec, "end": bitis,
+        }, timeout=15, headers=_BASLIK)
+        r.raise_for_status()
+        j = r.json()
+        d = j.get("data") or {}
+        t = d.get("time") or []
+        if not t:
+            break
+        o, h, low, c = d["open"], d["high"], d["low"], d["close"]
+        v = d.get("vol") or d.get("amount") or [0] * len(t)
+        for i in range(len(t)):
+            ms = int(t[i]) * 1000
+            rows.append([ms, o[i], h[i], low[i], c[i], v[i], ms, 0])
+        ileri = int(t[-1]) + sec
+        if ileri <= imlec:
+            break
+        imlec = ileri
+        time.sleep(0.15)
+    return rows
+
+
+def _mexc_spot_cek(symbol: str, interval: str, start_ms: int,
+                   end_ms: int) -> list:
+    """MEXC **spot** klines (satır yanıt) — yedek kaynak."""
+    iv = _MEXC_SPOT_IV.get(interval, interval)
     parcalar: list = []
     imlec = start_ms
     while imlec < end_ms:
-        r = requests.get(base, params={
-            "symbol": symbol, "interval": interval,
+        r = requests.get(MEXC_SPOT_BASE, params={
+            "symbol": symbol, "interval": iv,
             "startTime": imlec, "endTime": end_ms, "limit": 1000,
-        }, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        }, timeout=15, headers=_BASLIK)
         r.raise_for_status()
         chunk = r.json()
         if not chunk:
             break
-        parcalar.extend(chunk)
-        son = chunk[-1][6] + 1          # son barın close_time + 1
-        # MEXC istek başına en çok 500 bar döndürür; bu yüzden chunk<1000 ile
-        # kesmeyiz — close_time'ı ilerletip end_ms'e kadar sayfalamaya devam.
+        parcalar.extend(satir[:8] for satir in chunk)
+        son = chunk[-1][6] + 1
         if son <= imlec:
             break
         imlec = son
@@ -63,13 +117,21 @@ def _borsadan_cek(base: str, symbol: str, interval: str, start_ms: int,
     return parcalar
 
 
+# Kaynak sırası: futures (birincil, terminalMiraz) → spot (yedek).
+_KAYNAKLAR = [
+    ("mexc-futures", _mexc_futures_cek),
+    ("mexc-spot", _mexc_spot_cek),
+]
+
+
 def indir(symbol: str = "BTCUSDT", interval: str = "4h",
           gun: int = 500, force: bool = False,
           borsa: str | None = None) -> pd.DataFrame:
     """OHLCV veriyi indirir, parquet cache kullanır.
 
-    Veri kaynakları sırayla denenir (Binance.US → MEXC); biri başarısız olur
-    veya sembolü sunmazsa diğerine geçilir. borsa verilirse yalnızca o kaynak.
+    Kaynaklar sırayla denenir: **MEXC Futures → MEXC Spot**; biri başarısız olur
+    veya sembolü sunmazsa diğerine geçilir. borsa verilirse ("mexc-futures" /
+    "mexc-spot") yalnızca o kaynak kullanılır.
 
     Döndürür: UTC indeksli, float kolonlu OHLCV DataFrame.
     """
@@ -93,13 +155,12 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
     end_ms = int(time.time() * 1000)
     start_ms = end_ms - gun * 24 * 3600 * 1000
 
-    kaynaklar = [b for b in _BORSALAR if borsa is None or b[0] == borsa]
+    kaynaklar = [k for k in _KAYNAKLAR if borsa is None or k[0] == borsa]
     parcalar: list = []
     hatalar: list = []
-    for ad, base, ara_map in kaynaklar:
-        iv = ara_map.get(interval, interval)
+    for ad, cekici in kaynaklar:
         try:
-            parcalar = _borsadan_cek(base, symbol, iv, start_ms, end_ms)
+            parcalar = cekici(symbol, interval, start_ms, end_ms)
         except Exception as e:               # geo-engel, 4xx, ağ vb.
             hatalar.append(f"{ad}: {e}")
             parcalar = []
@@ -110,8 +171,6 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
         detay = " | ".join(hatalar) if hatalar else "veri yok"
         raise RuntimeError(f"{symbol}/{interval} veri çekilemedi ({detay}).")
 
-    # Borsalar farklı sayıda kolon döndürür (Binance 12, MEXC 8) → ilk 8'i al
-    parcalar = [satir[:8] for satir in parcalar]
     df = pd.DataFrame(parcalar, columns=_KOLONLAR)
     df = df.drop_duplicates("open_time")
     df.index = pd.to_datetime(df["open_time"], unit="ms", utc=True)

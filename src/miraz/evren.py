@@ -37,6 +37,7 @@ EVREN_DOSYA = DATA_DIR / "evren.json"
 
 _CG = "https://api.coingecko.com/api/v3/coins/markets"
 _MEXC_INFO = "https://api.mexc.com/api/v3/exchangeInfo"
+_MEXC_FUT_INFO = "https://contract.mexc.com/api/v1/contract/detail"
 _BASLIK = {"User-Agent": "Mozilla/5.0"}
 
 # Stablecoin / sarmalanmış (wrapped) / stake türevleri — mcap'te üst sıralarda
@@ -71,12 +72,35 @@ def _mcap_listesi(n: int) -> list[tuple]:
     return out
 
 
-def _mexc_usdt() -> set:
-    """MEXC'te spot işlem gören USDT paritelerinin kümesi."""
+def _mexc_futures_usdt() -> set:
+    """MEXC **futures** USDT-M kontratları (BTC_USDT → BTCUSDT biçiminde)."""
+    r = requests.get(_MEXC_FUT_INFO, headers=_BASLIK, timeout=20)
+    r.raise_for_status()
+    out = set()
+    for c in r.json().get("data", []):
+        sym = c.get("symbol", "")           # "BTC_USDT"
+        if sym.endswith("_USDT"):
+            out.add(sym.replace("_", ""))   # "BTCUSDT"
+    return out
+
+
+def _mexc_spot_usdt() -> set:
+    """MEXC'te spot işlem gören USDT paritelerinin kümesi (yedek)."""
     r = requests.get(_MEXC_INFO, headers=_BASLIK, timeout=20)
     r.raise_for_status()
     return {s["symbol"] for s in r.json().get("symbols", [])
             if s.get("symbol", "").endswith("USDT")}
+
+
+def _mexc_usdt() -> set:
+    """İşlem gören USDT pariteleri — önce futures (terminalMiraz), sonra spot."""
+    try:
+        fut = _mexc_futures_usdt()
+        if fut:
+            return fut
+    except Exception:
+        pass
+    return _mexc_spot_usdt()
 
 
 def mcap_evreni(n: int = 90, mexc_set: set | None = None) -> list[tuple]:

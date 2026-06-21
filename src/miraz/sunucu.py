@@ -103,6 +103,17 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
     adaylar = [s for s in rapor.satirlar if s.kategori in ("Trade", "Watch")]
     adaylar.sort(key=lambda s: (0 if s.kategori == "Trade" else 1, -s.guven))
 
+    # grafiğin varsayılan açacağı sembol (aday yoksa bile boş kalmasın)
+    if adaylar:
+        vg = {"symbol": adaylar[0].symbol, "interval": adaylar[0].interval}
+    elif rapor.satirlar:
+        vg = {"symbol": rapor.satirlar[0].symbol,
+              "interval": rapor.satirlar[0].interval}
+    else:
+        sem = getattr(gozlemci, "semboller", None) or ["BTCUSDT"]
+        ivl = getattr(gozlemci, "intervallar", None) or ["1h"]
+        vg = {"symbol": sem[0], "interval": ivl[0]}
+
     # sonuç bildirimleri (defterdeki son kapanan kayıtlar)
     kapanan = [k for k in defter.kayitlar if not k.aktif][-12:][::-1]
     bildirimler = [{
@@ -138,6 +149,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "wr": d_ozet["wr"], "toplam_r": d_ozet["toplam_r"],
         "aktif_kayit": d_ozet["aktif"],
         "adaylar": [_satir_json(s) for s in adaylar[:16]],
+        "varsayilan_grafik": vg,
         "bildirimler": bildirimler,
         "pnl": pnl,
         "memory": {"parite": pnl["parite"], "tf": pnl["tf"],
