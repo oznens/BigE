@@ -37,7 +37,7 @@ Price Action + Harmonik trade terminali:
 | Yorumcu / sinyal metni | `miraz_yorumu` + `finansaltrader_yorumu` | ✅ |
 | Render (konsept görseli) | `grafik.py` (harmonik+Fib+RSI) | ✅ |
 | **Price Action Labs (backtest/win-rate)** | `lab.py` | ✅ **bu turda** |
-| TP/Giriş/Stop Lab (parametre optimizasyonu) | `lab.py` temel | 🟡 kısmen |
+| TP/Giriş/Stop Lab (parametre taraması) | `lab.lab_tara` | ✅ **bu turda** |
 | **Cluster hafızası / benzerlik** | — | ⏳ |
 | **Temas davranışı istatistiği** | — | ⏳ |
 | **Aktif işlem yönetimi + canlı P&L** | — | ⏳ paper-trading motoru |
@@ -72,11 +72,27 @@ BTC 4h, son 800 bar: genel %42 WR / -2.3R **ama kaliteye göre dramatik fark**:
 Bu, Price Action Labs'in amacı: hangi setupların işe yaradığını **veriyle**
 göstermek ve filtre/parametreleri ona göre ayarlamak.
 
+## Bu turda eklenen: TP/Giriş/Stop Lab (`lab.lab_tara`)
+
+```
+python backtest/lab.py --sembol BTCUSDT ETHUSDT SOLUSDT --tara
+```
+Her boyutu (Giriş/Stop/TP) ayrı ayrı tarar; senaryo noktaları sembol başına
+**bir kez** üretilip tüm modlar o cache'ten ucuzca denenir (47s/3 coin).
+
+### Lab bulguları (3 coin, 800 bar) — veriyle parametre seçimi
+- **TP Lab:** `ara` (mor çizgi/hızlı) ≫ `ana` (agresif uzak):
+  WR %14.7 → **%40**, beklenti -0.307R → **-0.089R**. Hızlı kâr-al çok daha iyi.
+- **Giriş Lab:** `ust` (bölge üstünden erken giriş) > orta > alt (-0.289 vs -0.434).
+- **Stop Lab:** fitil ≈ yapısal (~-0.306), genis daha kötü.
+
+→ **Öneri:** giriş `ust` + TP `ara` kombinasyonu varsayılandan (orta+ana) belirgin
+daha iyi. (Tümü hâlâ hafif negatif; kalite filtresi `min_guven` ile A setuplara
+daraltınca pozitife döner — bkz. lab.py ilk bulgu.)
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **TP/Giriş/Stop Lab** — backtest'i parametre taramasına çevir (farklı stop/TP
-   mantıklarını kıyasla, en iyi RR/giriş kuralını veriyle seç).
-2. **Aktif işlem yönetimi (paper-trading)** — Trade kararlarını sanal portföyde
+1. **Aktif işlem yönetimi (paper-trading)** — Trade kararlarını sanal portföyde
    açıp TP/STOP takibi, R-bazlı P&L, günlük istatistik.
 3. **Cluster hafızası** — güncel setup'ı geçmiş benzerlerle karşılaştırıp güven.
 4. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.

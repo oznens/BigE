@@ -125,51 +125,161 @@ def _simule(df, bar: int, giris: float, stop: float, hedef: float,
     return ("Açık" if doldu else "Dolmadı"), son
 
 
-def backtest(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
-             pencere: int = 600, min_bar: int = 200,
-             sadece_trade: bool = False, min_guven: float = 0.0,
-             r_dolar: float = 25.0) -> LabRapor:
-    """Geçmiş veride senaryo+risk kararlarını test eder (look-ahead yok).
+def _senaryo_noktalari(df: pd.DataFrame, adim: int, pencere: int,
+                       min_bar: int, r_dolar: float) -> list:
+    """Karar barlarında senaryoyu BİR KEZ üretir (pahalı kısım, cache'lenir).
 
-    adim       : kaç barda bir karar noktası (4h'de 6 ≈ günde 1)
-    max_bar    : bir setup'a kaç bar sonuç şansı verilir
-    pencere    : son kaç barı test et
-    min_bar    : senaryo için gereken minimum geçmiş
-    sadece_trade: yalnızca karar=='Trade' olanları işleme al
-    min_guven  : bu güvenin altındaki setuplar atlanır
+    Döndürür: [(bar_idx, Senaryo), ...] — destek bölgesi olanlar.
     """
-    rapor = LabRapor()
     n = len(df)
     bas = max(min_bar, n - pencere)
-    son_acilan = -10_000
-
+    noktalar = []
     for i in range(bas, n - 1, adim):
-        gecmis = df.iloc[:i + 1]
         try:
-            s = sn.senaryo_uret(gecmis, df_ust=None, r_dolar=r_dolar)
+            s = sn.senaryo_uret(df.iloc[:i + 1], df_ust=None, r_dolar=0.0)
         except Exception:
             continue
-        if s.destek_kutu is None:
-            continue
+        if s.destek_kutu is not None:
+            noktalar.append((i, s))
+    return noktalar
+
+
+def _kur_islem(s, giris_mod: str, stop_mod: str, tp_mod: str):
+    """Senaryodan (giriş, stop, hedef) üretir — Lab modlarına göre (long).
+
+    giris: 'orta'(mavi daire/orta) | 'ust'(bölge üstü) | 'alt'(bölge altı)
+    stop : 'fitil'(dar) | 'yapisal'(bölge altı %2) | 'genis'(kritik %3 altı)
+    tp   : 'ana'(ana hedef) | 'ara'(mor çizgi/hızlı) | 'rr2'(sabit 2R)
+    """
+    ba, bu = s.bolge_alt, s.bolge_ust
+    if ba is None or bu is None:
+        return None
+    # Giriş
+    if giris_mod == "ust":
+        giris = bu
+    elif giris_mod == "alt":
+        giris = ba
+    else:  # orta
+        giris = float(s.mavi_daire) if s.mavi_daire is not None else (ba + bu) / 2
+    # Stop
+    if stop_mod == "yapisal":
+        stop = ba * (1 - 0.02)
+    elif stop_mod == "genis":
+        stop = (s.kritik_seviye or ba) * (1 - 0.03)
+    else:  # fitil
+        stop = s.fitil_seviye if s.fitil_seviye is not None else ba * 0.985
+    if stop >= giris:
+        return None
+    # Hedef
+    if tp_mod == "ara" and s.ara_hedef is not None:
+        hedef = float(s.ara_hedef)
+    elif tp_mod == "rr2":
+        hedef = giris + 2.0 * (giris - stop)
+    else:  # ana
+        hedef = s.hedef_kutu.alt if s.hedef_kutu is not None else None
+    if hedef is None or hedef <= giris:
+        return None
+    rr = (hedef - giris) / (giris - stop)
+    if rr <= 0:
+        return None
+    return round(giris, 6), round(stop, 6), round(hedef, 6), round(rr, 2)
+
+
+def _backtest_modlu(df, noktalar, giris_mod="orta", stop_mod="fitil",
+                    tp_mod="ana", max_bar=60, min_guven=0.0,
+                    sadece_trade=False, adim=6) -> LabRapor:
+    """Önceden üretilmiş senaryo noktalarından mod-bazlı backtest (ucuz)."""
+    rapor = LabRapor()
+    son_acilan = -10_000
+    for i, s in noktalar:
         if sadece_trade and (s.karar is None or s.karar.karar != "Trade"):
             continue
         if s.karar is not None and s.karar.guven < min_guven:
             continue
-        rp = risk_plani(s, r_dolar=r_dolar)
-        if rp is None or rp.hedef is None or rp.rr_orani is None:
+        kur = _kur_islem(s, giris_mod, stop_mod, tp_mod)
+        if kur is None:
             continue
-        if rp.rr_orani <= 0:
-            continue
-        # üst üste aynı setup'ı açma (çözülene dek bekle)
+        giris, stop, hedef, rr = kur
         if i - son_acilan < adim:
             continue
-
-        sonuc, _ = _simule(df, i, rp.giris, rp.stop, rp.hedef, max_bar)
-        r = {"TP": rp.rr_orani, "STOP": -1.0}.get(sonuc, 0.0)
+        sonuc, _ = _simule(df, i, giris, stop, hedef, max_bar)
+        r = {"TP": rr, "STOP": -1.0}.get(sonuc, 0.0)
         rapor.islemler.append(Islem(
-            bar=i, giris=rp.giris, stop=rp.stop, hedef=rp.hedef,
-            rr=rp.rr_orani, kalite=s.karar.kalite if s.karar else "D",
+            bar=i, giris=giris, stop=stop, hedef=hedef, rr=rr,
+            kalite=s.karar.kalite if s.karar else "D",
             guven=s.karar.guven if s.karar else 0.0, sonuc=sonuc, r=r))
         if sonuc in ("TP", "STOP"):
             son_acilan = i
     return rapor
+
+
+def backtest(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
+             pencere: int = 600, min_bar: int = 200,
+             sadece_trade: bool = False, min_guven: float = 0.0,
+             r_dolar: float = 25.0, giris_mod: str = "orta",
+             stop_mod: str = "fitil", tp_mod: str = "ana") -> LabRapor:
+    """Geçmiş veride senaryo+risk kararlarını test eder (look-ahead yok)."""
+    noktalar = _senaryo_noktalari(df, adim, pencere, min_bar, r_dolar)
+    return _backtest_modlu(df, noktalar, giris_mod, stop_mod, tp_mod,
+                           max_bar, min_guven, sadece_trade, adim)
+
+
+# ---------------------------------------------------------------------------
+# TP / Giriş / Stop Lab — parametre taraması (terminalMiraz'ın ayrı Lab'ları)
+# ---------------------------------------------------------------------------
+
+_LAB_MODLAR = {
+    "Giriş": ("giris_mod", ["ust", "orta", "alt"]),
+    "Stop":  ("stop_mod", ["fitil", "yapisal", "genis"]),
+    "TP":    ("tp_mod", ["ana", "ara", "rr2"]),
+}
+
+
+def _birlestir(raporlar: list) -> dict:
+    """Birden çok sembolün LabRapor'unu tek istatistiğe toplar."""
+    dolan = [i for r in raporlar for i in r.dolan]
+    if not dolan:
+        return {"n": 0, "wr": 0.0, "r": 0.0, "beklenti": 0.0}
+    tp = sum(1 for i in dolan if i.sonuc == "TP")
+    r = sum(i.r for i in dolan)
+    return {"n": len(dolan), "wr": round(100 * tp / len(dolan), 1),
+            "r": round(r, 2), "beklenti": round(r / len(dolan), 3)}
+
+
+def lab_tara(df_sozluk: dict, adim: int = 6, max_bar: int = 60,
+             pencere: int = 800, min_guven: float = 0.0) -> str:
+    """Her Lab boyutunu (Giriş/Stop/TP) ayrı ayrı tarayıp kıyaslar.
+
+    df_sozluk: {sembol: df}. Senaryo noktaları sembol başına BİR KEZ üretilir;
+    tüm mod kombinasyonları o cache'ten ucuzca denenir.
+    """
+    # Pahalı kısım: her sembol için senaryo noktaları (bir kez)
+    nokta_cache = {sym: _senaryo_noktalari(df, adim, pencere, 200, 0.0)
+                   for sym, df in df_sozluk.items()}
+
+    varsayilan = {"giris_mod": "orta", "stop_mod": "fitil", "tp_mod": "ana"}
+    cikti = ["🔬 LAB TARAMASI — en iyi giriş/stop/TP kuralı (veriyle)"]
+
+    for lab_ad, (anahtar, modlar) in _LAB_MODLAR.items():
+        cikti.append(f"\n── {lab_ad} Lab ──")
+        en_iyi = (None, -1e9)
+        for mod in modlar:
+            kfg = dict(varsayilan)
+            kfg[anahtar] = mod
+            raporlar = [
+                _backtest_modlu(df_sozluk[sym], nokta_cache[sym],
+                                giris_mod=kfg["giris_mod"],
+                                stop_mod=kfg["stop_mod"], tp_mod=kfg["tp_mod"],
+                                max_bar=max_bar, min_guven=min_guven, adim=adim)
+                for sym in df_sozluk]
+            st = _birlestir(raporlar)
+            isaret = " ⭐" if mod == varsayilan[anahtar] else ""
+            cikti.append(
+                f"   {mod:8}: {st['n']:3} işlem | WR %{st['wr']:<5} | "
+                f"{st['r']:+.1f}R | beklenti {st['beklenti']:+.3f}R{isaret}")
+            if st["beklenti"] > en_iyi[1] and st["n"] >= 10:
+                en_iyi = (mod, st["beklenti"])
+        if en_iyi[0]:
+            cikti.append(f"   → en iyi: {en_iyi[0]} ({en_iyi[1]:+.3f}R/işlem)")
+    cikti.append("\n(⭐ = mevcut varsayılan)")
+    return "\n".join(cikti)
