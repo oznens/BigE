@@ -100,6 +100,24 @@
     var(--vurgu),var(--yesil));transition:width .4s ease}
   #ilerleme-yazi{position:absolute;inset:0;display:flex;align-items:center;
     justify-content:center;font-size:12px;font-weight:600;color:var(--metin)}
+  /* konsept şeridi (sol panel — terminalMiraz tarzı) */
+  .grafikwrap{display:flex;gap:12px}
+  .konseptray{flex:0 0 128px;display:flex;flex-direction:column;gap:4px}
+  .grafikalan{flex:1;min-width:0}
+  .konseptbtn{display:flex;justify-content:space-between;align-items:center;
+    background:var(--panel2);border:1px solid var(--kenar);border-radius:6px;
+    padding:6px 9px;font-size:12px;color:var(--soluk);cursor:pointer;
+    border-left:3px solid var(--kenar)}
+  .konseptbtn:hover{border-left-color:var(--soluk)}
+  .konseptbtn.aktif{color:#04140d;background:var(--vurgu);font-weight:700;
+    border-left-color:var(--yesil)}
+  .konseptbtn .say{font-size:11px;opacity:.85;font-variant-numeric:tabular-nums}
+  .konseptbtn.temizle{justify-content:center;color:var(--soluk);margin-top:4px}
+  .kchip{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;
+    background:rgba(31,182,168,.13);color:var(--vurgu);margin:2px 3px 0 0}
+  @media(max-width:760px){.grafikwrap{flex-direction:column}
+    .konseptray{flex:none;flex-direction:row;flex-wrap:wrap}
+    .konseptbtn{flex:1 1 28%}}
 </style>
 </head>
 <body>
@@ -141,8 +159,13 @@
     </div>
     <div class="panel blok">
       <h2>CANLI GRAFİK <span id="grafikbaslik" style="color:var(--soluk);font-weight:400"></span></h2>
-      <canvas id="grafik" height="430" style="width:100%;display:block"></canvas>
-      <div id="grafikbos" class="bos">bir aday kartına tıkla → grafiği yüklensin</div>
+      <div class="grafikwrap">
+        <div class="konseptray" id="konseptray"></div>
+        <div class="grafikalan">
+          <canvas id="grafik" height="430" style="width:100%;display:block"></canvas>
+          <div id="grafikbos" class="bos">bir aday kartına tıkla → grafiği yüklensin</div>
+        </div>
+      </div>
     </div>
     <div class="grid g2">
       <div class="panel">
@@ -256,6 +279,7 @@ function adayKart(a){
   const lvl=a.giris!=null?`<div class="lvl"><span class="sl">SL ${fmt(a.stop)}</span>
      · ENTRY ${fmt(a.giris)} · <span class="tp">TP ${fmt(a.hedef)}</span>
      ${a.rr!=null?" · R/R "+a.rr.toFixed(1):""}</div>`:`<div class="lvl">—</div>`;
+  const chips=(a.konseptler||[]).map(k=>`<span class="kchip">${k}</span>`).join("");
   const col=a.kategori==="Trade"?"var(--yesil)":"var(--sari)";
   return `<div class="kart tik" data-sym="${a.symbol}" data-ivl="${a.interval}"
       style="border-left-color:${col};cursor:pointer">
@@ -265,7 +289,7 @@ function adayKart(a){
         <div class="ust"><div><span class="sym ${short?'short':'long'}">${ok} ${a.symbol}</span>
           <span class="tf">${a.interval}</span></div>
           <span class="badge ${bcls}">${a.kategori.toUpperCase()}</span></div>
-        <div class="src">${src}</div>${lvl}
+        <div class="src">${src}</div>${lvl}${chips?`<div>${chips}</div>`:""}
       </div></div></div>`;
 }
 
@@ -343,9 +367,76 @@ function memoryEkran(m, buckets){
   $("#m-tf").innerHTML = tabloPerf(m.tf, "TF");
 }
 
+// ---- Konsept şeridi (sol panel filtreleri — Drift…Reservoir) ----
+let konseptFiltre = new Set();
+let sonDurum = null;
+
+function konseptRay(d){
+  const say=d.konsept_sayim||{}, sira=d.konsept_sirasi||[];
+  const html = sira.map(k=>{
+    const n = k==="Harmonic" ? (say["Harmonik"]||0) : (say[k]||0);
+    const akt = konseptFiltre.has(k)?"aktif":"";
+    return `<div class="konseptbtn ${akt}" data-k="${k}">
+      <span>${k}</span><span class="say">${n}</span></div>`;
+  }).join("");
+  $("#konseptray").innerHTML = html +
+    `<div class="konseptbtn temizle" data-k="__temizle">Temizle</div>`;
+}
+
+function adayEslesir(a){
+  if(!konseptFiltre.size) return true;
+  const ks=a.konseptler||[];
+  for(const k of konseptFiltre){
+    if(ks.includes(k)) return true;
+    if(k==="Harmonic" && a.kaynak==="Harmonik") return true;
+  }
+  return false;
+}
+
+function adayListele(d){
+  const ad=(d.adaylar||[]).filter(adayEslesir);
+  $("#adaylar").innerHTML = ad.length?
+    ad.map(adayKart).join(""):`<div class="bos">seçili konseptte setup yok</div>`;
+}
+
+$("#konseptray").addEventListener("click", e=>{
+  const b=e.target.closest(".konseptbtn"); if(!b) return;
+  const k=b.dataset.k;
+  if(k==="__temizle") konseptFiltre.clear();
+  else if(konseptFiltre.has(k)) konseptFiltre.delete(k); else konseptFiltre.add(k);
+  if(sonDurum){ konseptRay(sonDurum); adayListele(sonDurum); }
+  if(grafikSecili) grafikYukle(grafikSecili.sym, grafikSecili.ivl);
+});
+
 // ---- CANLI GRAFİK (canvas mum + ZONE + seviye çizgileri + MACD) ----
 let grafikSecili = null;   // {sym, ivl}
 const CSS = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// PA konsept çizimi: zone'lu konseptler kutu, seviyeli olanlar çizgi/işaret
+function cizKonseptler(ctx, kons, px, Y, padL, padR, W){
+  if(!kons || !kons.length) return;
+  const renkYon = y => y==="Long"?CSS("--yesil"):y==="Short"?CSS("--kirmizi"):CSS("--mavi");
+  ctx.font="10px sans-serif";
+  kons.forEach(k=>{
+    const r = renkYon(k.yon);
+    if(k.zone_alt!=null && k.zone_ust!=null){     // kutu tipli (Cavity/Root/Shade/Buffer)
+      const yU=Y(k.zone_ust), yL=Y(k.zone_alt);
+      ctx.fillStyle = k.yon==="Long"?"rgba(38,208,124,.08)"
+        :k.yon==="Short"?"rgba(239,77,86,.08)":"rgba(61,165,255,.08)";
+      ctx.fillRect(padL, Math.min(yU,yL), W-padL-padR, Math.abs(yL-yU));
+      ctx.strokeStyle=r; ctx.globalAlpha=.5; ctx.setLineDash([2,3]);
+      ctx.strokeRect(padL, Math.min(yU,yL), W-padL-padR, Math.abs(yL-yU));
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=r; ctx.fillText(k.isim+" ZONE", padL+4, Math.min(yU,yL)+11);
+    } else if(k.seviye!=null){                     // seviyeli (Strike/Shear/Reservoir/Drift…)
+      const y=Y(k.seviye);
+      ctx.strokeStyle=r; ctx.globalAlpha=.6; ctx.setLineDash([2,4]);
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      ctx.fillStyle=r; ctx.fillText(k.isim, padL+4, y-3);
+    }
+  });
+}
 
 // XABCD harmonik çizimi: noktalar, bacaklar, Fib oranları, PRZ kutusu
 function cizHarmonik(ctx, hm, px, Y, padL, padR, W){
@@ -449,6 +540,11 @@ function cizGrafik(d){
   // oluşan harmonik PRZ ileride olabilir → aralığa kat
   if(hm.olusan){ [hm.olusan.prz_alt,hm.olusan.prz_ust,hm.olusan.D_proj].forEach(v=>{
     if(v!=null){ lo=Math.min(lo,v); hi=Math.max(hi,v); }}); }
+  // konsept bölgeleri (çizilecek olanlar) aralığa katılsın
+  const kons=(d.konseptler||[]).filter(k=>!konseptFiltre.size
+    || konseptFiltre.has(k.isim));
+  kons.forEach(k=>[k.zone_alt,k.zone_ust].forEach(v=>{
+    if(v!=null){ lo=Math.min(lo,v); hi=Math.max(hi,v); }}));
   const pad=(hi-lo)*0.06||1; lo-=pad; hi+=pad;
   const X=i=> padL + i*(W-padL-padR)/m.length;
   const Y=p=> padT + (hi-p)/(hi-lo)*mainH;
@@ -492,6 +588,8 @@ function cizGrafik(d){
   // ---- HARMONİK XABCD çizimi (@tradermiraz tarzı) ----
   const px = i => X(i)+cw/2;            // mum merkezine hizalı x
   cizHarmonik(ctx, hm, px, Y, padL, padR, W);
+  // ---- PA konsept bölgeleri (Cavity/Root/Shade/Buffer kutuları + seviyeler) ----
+  cizKonseptler(ctx, kons, px, Y, padL, padR, W);
 
   // MACD alt panel
   const mc=d.macd||{}; const hist=mc.hist||[], ml=mc.macd||[], sl=mc.sinyal||[];
@@ -560,8 +658,9 @@ async function tik(){
     $("#ozetsatir").textContent =
       `Tarama #${d.tarama_no} · ${d.ozet.toplam} tarama → Aday ${d.ozet.Trade} · `+
       `İzle ${d.ozet.Watch} · Atla ${d.ozet.Skip} · Elenen ${d.ozet.Elenen}`;
-    $("#adaylar").innerHTML = d.adaylar.length?
-      d.adaylar.map(adayKart).join(""):`<div class="bos">setup yok</div>`;
+    sonDurum = d;
+    konseptRay(d);
+    adayListele(d);
     // ilk açılışta grafiği otomatik yükle: aday varsa ilki, yoksa varsayılan
     if(!grafikSecili){
       const vg = d.adaylar[0] || d.varsayilan_grafik;

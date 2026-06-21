@@ -32,6 +32,7 @@ from .gozlemci import Gozlemci, Defter, DEFTER_DOSYA, PORTFOY_DOSYA
 from .portfoy import Portfoy
 from . import veri
 from . import indikator
+from . import konsept as kons
 
 WEB_DIZIN = Path(__file__).resolve().parent / "web"
 
@@ -51,6 +52,7 @@ def _satir_json(s) -> dict:
         "taraf": s.taraf, "kaynak": getattr(s, "kaynak", "Price Action"),
         "pattern": getattr(s, "pattern", None), "giris": s.giris,
         "stop": s.stop, "hedef": s.hedef, "rr": s.rr, "not_": s.not_,
+        "konseptler": getattr(s, "konseptler", None) or [],
     }
 
 
@@ -149,6 +151,8 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "wr": d_ozet["wr"], "toplam_r": d_ozet["toplam_r"],
         "aktif_kayit": d_ozet["aktif"],
         "adaylar": [_satir_json(s) for s in adaylar[:16]],
+        "konsept_sayim": getattr(rapor, "konsept_sayim", {}) or {},
+        "konsept_sirasi": kons.KONSEPT_SIRASI,
         "varsayilan_grafik": vg,
         "bildirimler": bildirimler,
         "pnl": pnl,
@@ -284,6 +288,17 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
     except Exception:
         harmonik = {}
 
+    # PA konsept bölgeleri (Cavity/Root/Shade/Buffer zone kutuları + seviyeler)
+    konseptler = []
+    try:
+        for isim, s in kons.tara_konseptler(df).items():
+            konseptler.append({
+                "isim": isim, "yon": s.yon, "guc": s.guc,
+                "zone_alt": s.zone_alt, "zone_ust": s.zone_ust,
+                "seviye": s.seviye, "idx": s.idx, "aciklama": s.aciklama})
+    except Exception:
+        pass
+
     return {
         "symbol": symbol, "interval": interval,
         "mumlar": mumlar,
@@ -291,6 +306,7 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
                  "hist": _kolon(mac["histogram"])},
         "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust},
         "harmonik": harmonik,
+        "konseptler": konseptler,
     }
 
 

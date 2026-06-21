@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from . import konsept as kons
 from . import senaryo as sn
 from . import veri
 
@@ -92,6 +93,9 @@ class RadarSatiri:
     # terminalMiraz Result Journal motoru: Price Action / Harmonik / Late
     # (+ lifecycle nedeni Filtered / HTF). TradeFi (hisse) bizde yok.
     kaynak: str = "Price Action"
+    # PA konsept katmanları (Drift/Torque/Root/Shade/Strike/Cavity/Shear/
+    # Ladder/Buffer/Reservoir) — bu setup'ta tetiklenen konsept isimleri.
+    konseptler: list = None
 
     @property
     def _sira(self) -> tuple:
@@ -104,6 +108,7 @@ class RadarSatiri:
 class RadarRapor:
     satirlar: list = field(default_factory=list)
     hatalar: list = field(default_factory=list)
+    konsept_sayim: dict = field(default_factory=dict)   # {konsept: aday sayısı}
 
     @property
     def ozet(self) -> dict:
@@ -271,6 +276,22 @@ def radar_tara(semboller: list[str] | None = None,
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
                 df = None
 
+            # PA konsept katmanları (Drift…Reservoir) — TF başına bir kez
+            kons_sinyal = {}
+            if df is not None:
+                try:
+                    kons_sinyal = kons.tara_konseptler(df)
+                except Exception:
+                    kons_sinyal = {}
+
+            def _konsept_etiketleri(taraf_yon: str) -> list:
+                """Setup yönüyle uyumlu (aynı yön veya Nötr) konsept isimleri."""
+                uygun = [isim for isim, s in kons_sinyal.items()
+                         if s.yon in (taraf_yon, "Nötr")]
+                for isim in uygun:                  # global sayım (sol şerit)
+                    rapor.konsept_sayim[isim] = rapor.konsept_sayim.get(isim, 0) + 1
+                return uygun
+
             if df is not None and long_acik:
                 try:
                     gguc = None
@@ -325,7 +346,8 @@ def radar_tara(semboller: list[str] | None = None,
                         hedef=rp.hedef if rp else None,
                         rr=rp.rr_orani if rp else None, not_=notu,
                         taraf="Long", stop=rp.stop if rp else None,
-                        pattern=_pat, kaynak=_kaynak))
+                        pattern=_pat, kaynak=_kaynak,
+                        konseptler=_konsept_etiketleri("Long")))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
 
@@ -381,7 +403,8 @@ def radar_tara(semboller: list[str] | None = None,
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
                         not_=notu, taraf="Short", stop=ks.fitil_seviye,
-                        pattern=_s_pat, kaynak=_s_kaynak))
+                        pattern=_s_pat, kaynak=_s_kaynak,
+                        konseptler=_konsept_etiketleri("Short")))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
 
