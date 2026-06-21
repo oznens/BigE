@@ -218,6 +218,24 @@ def _hedef_zaten_gorundu(df, hedef, taraf: str, bar: int = 40) -> bool:
     return float(son["high"].max()) >= hedef
 
 
+def _stop_zaten_vuruldu(df, stop, taraf: str, bar: int = 40) -> bool:
+    """Son `bar` mumda fiyat stop seviyesini (geçersizlik) zaten çiğnediyse True.
+
+    @tradermiraz'ın anlattığı hatanın diğer yüzü: setup hâlâ "Trade" görünüyor
+    ama stop bölgesi yakın geçmişte zaten delinmiş — yani bu işlem girilmiş olsa
+    çoktan stop olurdu. Stop, fiyatın yeni geçtiği bölgenin içinde kalıyorsa
+    setup geçersizdir (PENDLE short: stop 1.47 iken fiyat 1.48-1.49 görmüş).
+      Short: stop GİRİŞİN ÜSTÜNDE → son yüksek ≥ stop ise çiğnenmiş.
+      Long : stop GİRİŞİN ALTINDA → son düşük ≤ stop ise çiğnenmiş.
+    """
+    if stop is None or df is None or len(df) == 0:
+        return False
+    son = df.tail(bar)
+    if taraf == "Short":
+        return float(son["high"].max()) >= stop
+    return float(son["low"].min()) <= stop
+
+
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
@@ -269,8 +287,15 @@ def radar_tara(semboller: list[str] | None = None,
                     from .risk import risk_plani
                     rp = (risk_plani(s, r_dolar=r_dolar, rr_hedef=rr_hedef)
                           if s.destek_kutu else None)
+                    # Stop çiğnenmiş: stop bölgesi yakın geçmişte zaten delinmiş
+                    # → setup geçersiz (girilmiş olsa çoktan stop olurdu)
+                    if rp and kategori in ("Trade", "Watch") and \
+                            _stop_zaten_vuruldu(df, rp.stop, "Long"):
+                        kategori = "Elenen"
+                        notu = "stop bölgesi çiğnenmiş (setup geçersiz)" + (
+                            f" · {notu}" if notu else "")
                     # Late filtresi: hareketin çoğu gitmişse Trade/Watch → Elenen
-                    if rp and kategori in ("Trade", "Watch") and _gec_kalmis(
+                    elif rp and kategori in ("Trade", "Watch") and _gec_kalmis(
                             s.fiyat, rp.giris, rp.hedef, "Long"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
@@ -319,8 +344,15 @@ def radar_tara(semboller: list[str] | None = None,
                         s_hedef = round(
                             mesafe_hedef(s_giris, ks.fitil_seviye, rr_hedef), 6)
                         s_rr = rr_hedef
+                    # Stop çiğnenmiş (short): fitil/stop bölgesi yakın geçmişte
+                    # zaten delinmiş → setup geçersiz (PENDLE: stop 1.47, fiyat 1.49)
+                    if kategori in ("Trade", "Watch") and \
+                            _stop_zaten_vuruldu(df, ks.fitil_seviye, "Short"):
+                        kategori = "Elenen"
+                        notu = "stop bölgesi çiğnenmiş (setup geçersiz)" + (
+                            f" · {notu}" if notu else "")
                     # Late filtresi (short): düşüşün çoğu gitmişse → Elenen
-                    if kategori in ("Trade", "Watch") and _gec_kalmis(
+                    elif kategori in ("Trade", "Watch") and _gec_kalmis(
                             ks.fiyat, s_giris, s_hedef, "Short"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")

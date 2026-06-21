@@ -167,6 +167,27 @@ def test_hedef_zaten_gorundu():
     assert _hedef_zaten_gorundu(None, 90, "Short") is False
 
 
+def test_stop_zaten_vuruldu():
+    import pandas as pd
+    from miraz.radar import _stop_zaten_vuruldu
+    # Short: stop 1.47 (girişin üstünde); son yüksek 1.49 → stop çiğnenmiş
+    # (PENDLE vakası: stop 1.4702, fiyat 1.482-1.489 görmüş)
+    df = pd.DataFrame({"high": [1.45, 1.49, 1.46], "low": [1.42, 1.44, 1.43]})
+    assert _stop_zaten_vuruldu(df, 1.47, "Short") is True
+    # Short: yüksek hiç stopa değmemiş → geçerli
+    df2 = pd.DataFrame({"high": [1.45, 1.46], "low": [1.42, 1.43]})
+    assert _stop_zaten_vuruldu(df2, 1.47, "Short") is False
+    # Long: stop 95 (girişin altında); son düşük 93 → stop çiğnenmiş
+    df3 = pd.DataFrame({"high": [105, 104], "low": [98, 93]})
+    assert _stop_zaten_vuruldu(df3, 95, "Long") is True
+    # Long: düşük stopun üstünde kalmış → geçerli
+    df4 = pd.DataFrame({"high": [105, 104], "low": [98, 97]})
+    assert _stop_zaten_vuruldu(df4, 95, "Long") is False
+    # eksik veri
+    assert _stop_zaten_vuruldu(None, 95, "Long") is False
+    assert _stop_zaten_vuruldu(df3, None, "Long") is False
+
+
 # ---- PaMonic notu ----
 
 def test_pamonic_notu():
