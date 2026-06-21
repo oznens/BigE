@@ -52,6 +52,7 @@ Price Action + Harmonik trade terminali:
 | **PaMonic (PA + Harmonik çakışması)** | `senaryo.pamonic` + `karar` +15 | ✅ **bu turda** |
 | **3 risk modu (güvenli/dengeli/riskli)** | `radar.RISK_MODLARI` | ✅ **bu turda** |
 | **Mcap'e göre dinamik evren + haftalık kontrol** | `evren.py` + `backtest/evren.py` | ✅ **bu turda** |
+| **Sürekli gözlemci + Learning Journal (SQL hafıza)** | `gozlemci.py` + `backtest/gozlemci.py` | ✅ **bu turda** |
 | TradeFi (26 hisse) evreni | — | ⏳ (ek veri kaynağı) |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
@@ -356,6 +357,37 @@ python backtest/terminal.py --mcap --taraf her
   BNB#4 (USDT#3, USDC#5 stablecoin atlandı).
 - `radar.py --mcap` ve `terminal.py --mcap` bu evreni kullanır (data/evren.json
   yereldir, gitignore).
+
+## Bu turda eklenen: Canlı Gözlemci + Learning Journal (`gozlemci.py`)
+
+terminalMiraz'ın asıl çalışma şekli: evreni **sürekli tarar**, bulduğu her setup'ı
+bir **Learning Journal**'a (SQL hafıza) kaydeder, yaşam döngüsünü izler ve canlı
+P&L tutar (tweet: "her 3 dakikada setup", "Journal & SQL tarafı karakterini
+oluşturdu").
+
+```
+# Tek tur (tara → kaydet → takip et)
+python backtest/gozlemci.py --bir --mcap --mtf --taraf her --cluster
+
+# Sürekli (terminalMiraz modu — her 180 sn tarar, kendi makinende)
+python backtest/gozlemci.py --surekli --aralik 180 --mcap --mtf --taraf her --pano
+
+# Defter & portföy durumu
+python backtest/gozlemci.py --durum
+```
+
+Her döngü: `radar_tara` → Trade sinyalleri **portföye (paper-trading) + deftere**
+işlenir → açık/bekleyen pozisyonlar taze veriyle güncellenir (TP/STOP/Expired) →
+defter kayıtları portföyden senkronize edilir → her şey diske yazılır.
+
+- **`Defter` (Learning Journal):** her Trade setup'ı `Kayit` olarak tutar
+  (sembol/TF/taraf/kalite/giriş/stop/hedef/pattern + durum). Aynı setup aktifken
+  tekrar yazılmaz (dedup). Durum: **Aday → Açık → TP/STOP/Expired/Manuel**.
+  `defter.json`'a kümülatif tarama sayısı + zaman damgasıyla kalıcı.
+- **Canlı özet (her döngü):** "🔭 TARAMA #N | Aday/İzle/Atla/Elenen · ➕ yeni
+  Trade · ✅/🔴 kapananlar · 📓 Defter WR · 💰 Portföy R" — terminalMiraz nabzı.
+- `--pano` ile her döngüde `terminal.png` panosu yenilenir. Önceki durum yüklenip
+  kaldığı yerden sürer. (defter.json/portfoy.json yereldir, gitignore.)
 
 ## Sıradaki adımlar (yol haritası)
 
