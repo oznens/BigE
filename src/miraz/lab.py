@@ -176,9 +176,11 @@ def _kur_kisa(ks, tp_mod: str = "rr"):
     hedef = 'rr'(terminalMiraz 1R uzaklık) | 'rr2'(2R) |
             'ara'(en yakın destek) | 'ana'(aşağı ana hedef).
     """
-    if ks.bolge_alt is None or ks.fitil_seviye is None:
+    if ks.fitil_seviye is None:
         return None
-    giris = ks.bolge_alt
+    giris = ks.giris if getattr(ks, "giris", None) is not None else ks.bolge_alt
+    if giris is None:
+        return None
     stop = ks.fitil_seviye               # girişin üstünde
     if stop <= giris:
         return None

@@ -61,6 +61,7 @@ class KisaSenaryo:
     direnc_kutu: object = None     # short giriş bölgesi (üstteki direnç)
     bolge_alt: float | None = None # direnç bandının alt sınırı (giriş)
     bolge_ust: float | None = None # direnç bandının üst sınırı
+    giris: float | None = None     # net short giriş: harmonik D varsa orası, yoksa bölge altı
     kritik_seviye: float | None = None  # üstünde KAPANIŞ = iptal
     fitil_seviye: float | None = None   # bu seviyeye fitil senaryoyu bozmaz
     hedef: float | None = None     # aşağı ana hedef (destek)
@@ -208,13 +209,19 @@ def kisa_senaryo(df: pd.DataFrame, n: int = 5,
             ks.harmonik_idx = hd.D_idx
             ks.harmonik_isim = hd.isim
 
+        # Net giriş: harmonik D (PRZ) varsa orası — long'un mavi daire girişinin
+        # aynası; stop'un altında ve hedefin üstünde geçerliyse kullanılır.
+        ks.giris = ks.bolge_alt
+        if ks.harmonik_d is not None and ks.harmonik_d < ks.fitil_seviye \
+                and (ks.hedef is None or ks.harmonik_d > ks.hedef):
+            ks.giris = ks.harmonik_d
+
     # R/R: giriş→stop (yukarı) vs giriş→hedef (aşağı)
     rr = None
-    if ks.bolge_alt is not None and ks.fitil_seviye is not None \
+    if ks.giris is not None and ks.fitil_seviye is not None \
             and ks.hedef is not None:
-        giris = ks.bolge_alt
-        risk = ks.fitil_seviye - giris
-        odul = giris - ks.hedef
+        risk = ks.fitil_seviye - ks.giris
+        odul = ks.giris - ks.hedef
         if risk > 0 and odul > 0:
             rr = round(odul / risk, 2)
 
@@ -230,9 +237,13 @@ def _metin(ks: KisaSenaryo, rr: float | None) -> str:
         return "\n".join(s for s in sat if s)
     sat.append(f"Senaryo: {ks.yon}")
     if ks.harmonik_isim is not None:
-        sat.append(f"🟣 Bearish {ks.harmonik_isim} harmonik D: {_f(ks.harmonik_d)} "
-                   f"(dirençte dönüş — en yüksek güven)")
-    sat.append(f"🔻 Giriş (dirence satış): {_f(ks.bolge_alt)}–{_f(ks.bolge_ust)}")
+        d_not = " ← giriş" if ks.giris == ks.harmonik_d else ""
+        sat.append(f"🟣 Bearish {ks.harmonik_isim} harmonik D: {_f(ks.harmonik_d)}"
+                   f"{d_not} (dirençte dönüş — en yüksek güven)")
+    if ks.giris == ks.harmonik_d and ks.harmonik_d is not None:
+        sat.append(f"🔻 Giriş (harmonik D): {_f(ks.giris)}")
+    else:
+        sat.append(f"🔻 Giriş (dirence satış): {_f(ks.bolge_alt)}–{_f(ks.bolge_ust)}")
     sat.append(f"   Stop (üstünde kapanış): {_f(ks.kritik_seviye)} "
                f"(fitil {_f(ks.fitil_seviye)})")
     if ks.hedef is not None:

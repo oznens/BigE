@@ -225,7 +225,8 @@ def radar_tara(semboller: list[str] | None = None,
                     ks = kisa_senaryo(df, df_ust=df_ust)
                     kategori, notu = _short_kategori(ks)
                     # terminalMiraz tarzı short TP: girişe stop mesafesi kadar (1R)
-                    s_giris = ks.bolge_alt
+                    # giriş = harmonik D varsa orası (kisa_senaryo çözdü), yoksa bölge altı
+                    s_giris = ks.giris
                     s_hedef = s_rr = None
                     if (s_giris is not None and ks.fitil_seviye is not None
                             and ks.fitil_seviye > s_giris):

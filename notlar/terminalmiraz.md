@@ -294,6 +294,12 @@ Deep Crab...). İki eksik kapatıldı:
 Böylece harmonik motoru (8 pattern: Gartley/Bat/Butterfly/Crab/Deep Crab/AB=CD/
 Shark/Cypher) artık **hem long hem short** akışında ve panoda görünür.
 
+**Short giriş = harmonik D (PRZ).** terminalMiraz entry'yi harmonik D noktasına
+koyar. Long zaten `mavi_daire`'yi giriş yapıyordu; short da artık simetrik:
+`KisaSenaryo.giris` = harmonik D varsa orası (stop'un altında & hedefin üstünde
+geçerliyse), yoksa direnç bandı alt kenarı. Radar/lab/kart slider'ı bu net girişi
+kullanır. Canlı: BNB short girişi band kenarı (629.6) yerine **D=632.94**'e çekildi.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
