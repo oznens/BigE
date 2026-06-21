@@ -186,7 +186,7 @@ def test_mavi_daire_pamonic_yoksa_normal_not():
 # ---- terminalMiraz TF + risk modları ----
 
 def test_terminalmiraz_tf():
-    assert TERMINALMIRAZ_TF == ["15m", "30m", "1h", "2h"]
+    assert TERMINALMIRAZ_TF == ["15m", "30m", "1h", "2h", "4h"]
     # her TF için bir HTF eşlemesi tanımlı olmalı
     for tf in TERMINALMIRAZ_TF:
         assert tf in _UST_TF

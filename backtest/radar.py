@@ -31,7 +31,7 @@ def main() -> None:
                     help="mcap evrenini kullan (data/evren.json — bkz. evren.py)")
     ap.add_argument("--tf", nargs="+", default=["4h"])
     ap.add_argument("--mtf", action="store_true",
-                    help=f"terminalMiraz 4 zaman dilimi: {' '.join(TERMINALMIRAZ_TF)}")
+                    help=f"terminalMiraz {len(TERMINALMIRAZ_TF)} zaman dilimi: {' '.join(TERMINALMIRAZ_TF)}")
     ap.add_argument("--risk-mod", default="guvenli",
                     choices=list(RISK_MODLARI),
                     help="TP uzaklığı: guvenli=1R · dengeli=1.5R · riskli=2R")

@@ -31,7 +31,7 @@ def main() -> None:
     ap.add_argument("--semboller", nargs="+", default=None)
     ap.add_argument("--tf", nargs="+", default=["4h"])
     ap.add_argument("--mtf", action="store_true",
-                    help=f"terminalMiraz 4 TF: {' '.join(TERMINALMIRAZ_TF)}")
+                    help=f"terminalMiraz {len(TERMINALMIRAZ_TF)} TF: {' '.join(TERMINALMIRAZ_TF)}")
     ap.add_argument("--risk-mod", default="guvenli", choices=list(RISK_MODLARI),
                     help="TP uzaklığı: guvenli=1R · dengeli=1.5R · riskli=2R")
     ap.add_argument("--gun", type=int, default=400)

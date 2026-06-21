@@ -116,7 +116,7 @@ def main() -> None:
                     help="mcap evrenini kullan (data/evren.json)")
     ap.add_argument("--tf", nargs="+", default=["4h"])
     ap.add_argument("--mtf", action="store_true",
-                    help=f"terminalMiraz 4 TF: {' '.join(TERMINALMIRAZ_TF)}")
+                    help=f"terminalMiraz {len(TERMINALMIRAZ_TF)} TF: {' '.join(TERMINALMIRAZ_TF)}")
     ap.add_argument("--taraf", default="long", choices=["long", "short", "her"])
     ap.add_argument("--risk-mod", default="guvenli", choices=list(RISK_MODLARI))
     ap.add_argument("--r", type=float, default=25.0)

@@ -25,8 +25,9 @@ from . import veri
 _UST_TF = {"15m": "1h", "30m": "2h", "1h": "4h", "2h": "4h",
            "4h": "1d", "1d": "1w"}
 
-# terminalMiraz'ın kullandığı 4 zaman dilimi (tweet: "M15, M30, H1, H2").
-TERMINALMIRAZ_TF = ["15m", "30m", "1h", "2h"]
+# terminalMiraz zaman dilimleri: intraday M15/M30/H1/H2 + swing H4
+# (hoca H4'ü ana resim/HTF teyidi için sık kullanır — radar bu 5 TF'i tarar).
+TERMINALMIRAZ_TF = ["15m", "30m", "1h", "2h", "4h"]
 
 # 3 risk modu (tweet: "Aşırı Güvenli / Dengeli / Tamamen Riskli").
 # rr_hedef = hedefin kaç R uzağa konacağı: güvenli erken kâr-al, riskli koşturur.
