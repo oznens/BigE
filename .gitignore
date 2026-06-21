@@ -7,3 +7,7 @@ __pycache__/
 *.egg-info/
 .venv/
 .pytest_cache/
+
+# Paper-trading / cluster çalışma durumu (yerel, üretilen)
+portfoy.json
+cluster.json

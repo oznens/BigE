@@ -38,7 +38,7 @@ Price Action + Harmonik trade terminali:
 | Render (konsept görseli) | `grafik.py` (harmonik+Fib+RSI) | ✅ |
 | **Price Action Labs (backtest/win-rate)** | `lab.py` | ✅ **bu turda** |
 | TP/Giriş/Stop Lab (parametre taraması) | `lab.lab_tara` | ✅ **bu turda** |
-| **Cluster hafızası / benzerlik** | — | ⏳ |
+| **Cluster hafızası / benzerlik** | `cluster.py` | ✅ **bu turda** |
 | **Temas davranışı istatistiği** | — | ⏳ |
 | **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
@@ -105,12 +105,35 @@ python backtest/portfoy.py
 - R-bazlı P&L: toplam R, günlük R, WR% — terminalMiraz tablo formatında.
 - Kalıcılık: `portfoy.json`'a kaydedilir, sonraki çalışmada yüklenir.
 
+## Bu turda eklenen: Cluster Hafızası (`cluster.py`)
+
+```
+python backtest/cluster.py --ogren --semboller BTCUSDT ETHUSDT SOLUSDT
+python backtest/cluster.py --listele
+python backtest/cluster.py --benzerlik BTCUSDT --tf 4h
+```
+
+- Her setup bir **imza** ile etiketlenir: `(kalite, mavi/düz, HTF, market
+  yapısı, divergence, rr kovası)`. Aynı imzalı setuplar bir cluster'dır.
+- Geçmiş veride (look-ahead yok, lab altyapısı) her setup ileri simüle edilir
+  (TP/STOP), sonuç imzanın cluster'ına yazılır.
+- `benzerlik(senaryo, hafiza)` güncel setup'ın cluster'ını bulur: "bu tip
+  kurulum geçmişte %X TP yaptı" + güven düzeltmesi (+10..−10). Yetersiz örnekte
+  kaba imzaya düşer (tam → kalite+mavi+HTF → kalite+mavi → kalite), kaba
+  eşleşmede etki yarıya iner.
+
+### İlk bulgu (3 coin, 800 bar, 170 setup)
+Tek pozitif beklentili küme **A·yükseliş** (+0.02R); `düşüş` ve düşük kalite
+(C/D) kümeleri belirgin negatif (−0.55 … −1.00R). Cluster hafızası kaliteyi
+**imza düzeyinde** doğruluyor — düşüş yapısında long açma.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Cluster hafızası** — güncel setup'ı geçmiş benzerlerle karşılaştırıp güven.
-2. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.
-3. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
-4. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
+1. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.
+2. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
+3. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
+4. **Karar–cluster entegrasyonu** — `benzerlik.guven_etkisi`yi radar/karar
+   güvenine canlı uygula (hafıza yüklenmişse).
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
 > atıldı. Sıradaki: Price Action Labs backtest motoru.
