@@ -65,6 +65,9 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
     durum = durum_json(goz, sonuc.rapor, aralik)
     durum["tarama_durumu"] = "tamam"
     durum["statik"] = True
+    durum["hazir"] = True          # canlı sunucuda DurumDeposu.yaz() set eder; statik
+                                   # snapshot'ta elle işaretle, yoksa panel sonsuza
+                                   # dek "tarama bekleniyor" gösterir
     _yaz_json(cikti / "durum.json", durum)
     print(f"✅ durum.json — {durum['ozet']}")
 
