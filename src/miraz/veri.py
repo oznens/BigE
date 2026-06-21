@@ -23,6 +23,20 @@ _KOLONLAR = [
     "close_time", "quote_volume",
 ]
 
+# Borsada NATIF olmayan türev zaman dilimleri: alt TF'den resample edilir.
+# MEXC 2h sunmaz → 60m (1h) çekip 2 saate toplarız (terminalMiraz M15/M30/H1/H2).
+_TUREV = {
+    "2h": ("1h", "2h"),
+}
+
+
+def _resample(df: pd.DataFrame, kural: str) -> pd.DataFrame:
+    """OHLCV df'i daha üst bir zaman dilimine toplar (örn. 1h → 2h)."""
+    o = df.resample(kural, label="left", closed="left").agg({
+        "open": "first", "high": "max", "low": "min",
+        "close": "last", "volume": "sum"}).dropna()
+    return o
+
 
 def _borsadan_cek(base: str, symbol: str, interval: str, start_ms: int,
                   end_ms: int) -> list:
@@ -60,6 +74,18 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
     Döndürür: UTC indeksli, float kolonlu OHLCV DataFrame.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Borsada natif olmayan TF (örn. 2h) → alt TF'i çekip resample et
+    if interval in _TUREV:
+        alt_iv, kural = _TUREV[interval]
+        yol_t = DATA_DIR / f"{symbol}_{interval}.parquet"
+        if yol_t.exists() and not force:
+            return pd.read_parquet(yol_t)
+        alt = indir(symbol, alt_iv, gun=gun, force=force, borsa=borsa)
+        df_t = _resample(alt, kural)
+        df_t.to_parquet(yol_t)
+        return df_t
+
     yol = DATA_DIR / f"{symbol}_{interval}.parquet"
     if yol.exists() and not force:
         return pd.read_parquet(yol)

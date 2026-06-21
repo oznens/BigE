@@ -24,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz import veri
 from miraz.portfoy import Portfoy, radar_sinyallerini_ekle
-from miraz.radar import radar_tara, VARSAYILAN_EVREN
+from miraz.radar import (radar_tara, VARSAYILAN_EVREN, TERMINALMIRAZ_TF,
+                         RISK_MODLARI)
 
 PORTFOY_DOSYA = Path(__file__).resolve().parents[1] / "portfoy.json"
 
@@ -41,6 +42,12 @@ def main() -> None:
                     help="Radar / güncelleme için sembol listesi")
     ap.add_argument("--tf", nargs="+", default=["4h"],
                     help="Taranacak zaman dilim(ler)i")
+    ap.add_argument("--mtf", action="store_true",
+                    help=f"terminalMiraz 4 TF: {' '.join(TERMINALMIRAZ_TF)}")
+    ap.add_argument("--risk-mod", default="guvenli", choices=list(RISK_MODLARI),
+                    help="TP uzaklığı: guvenli=1R · dengeli=1.5R · riskli=2R")
+    ap.add_argument("--max-bekleme", type=int, default=24,
+                    help="Bekliyor emir bu kadar bar dolmazsa Expired olur")
     ap.add_argument("--gun", type=int, default=400,
                     help="İndirilecek geçmiş bar sayısı (gün)")
     ap.add_argument("--r-dolar", type=float, default=25.0,
@@ -73,12 +80,15 @@ def main() -> None:
         print(pf.tablo(sadece_aktif=args.sadece_aktif))
         return
 
+    tflar = TERMINALMIRAZ_TF if args.mtf else args.tf
+    rr_hedef = RISK_MODLARI[args.risk_mod]
+
     # Radar → portföye ekle
     if args.ekle_radar:
-        print(f"🔭 Radar taranıyor ({args.taraf}): "
-              f"{args.semboller} / {args.tf} ...")
-        rapor = radar_tara(args.semboller, args.tf, gun=args.gun,
-                           taraf=args.taraf)
+        print(f"🔭 Radar taranıyor ({args.taraf}, risk={args.risk_mod}): "
+              f"{args.semboller} / {tflar} ...")
+        rapor = radar_tara(args.semboller, tflar, gun=args.gun,
+                           taraf=args.taraf, rr_hedef=rr_hedef)
         print(rapor.tablo(sadece="Trade"))
         eklendi = radar_sinyallerini_ekle(pf, rapor)
         print(f"\n➕ {eklendi} yeni Trade sinyali portföye eklendi.")
@@ -97,11 +107,12 @@ def main() -> None:
                                                         force=True)
                 except Exception as e:
                     print(f"  ⚠️  {sem}/{ivl}: {e}")
-            degisenler = pf.guncelle_hepsi(df_sozluk)
+            degisenler = pf.guncelle_hepsi(df_sozluk,
+                                           max_bekleme=args.max_bekleme)
             if degisenler:
                 for p in degisenler:
-                    ikon = {"TP": "✅", "STOP": "🔴", "Açık": "🟢"}.get(
-                        p.durum, "⬜")
+                    ikon = {"TP": "✅", "STOP": "🔴", "Açık": "🟢",
+                            "Expired": "⌛"}.get(p.durum, "⬜")
                     r_txt = (f" → {p.r_sonuc:+.1f}R"
                              if p.durum in ("TP", "STOP") else "")
                     print(f"  {ikon} {p.sembol}/{p.interval}: {p.durum}{r_txt}")

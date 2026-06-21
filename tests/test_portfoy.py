@@ -130,6 +130,29 @@ def test_guncelle_hicbir_degisiklik():
     assert pf.pozisyonlar[0].durum == "Bekliyor"
 
 
+def test_guncelle_expired():
+    """Bekliyor emir max_bekleme bar içinde dolmazsa → Expired (terminalMiraz)."""
+    pf = Portfoy()
+    _ekle(pf)
+    # 6 bar boyunca giriş (100) hiç dolmaz, fiyat hep üstte
+    df = _df([(102, 106)] * 6)
+    deg = pf.guncelle("BTC", "4h", df, max_bekleme=5)
+    assert pf.pozisyonlar[0].durum == "Expired"
+    assert pf.pozisyonlar[0].r_sonuc == 0.0
+    assert pf.pozisyonlar[0] in deg
+    assert len(pf.aktif) == 0
+
+
+def test_guncelle_expired_olmadan_dolarsa():
+    """max_bekleme'den önce giriş dolarsa Expired olmaz, Açık olur."""
+    pf = Portfoy()
+    _ekle(pf)
+    # 2. barda giriş (100) dolar
+    df = _df([(102, 106), (99, 101), (102, 105)])
+    pf.guncelle("BTC", "4h", df, max_bekleme=5)
+    assert pf.pozisyonlar[0].durum in ("Açık", "TP", "STOP")
+
+
 # ---------------------------------------------------------------------------
 # Short pozisyon simülasyonu (yön-duyarlı)
 # ---------------------------------------------------------------------------

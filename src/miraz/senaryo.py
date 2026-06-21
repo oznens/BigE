@@ -109,6 +109,7 @@ class Senaryo:
     mavi_daire: float | None = None       # harmonik D ∩ destek = en yüksek güven
     mavi_daire_idx: int | None = None     # D barı (grafikte daire konumu)
     mavi_daire_isim: str | None = None    # harmonik pattern adı
+    pamonic: bool = False                 # harmonik D ∩ GÜÇLÜ PA kutusu (PaMonic)
     ara_hedef: float | None = None        # 🟣 mor çizgi — ilk kâr-alma seviyesi
     mtf_yapi: str | None = None           # üst zaman dilimi yapısı
     goreceli_guc: object = None           # ALT/BTC göreceli güç (GoreceliGuc)
@@ -205,12 +206,18 @@ def senaryo_uret(
 
     # Mavi daire: destek bölgesinde tamamlanan bullish harmonik D = en yüksek güven
     mavi_daire = mavi_daire_idx = mavi_daire_isim = None
+    pamonic = False
     if bolge_alt is not None:
         md = _mavi_daire_bul(df, n, bolge_alt, bolge_ust)
         if md is not None:
             mavi_daire = round(md.D, 4)
             mavi_daire_idx = md.D_idx
             mavi_daire_isim = md.isim
+            # PaMonic: harmonik D, GÜÇLÜ bir PA destek kutusu (OrderBlock) ile
+            # çakışıyorsa (her ikisi de kaliteli) — nadir ama güçlü birleşim.
+            if destek_kutu is not None and getattr(destek_kutu, "guc", 0) >= 70 \
+                    and md.kalite >= 60:
+                pamonic = True
 
     # Hacim filtresi: bölgeye hacimli geliş = kırılma adayı (TAO yeşil kutu dersi)
     hacim_orani = round(gelis_hacim_orani(df), 2)
@@ -276,6 +283,7 @@ def senaryo_uret(
         trend=trend_cizgi, gelis_hacim=hacim_orani,
         kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
+        pamonic=pamonic,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
         divergence=divg, elliott=elliott, obo=obo,

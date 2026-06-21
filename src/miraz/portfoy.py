@@ -101,10 +101,13 @@ class Portfoy:
     # Güncelleme — TP / STOP takibi
     # -----------------------------------------------------------------------
 
-    def guncelle(self, sembol: str, interval: str, df: pd.DataFrame) -> list:
+    def guncelle(self, sembol: str, interval: str, df: pd.DataFrame,
+                 max_bekleme: int = 24) -> list:
         """Bir sembol için açık/bekleyen pozisyonları OHLCV veriyle günceller.
 
         df: veri.indir()'den gelen UTC DatetimeIndex'li OHLCV DataFrame.
+        max_bekleme: Bekliyor bir emir bu kadar bar içinde dolmazsa → Expired
+                     (terminalMiraz Expired filtresi; giriş gelmeyen emir iptal).
         Döndürür: durum değişen Pozisyon listesi.
         """
         aktif = [p for p in self.pozisyonlar
@@ -167,14 +170,23 @@ class Portfoy:
             if not kapanis_oldu:
                 # Son incelenen barın zamanını kaydet
                 poz.son_kontrol_zaman = idx[-1].isoformat()
+                # Expired: hâlâ Bekliyor ve açılışından beri çok bar geçtiyse iptal
+                if poz.durum == "Bekliyor" and poz.acilis_zaman:
+                    acilis = pd.Timestamp(poz.acilis_zaman).tz_convert("UTC")
+                    gecen = int((df.index > acilis).sum())
+                    if gecen >= max_bekleme:
+                        poz.durum = "Expired"
+                        poz.r_sonuc = 0.0
+                        poz.kapanis_zaman = _simdi()
+                        degisenler.append(poz)
 
         return degisenler
 
-    def guncelle_hepsi(self, df_sozluk: dict) -> list:
+    def guncelle_hepsi(self, df_sozluk: dict, max_bekleme: int = 24) -> list:
         """Tüm sembolleri günceller. df_sozluk: {(sembol, interval): df}"""
         tum: list[Pozisyon] = []
         for (sem, ivl), df in df_sozluk.items():
-            tum.extend(self.guncelle(sem, ivl, df))
+            tum.extend(self.guncelle(sem, ivl, df, max_bekleme=max_bekleme))
         return tum
 
     # -----------------------------------------------------------------------
@@ -188,7 +200,7 @@ class Portfoy:
     @property
     def kapali(self) -> list:
         return [p for p in self.pozisyonlar
-                if p.durum in ("TP", "STOP", "Manuel")]
+                if p.durum in ("TP", "STOP", "Manuel", "Expired")]
 
     @property
     def toplam_r(self) -> float:

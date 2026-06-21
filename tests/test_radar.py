@@ -7,7 +7,9 @@ from dataclasses import dataclass
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.radar import (RadarRapor, RadarSatiri, _kategori_belirle,
-                         CEKIRDEK_EVREN, GENIS_EVREN, VARSAYILAN_EVREN)
+                         _gec_kalmis, CEKIRDEK_EVREN, GENIS_EVREN,
+                         VARSAYILAN_EVREN, TERMINALMIRAZ_TF, RISK_MODLARI,
+                         _UST_TF)
 
 
 def test_evren_genis_ve_tekil():
@@ -64,6 +66,8 @@ class _Sen:
     karar: object
     mtf_yapi: str = None
     mavi_daire: float = None
+    mavi_daire_isim: str = None
+    pamonic: bool = False
     ikili: object = None
     kirilma_riski: bool = False
     fib: object = None
@@ -87,3 +91,56 @@ def test_skip_elenen_olmaz():
     s = _Sen(karar=_Karar("Skip"), mtf_yapi="problemli")
     kat, _ = _kategori_belirle(s)
     assert kat == "Skip"
+
+
+# ---- Late filtresi (_gec_kalmis) ----
+
+def test_gec_kalmis_long_gec():
+    # Long: giriş 100, hedef 110; fiyat 106 → %60 katedildi (≥%50) → geç
+    assert _gec_kalmis(106, 100, 110, "Long") is True
+
+
+def test_gec_kalmis_long_taze():
+    # fiyat 102 → %20 katedildi → geç değil
+    assert _gec_kalmis(102, 100, 110, "Long") is False
+
+
+def test_gec_kalmis_short_gec():
+    # Short: giriş 100, hedef 90; fiyat 94 → %60 düştü → geç
+    assert _gec_kalmis(94, 100, 90, "Short") is True
+
+
+def test_gec_kalmis_eksik_veri():
+    assert _gec_kalmis(None, 100, 110, "Long") is False
+    assert _gec_kalmis(100, 100, 100, "Long") is False   # toplam 0
+
+
+# ---- PaMonic notu ----
+
+def test_pamonic_notu():
+    s = _Sen(karar=_Karar("Trade"), mavi_daire=100.0,
+             mavi_daire_isim="Gartley", pamonic=True)
+    _, notu = _kategori_belirle(s)
+    assert "PaMonic" in notu and "Gartley" in notu
+
+
+def test_mavi_daire_pamonic_yoksa_normal_not():
+    s = _Sen(karar=_Karar("Trade"), mavi_daire=100.0,
+             mavi_daire_isim="Bat", pamonic=False)
+    _, notu = _kategori_belirle(s)
+    assert "PaMonic" not in notu and "Bat D" in notu
+
+
+# ---- terminalMiraz TF + risk modları ----
+
+def test_terminalmiraz_tf():
+    assert TERMINALMIRAZ_TF == ["15m", "30m", "1h", "2h"]
+    # her TF için bir HTF eşlemesi tanımlı olmalı
+    for tf in TERMINALMIRAZ_TF:
+        assert tf in _UST_TF
+
+
+def test_risk_modlari():
+    assert RISK_MODLARI["guvenli"] == 1.0
+    assert RISK_MODLARI["dengeli"] == 1.5
+    assert RISK_MODLARI["riskli"] == 2.0

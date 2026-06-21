@@ -71,6 +71,12 @@ def karar_uret(senaryo, rr: float | None = None,
         guven += 15
         ger.append("Mavi daire (harmonik D ∩ destek) (+15)")
 
+    # PaMonic (Price Action + Harmonic): harmonik D, GÜÇLÜ bir PA destek kutusuyla
+    # (OrderBlock) çakışıyorsa nadir ama güçlü kombinasyon — ekstra güven.
+    if getattr(senaryo, "pamonic", False):
+        guven += 15
+        ger.append("🔷 PaMonic (harmonik D ∩ güçlü PA kutusu) (+15)")
+
     # MTF üst zaman dilimi
     mtf = getattr(senaryo, "mtf_yapi", None)
     if mtf == "sağlıklı":

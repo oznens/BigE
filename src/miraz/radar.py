@@ -20,8 +20,17 @@ from dataclasses import dataclass, field
 from . import senaryo as sn
 from . import veri
 
-# HTF eşlemesi (setup TF → üst zaman dilimi)
-_UST_TF = {"15m": "1h", "1h": "4h", "4h": "1d", "1d": "1w"}
+# HTF eşlemesi (setup TF → üst zaman dilimi). terminalMiraz HTF-LTF kontrolü:
+# alt TF setup'ı üst TF onaylamazsa Elenen'e düşer.
+_UST_TF = {"15m": "1h", "30m": "2h", "1h": "4h", "2h": "4h",
+           "4h": "1d", "1d": "1w"}
+
+# terminalMiraz'ın kullandığı 4 zaman dilimi (tweet: "M15, M30, H1, H2").
+TERMINALMIRAZ_TF = ["15m", "30m", "1h", "2h"]
+
+# 3 risk modu (tweet: "Aşırı Güvenli / Dengeli / Tamamen Riskli").
+# rr_hedef = hedefin kaç R uzağa konacağı: güvenli erken kâr-al, riskli koşturur.
+RISK_MODLARI = {"guvenli": 1.0, "dengeli": 1.5, "riskli": 2.0}
 
 # Çekirdek evren — hızlı tarama (terminalMiraz "öncelikli takip" listesi)
 CEKIRDEK_EVREN = [
@@ -131,7 +140,10 @@ def _kategori_belirle(s) -> tuple[str, str]:
     if s.mtf_yapi == "problemli" and karar in ("Trade", "Watch"):
         return "Elenen", "HTF aşağı — Elenen Setup (HTF-LTF filtresi)"
     notlar = []
-    if s.mavi_daire is not None:
+    if getattr(s, "pamonic", False):
+        notlar.append(f"🔷 PaMonic ({s.mavi_daire_isim} D)" if s.mavi_daire_isim
+                      else "🔷 PaMonic")
+    elif s.mavi_daire is not None:
         notlar.append(f"{s.mavi_daire_isim} D" if s.mavi_daire_isim
                       else "mavi daire")
     if s.ikili is not None and s.ikili.onayli:
@@ -163,11 +175,34 @@ def _short_kategori(ks) -> tuple[str, str]:
     return karar, ", ".join(notlar)
 
 
+# Geç-kalmış (Late) eşiği: giriş→hedef hareketinin ne kadarı zaten gitmişse
+# setup "geç" sayılır (terminalMiraz Late filtresi — stop riskini azaltır).
+_LATE_ESIK = 0.5
+
+
+def _gec_kalmis(fiyat, giris, hedef, taraf: str, esik: float = _LATE_ESIK) -> bool:
+    """Fiyat, giriş→hedef yolunun esik'ten fazlasını katettiyse geç-kalmış.
+
+    Long : katedilen = fiyat − giriş, toplam = hedef − giriş
+    Short: katedilen = giriş − fiyat, toplam = giriş − hedef
+    """
+    if fiyat is None or giris is None or hedef is None:
+        return False
+    if taraf == "Short":
+        toplam, katedilen = giris - hedef, giris - fiyat
+    else:
+        toplam, katedilen = hedef - giris, fiyat - giris
+    if toplam <= 0:
+        return False
+    return (katedilen / toplam) >= esik
+
+
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
                cluster_hafiza: object = None,
-               goreceli: bool = True, taraf: str = "long") -> RadarRapor:
+               goreceli: bool = True, taraf: str = "long",
+               rr_hedef: float = 1.0) -> RadarRapor:
     """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
 
     cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
@@ -205,7 +240,13 @@ def radar_tara(semboller: list[str] | None = None,
                                         cluster_hafiza=cluster_hafiza)
                     kategori, notu = _kategori_belirle(s)
                     from .risk import risk_plani
-                    rp = risk_plani(s, r_dolar=r_dolar) if s.destek_kutu else None
+                    rp = (risk_plani(s, r_dolar=r_dolar, rr_hedef=rr_hedef)
+                          if s.destek_kutu else None)
+                    # Late filtresi: hareketin çoğu gitmişse Trade/Watch → Elenen
+                    if rp and kategori in ("Trade", "Watch") and _gec_kalmis(
+                            s.fiyat, rp.giris, rp.hedef, "Long"):
+                        kategori = "Elenen"
+                        notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
                     rapor.satirlar.append(RadarSatiri(
                         symbol=sym, interval=tf, fiyat=s.fiyat, kategori=kategori,
                         kalite=s.karar.kalite if s.karar else "D",
@@ -230,8 +271,14 @@ def radar_tara(semboller: list[str] | None = None,
                     s_hedef = s_rr = None
                     if (s_giris is not None and ks.fitil_seviye is not None
                             and ks.fitil_seviye > s_giris):
-                        s_hedef = round(mesafe_hedef(s_giris, ks.fitil_seviye), 6)
-                        s_rr = 1.0
+                        s_hedef = round(
+                            mesafe_hedef(s_giris, ks.fitil_seviye, rr_hedef), 6)
+                        s_rr = rr_hedef
+                    # Late filtresi (short): düşüşün çoğu gitmişse → Elenen
+                    if kategori in ("Trade", "Watch") and _gec_kalmis(
+                            ks.fiyat, s_giris, s_hedef, "Short"):
+                        kategori = "Elenen"
+                        notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
                     rapor.satirlar.append(RadarSatiri(
                         symbol=sym, interval=tf, fiyat=ks.fiyat,
                         kategori=kategori,

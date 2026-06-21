@@ -46,6 +46,11 @@ Price Action + Harmonik trade terminali:
 | **Short (kısa) pozisyon desteği** | `kisa.py` + `radar_tara(taraf=)` | ✅ **bu turda** |
 | **TP = 1R mesafe hedefi (mor kutu değil)** | `risk.mesafe_hedef` | ✅ **bu turda** |
 | **Görsel terminal panosu (dashboard)** | `terminal.py` + `backtest/terminal.py` | ✅ **bu turda** |
+| **Intraday TF (M15/M30/H1/H2)** | `veri` 2h-resample + `radar.TERMINALMIRAZ_TF` | ✅ **bu turda** |
+| **Late (geç kalmış) filtresi** | `radar._gec_kalmis` | ✅ **bu turda** |
+| **Expired (giriş gelmeyen emir) filtresi** | `portfoy` max_bekleme | ✅ **bu turda** |
+| **PaMonic (PA + Harmonik çakışması)** | `senaryo.pamonic` + `karar` +15 | ✅ **bu turda** |
+| **3 risk modu (güvenli/dengeli/riskli)** | `radar.RISK_MODLARI` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -299,6 +304,34 @@ koyar. Long zaten `mavi_daire`'yi giriş yapıyordu; short da artık simetrik:
 `KisaSenaryo.giris` = harmonik D varsa orası (stop'un altında & hedefin üstünde
 geçerliyse), yoksa direnç bandı alt kenarı. Radar/lab/kart slider'ı bu net girişi
 kullanır. Canlı: BNB short girişi band kenarı (629.6) yerine **D=632.94**'e çekildi.
+
+## Bu turda eklenen: Tweet analizi sonrası 5 metodoloji uyumu
+
+@tradermiraz'ın terminalMiraz tweetlerini (Xquik ile çekildi) okuyup 5 fark
+kapatıldı:
+
+1. **Intraday zaman dilimleri (M15/M30/H1/H2).** Tweet: *"yaklaşık 75 parite;
+   M15, M30, H1 ve H2 zaman dilimlerinde taranıyor"*. MEXC 2h sunmadığı için
+   `veri.py` 1h→2h **resample** ediyor (`_TUREV`). `radar.TERMINALMIRAZ_TF` +
+   tüm CLI'larda `--mtf` bayrağı. HTF eşlemesi: 15m→1h, 30m→2h, 1h→4h, 2h→4h.
+2. **Late (geç kalmış) filtresi.** Tweet: *"Geç kalmış setuplarda 12 setup
+   filtrelendi, 9 stop'tan korunuldu"*. `_gec_kalmis`: fiyat giriş→hedef
+   yolunun ≥%50'sini katettiyse Trade/Watch → **Elenen** ("Late"). Hareketin
+   çoğu gittiyse kovalamayı engeller.
+3. **Expired filtresi.** Bekliyor bir limit emir `max_bekleme` (vars. 24) bar
+   içinde dolmazsa → **Expired** (`portfoy.guncelle`). Giriş gelmeyen emirler
+   otomatik iptal.
+4. **PaMonic (Price Action + Harmonic).** Tweet: *"Harmoniklerin D bölgesinde
+   neden Price Action aramıyoruz? Gartley D'de OrderBlock..."*. `senaryo.pamonic`
+   = harmonik D, **güçlü** bir PA destek kutusuyla (güç≥70, harmonik kalite≥60)
+   çakışınca True → karar motoruna **+15 güven**, kartta 🔷 PaMonic rozeti.
+5. **3 risk modu.** Tweet: *"Aşırı Güvenli / Dengeli / Tamamen Riskli... şu an
+   1:1 RR"*. `RISK_MODLARI` = güvenli 1R · dengeli 1.5R · riskli 2R; tüm
+   CLI'larda `--risk-mod`. `mesafe_hedef(rr_hedef)` ve short hedefi buna uyar.
+
+Ayrıca tweet verileri: terminalMiraz **92 parite + 26 hisse = 118 enstrüman ×
+4 TF = 472 tarama**; 2 aylık 590 TP/430 STOP (~%58 WR); R=25$ (test 10$).
+Hisse (TradeFi) evreni bizde henüz yok (ek veri kaynağı gerekir).
 
 ## Sıradaki adımlar (yol haritası)
 

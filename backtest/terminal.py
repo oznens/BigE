@@ -17,7 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.radar import radar_tara, VARSAYILAN_EVREN, GENIS_EVREN
+from miraz.radar import (radar_tara, VARSAYILAN_EVREN, GENIS_EVREN,
+                         TERMINALMIRAZ_TF, RISK_MODLARI)
 from miraz.terminal import panel_ciz
 
 KOK = Path(__file__).resolve().parents[1]
@@ -29,6 +30,10 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="TerminalMiraz görsel paneli")
     ap.add_argument("--semboller", nargs="+", default=None)
     ap.add_argument("--tf", nargs="+", default=["4h"])
+    ap.add_argument("--mtf", action="store_true",
+                    help=f"terminalMiraz 4 TF: {' '.join(TERMINALMIRAZ_TF)}")
+    ap.add_argument("--risk-mod", default="guvenli", choices=list(RISK_MODLARI),
+                    help="TP uzaklığı: guvenli=1R · dengeli=1.5R · riskli=2R")
     ap.add_argument("--gun", type=int, default=400)
     ap.add_argument("--taraf", default="long", choices=["long", "short", "her"])
     ap.add_argument("--genis", action="store_true",
@@ -43,6 +48,8 @@ def main() -> None:
     args = ap.parse_args()
 
     semboller = args.semboller or (GENIS_EVREN if args.genis else VARSAYILAN_EVREN)
+    tflar = TERMINALMIRAZ_TF if args.mtf else args.tf
+    rr_hedef = RISK_MODLARI[args.risk_mod]
 
     cluster_hafiza = None
     if args.cluster and CLUSTER_DOSYA.exists():
@@ -51,11 +58,11 @@ def main() -> None:
         print(f"🧬 Cluster hafızası yüklendi ({len(cluster_hafiza.clusterlar)} imza)")
 
     print(f"🔭 Taranıyor ({args.taraf}): {len(semboller)} parite × "
-          f"{len(args.tf)} TF ...")
-    rapor = radar_tara(semboller, args.tf, gun=args.gun,
+          f"{len(tflar)} TF ({' '.join(tflar)}) · risk={args.risk_mod} ...")
+    rapor = radar_tara(semboller, tflar, gun=args.gun,
                        cluster_hafiza=cluster_hafiza,
                        goreceli=not (args.hizli or args.genis),
-                       taraf=args.taraf)
+                       taraf=args.taraf, rr_hedef=rr_hedef)
 
     portfoy = None
     if args.portfoy and PORTFOY_DOSYA.exists():
