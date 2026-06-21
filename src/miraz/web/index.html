@@ -207,6 +207,11 @@
 </div>
 
 <script>
+// Statik mod (GitHub Pages): statik_site.py "false"→"true" yapar.
+window.STATIK=false;
+const API_DURUM = window.STATIK ? "durum.json" : "/api/durum";
+const API_GRAFIK = (s,i)=> window.STATIK
+  ? `grafik/${s}_${i}.json` : `/api/grafik?symbol=${s}&interval=${i}`;
 const $ = s => document.querySelector(s);
 const fmt = v => {
   if(v===null||v===undefined) return "—";
@@ -615,7 +620,7 @@ async function grafikYukle(sym, ivl){
   $("#grafikbos").style.display="none";
   $("#grafikbaslik").textContent = `· ${sym} ${ivl} yükleniyor…`;
   try{
-    const d = await (await fetch(`/api/grafik?symbol=${sym}&interval=${ivl}`)).json();
+    const d = await (await fetch(API_GRAFIK(sym, ivl))).json();
     if(d.hata){ $("#grafikbaslik").textContent = "· "+d.hata; return; }
     const sv=d.seviye||{};
     const pat=[sv.kaynak,sv.pattern,sv.taraf].filter(Boolean).join(" · ");
@@ -633,7 +638,7 @@ window.addEventListener("resize", ()=>{ if(grafikSecili)
 
 async function tik(){
   try{
-    const d = await (await fetch("/api/durum",{cache:"no-store"})).json();
+    const d = await (await fetch(API_DURUM,{cache:"no-store"})).json();
     if(!d.hazir){
       $("#saat").textContent = (d.mesaj||"tarama bekleniyor")+" …";
       return;
@@ -676,7 +681,7 @@ async function tik(){
   }catch(e){ $("#saat").textContent = "sunucuya ulaşılamadı…"; }
 }
 tik();
-setInterval(tik, 2500);
+setInterval(tik, window.STATIK ? 60000 : 2500);   // statikte dosya seyrek güncellenir
 </script>
 </body>
 </html>
