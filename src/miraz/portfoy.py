@@ -132,31 +132,31 @@ class Portfoy:
             low = alt_df["low"].to_numpy()
             high = alt_df["high"].to_numpy()
             idx = alt_df.index
+            short = poz.yon == "Short"
 
             kapanis_oldu = False
             for j in range(len(alt_df)):
                 if poz.durum == "Bekliyor":
-                    if low[j] <= poz.giris:
+                    # Long: fiyat girişe iner (low ≤ giriş) → limit alış dolar.
+                    # Short: fiyat girişe çıkar (high ≥ giriş) → limit satış dolar.
+                    doldu = (high[j] >= poz.giris) if short else (low[j] <= poz.giris)
+                    if doldu:
                         poz.durum = "Açık"
                         degisenler.append(poz)
 
                 if poz.durum == "Açık":
-                    if low[j] <= poz.stop and high[j] >= poz.hedef:
-                        # Aynı barda ikisi birden → muhafazakâr STOP
+                    # Long: stop aşağıda (low ≤ stop), hedef yukarıda (high ≥ hedef).
+                    # Short: stop yukarıda (high ≥ stop), hedef aşağıda (low ≤ hedef).
+                    stop_vurdu = (high[j] >= poz.stop) if short else (low[j] <= poz.stop)
+                    tp_vurdu = (low[j] <= poz.hedef) if short else (high[j] >= poz.hedef)
+                    if stop_vurdu:        # aynı bar stop+tp → muhafazakâr STOP
                         poz.durum = "STOP"
                         poz.r_sonuc = -1.0
                         poz.kapanis_zaman = _simdi()
                         degisenler.append(poz)
                         kapanis_oldu = True
                         break
-                    if low[j] <= poz.stop:
-                        poz.durum = "STOP"
-                        poz.r_sonuc = -1.0
-                        poz.kapanis_zaman = _simdi()
-                        degisenler.append(poz)
-                        kapanis_oldu = True
-                        break
-                    if high[j] >= poz.hedef:
+                    if tp_vurdu:
                         poz.durum = "TP"
                         poz.r_sonuc = poz.rr
                         poz.kapanis_zaman = _simdi()
@@ -240,7 +240,7 @@ class Portfoy:
         sat.append(cizgi())
 
         # Aktif pozisyonlar
-        baslik = (f"{'Sembol':<10} {'TF':<4} {'Durum':<10} "
+        baslik = (f"{'Sembol':<10} {'TF':<4} {'Yön':<5} {'Durum':<10} "
                   f"{'Giriş':>10} {'Stop':>10} {'Hedef':>10} "
                   f"{'R/R':>4} {'Kal':>3} {'Fiyat':>10}")
         sat.append(baslik)
@@ -249,14 +249,19 @@ class Portfoy:
         if aktif:
             for p in sorted(aktif, key=lambda x: (-x.guven, x.sembol)):
                 ikon = "🟢 Açık   " if p.durum == "Açık" else "⏳ Bekliyor"
-                # anlık kâr/zarar (açık pozisyonlar için)
-                if p.durum == "Açık" and p.son_fiyat and p.giris > 0:
-                    fark_r = (p.son_fiyat - p.giris) / (p.giris - p.stop)
+                yon_e = "🔻S" if p.yon == "Short" else "🔼L"
+                # anlık kâr/zarar (açık pozisyonlar için) — yöne göre
+                if p.durum == "Açık" and p.son_fiyat and p.giris > 0 \
+                        and p.giris != p.stop:
+                    if p.yon == "Short":
+                        fark_r = (p.giris - p.son_fiyat) / (p.stop - p.giris)
+                    else:
+                        fark_r = (p.son_fiyat - p.giris) / (p.giris - p.stop)
                     pnl = f"{fark_r:+.2f}R"
                 else:
                     pnl = ""
                 sat.append(
-                    f"{p.sembol:<10} {p.interval:<4} {ikon:<10} "
+                    f"{p.sembol:<10} {p.interval:<4} {yon_e:<5} {ikon:<10} "
                     f"{_f(p.giris):>10} {_f(p.stop):>10} {_f(p.hedef):>10} "
                     f"{p.rr:>4.1f} {p.kalite:>3}  "
                     f"{_f(p.son_fiyat):>9}{f'  {pnl}' if pnl else ''}"
@@ -335,16 +340,19 @@ def _simdi() -> str:
 
 def radar_sinyallerini_ekle(portfoy: Portfoy, radar_raporu,
                              interval: str = "4h") -> int:
-    """RadarRapor'daki Trade sinyallerini portföye ekler.
+    """RadarRapor'daki Trade sinyallerini portföye ekler (long + short).
 
+    Stop, giriş↔hedef mesafesinden R/R ile türetilir; formül her iki yön için
+    de doğrudur (long: hedef>giriş → stop<giriş; short: hedef<giriş → stop>giriş).
     Döndürür: eklenen yeni pozisyon sayısı.
     """
     eklendi = 0
     for satir in radar_raporu.satirlar:
         if satir.kategori != "Trade":
             continue
-        if satir.giris is None or satir.hedef is None:
+        if satir.giris is None or satir.hedef is None or not satir.rr:
             continue
+        yon = "Short" if getattr(satir, "taraf", "Long") == "Short" else "Long"
         poz = portfoy.ekle(
             sembol=satir.symbol,
             interval=satir.interval or interval,
@@ -354,6 +362,7 @@ def radar_sinyallerini_ekle(portfoy: Portfoy, radar_raporu,
             rr=satir.rr,
             kalite=satir.kalite,
             guven=satir.guven,
+            yon=yon,
         )
         if poz is not None:
             eklendi += 1

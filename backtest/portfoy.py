@@ -47,6 +47,9 @@ def main() -> None:
                     help="1R = kaç dolar?")
     ap.add_argument("--ekle-radar", action="store_true",
                     help="Radar taraması yap, Trade sinyallerini portföye ekle")
+    ap.add_argument("--taraf", default="long",
+                    choices=["long", "short", "her"],
+                    help="radar tarafı: long / short / her")
     ap.add_argument("--guncelle", action="store_true",
                     help="Açık pozisyonları gerçek veriyle güncelle (TP/STOP takibi)")
     ap.add_argument("--kapat-id", type=int, default=None,
@@ -72,8 +75,10 @@ def main() -> None:
 
     # Radar → portföye ekle
     if args.ekle_radar:
-        print(f"🔭 Radar taranıyor: {args.semboller} / {args.tf} ...")
-        rapor = radar_tara(args.semboller, args.tf, gun=args.gun)
+        print(f"🔭 Radar taranıyor ({args.taraf}): "
+              f"{args.semboller} / {args.tf} ...")
+        rapor = radar_tara(args.semboller, args.tf, gun=args.gun,
+                           taraf=args.taraf)
         print(rapor.tablo(sadece="Trade"))
         eklendi = radar_sinyallerini_ekle(pf, rapor)
         print(f"\n➕ {eklendi} yeni Trade sinyali portföye eklendi.")

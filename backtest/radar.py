@@ -37,6 +37,9 @@ def main() -> None:
                     help="cluster.json hafızasını güvene uygula")
     ap.add_argument("--hizli", action="store_true",
                     help="göreceli güç indirmesini atla (geniş tarama için hız)")
+    ap.add_argument("--taraf", default="long",
+                    choices=["long", "short", "her"],
+                    help="long (varsayılan) / short / her (ikisi de)")
     args = ap.parse_args()
 
     semboller = args.sembol or (GENIS_EVREN if args.genis else CEKIRDEK_EVREN)
@@ -53,7 +56,8 @@ def main() -> None:
     print(f"\n📡 PİYASA RADAR — {len(semboller)} parite × "
           f"{len(args.tf)} TF taranıyor...\n")
     rapor = radar_tara(semboller, args.tf, r_dolar=args.r, gun=args.gun,
-                       cluster_hafiza=hafiza, goreceli=goreceli)
+                       cluster_hafiza=hafiza, goreceli=goreceli,
+                       taraf=args.taraf)
     print(rapor.tablo(sadece=args.sadece))
     if rapor.hatalar:
         print(f"\n⚠️ {len(rapor.hatalar)} hata: " +

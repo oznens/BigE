@@ -76,6 +76,7 @@ class RadarSatiri:
     hedef: float | None
     rr: float | None
     not_: str = ""
+    taraf: str = "Long"   # "Long" / "Short"
 
     @property
     def _sira(self) -> tuple:
@@ -103,15 +104,16 @@ class RadarRapor:
         if sadece:
             sat = [r for r in sat if r.kategori == sadece]
         ikon = {"Trade": "✅", "Watch": "👁️", "Skip": "🚫", "Elenen": "⛔"}
-        bas = (f"{'':2} {'PARİTE':10} {'TF':4} {'KARAR':7} {'K':3} "
+        bas = (f"{'':2} {'PARİTE':10} {'TF':4} {'T':2} {'KARAR':7} {'K':3} "
                f"{'GÜVEN':6} {'YÖN':9} {'R/R':5}  NOT")
         cizgi = "─" * len(bas)
         satirlar = [bas, cizgi]
         for r in sat:
             rr = f"{r.rr:.1f}" if r.rr is not None else "-"
+            tarafe = "🔻" if r.taraf == "Short" else "🔼"
             satirlar.append(
                 f"{ikon.get(r.kategori,'?')} {r.symbol:10} {r.interval:4} "
-                f"{r.kategori:7} {r.kalite:3} %{r.guven:<4.0f} "
+                f"{tarafe:2} {r.kategori:7} {r.kalite:3} %{r.guven:<4.0f} "
                 f"{r.yon[:9]:9} {rr:5}  {r.not_[:40]}")
         o = self.ozet
         ozet_satir = (f"\nÖZET: {o['toplam']} tarama → "
@@ -138,20 +140,49 @@ def _kategori_belirle(s) -> tuple[str, str]:
     return karar, ", ".join(notlar)
 
 
+def _short_kategori(ks) -> tuple[str, str]:
+    """Kısa senaryodan (kategori, not). HTF yukarı → Elenen (short aleyhine)."""
+    karar = ks.karar.karar if ks.karar else "Skip"
+    if ks.mtf_yapi == "sağlıklı" and karar in ("Trade", "Watch"):
+        return "Elenen", "HTF yukarı — short Elenen (HTF-LTF filtresi)"
+    notlar = []
+    if ks.ikili is not None and ks.ikili.onayli and ks.ikili.tip == "Çift Tepe":
+        notlar.append("çift tepe")
+    if ks.obo is not None and "OBO" in getattr(ks.obo, "tip", "") \
+            and "TOBO" not in getattr(ks.obo, "tip", ""):
+        notlar.append("obo")
+    if ks.divergence is not None and ks.divergence.tip == "Bearish":
+        notlar.append("bearish diverj.")
+    if ks.rsi is not None and ks.rsi >= 70:
+        notlar.append("aşırı alım")
+    return karar, ", ".join(notlar)
+
+
+def _short_rr(ks) -> float | None:
+    if ks.bolge_alt is None or ks.fitil_seviye is None or ks.hedef is None:
+        return None
+    risk = ks.fitil_seviye - ks.bolge_alt
+    odul = ks.bolge_alt - ks.hedef
+    return round(odul / risk, 2) if risk > 0 and odul > 0 else None
+
+
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
                cluster_hafiza: object = None,
-               goreceli: bool = True) -> RadarRapor:
+               goreceli: bool = True, taraf: str = "long") -> RadarRapor:
     """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
 
     cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
     başarısına göre düzeltilir (terminalMiraz cluster katmanı).
     goreceli=False geniş evren taramasında göreceli güç indirmesini atlar (hız).
+    taraf: "long" (varsayılan) | "short" | "her" (ikisi de).
     """
     semboller = semboller or VARSAYILAN_EVREN
     intervallar = intervallar or ["4h"]
     rapor = RadarRapor()
+    long_acik = taraf in ("long", "her")
+    short_acik = taraf in ("short", "her")
 
     for sym in semboller:
         for tf in intervallar:
@@ -159,28 +190,48 @@ def radar_tara(semboller: list[str] | None = None,
                 df = veri.indir(sym, tf, gun=gun)
                 ust_tf = _UST_TF.get(tf)
                 df_ust = veri.indir(sym, ust_tf, gun=gun) if ust_tf else None
-                gguc = None
-                if goreceli:
-                    from . import oran
-                    try:
-                        gguc = oran.goreceli_guc(sym)
-                    except Exception:
-                        gguc = None
-                s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
-                                    r_dolar=r_dolar,
-                                    cluster_hafiza=cluster_hafiza)
             except Exception as e:
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
                 continue
 
-            kategori, notu = _kategori_belirle(s)
-            from .risk import risk_plani
-            rp = risk_plani(s, r_dolar=r_dolar) if s.destek_kutu else None
-            rapor.satirlar.append(RadarSatiri(
-                symbol=sym, interval=tf, fiyat=s.fiyat, kategori=kategori,
-                kalite=s.karar.kalite if s.karar else "D",
-                guven=s.karar.guven if s.karar else 0.0, yon=s.yon,
-                giris=rp.giris if rp else None,
-                hedef=rp.hedef if rp else None,
-                rr=rp.rr_orani if rp else None, not_=notu))
+            if long_acik:
+                try:
+                    gguc = None
+                    if goreceli:
+                        from . import oran
+                        try:
+                            gguc = oran.goreceli_guc(sym)
+                        except Exception:
+                            gguc = None
+                    s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
+                                        r_dolar=r_dolar,
+                                        cluster_hafiza=cluster_hafiza)
+                    kategori, notu = _kategori_belirle(s)
+                    from .risk import risk_plani
+                    rp = risk_plani(s, r_dolar=r_dolar) if s.destek_kutu else None
+                    rapor.satirlar.append(RadarSatiri(
+                        symbol=sym, interval=tf, fiyat=s.fiyat, kategori=kategori,
+                        kalite=s.karar.kalite if s.karar else "D",
+                        guven=s.karar.guven if s.karar else 0.0, yon=s.yon,
+                        giris=rp.giris if rp else None,
+                        hedef=rp.hedef if rp else None,
+                        rr=rp.rr_orani if rp else None, not_=notu,
+                        taraf="Long"))
+                except Exception as e:
+                    rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
+
+            if short_acik:
+                try:
+                    from .kisa import kisa_senaryo
+                    ks = kisa_senaryo(df, df_ust=df_ust)
+                    kategori, notu = _short_kategori(ks)
+                    rapor.satirlar.append(RadarSatiri(
+                        symbol=sym, interval=tf, fiyat=ks.fiyat,
+                        kategori=kategori,
+                        kalite=ks.karar.kalite if ks.karar else "D",
+                        guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
+                        giris=ks.bolge_alt, hedef=ks.hedef, rr=_short_rr(ks),
+                        not_=notu, taraf="Short"))
+                except Exception as e:
+                    rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
     return rapor

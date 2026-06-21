@@ -131,6 +131,58 @@ def test_guncelle_hicbir_degisiklik():
 
 
 # ---------------------------------------------------------------------------
+# Short pozisyon simülasyonu (yön-duyarlı)
+# ---------------------------------------------------------------------------
+
+def _ekle_short(pf, sem="BTC", ivl="4h"):
+    """Short: 100 giriş, 105 stop (yukarıda), 90 hedef (aşağıda), RR=2."""
+    return pf.ekle(sem, ivl, giris=100.0, stop=105.0, hedef=90.0,
+                   rr=2.0, kalite="A", guven=78.0, yon="Short",
+                   zaman="2024-12-31T20:00:00+00:00")
+
+
+def test_short_giris_doldu():
+    """Short: fiyat girişe ÇIKINCA (high ≥ giriş) Bekliyor → Açık."""
+    pf = Portfoy()
+    _ekle_short(pf)
+    # bar0 high 99 (dolmaz), bar1 high 101 (giriş 100 dolar)
+    df = _df([(97, 99), (99, 101), (98, 100)])
+    pf.guncelle("BTC", "4h", df)
+    assert pf.pozisyonlar[0].durum == "Açık"
+
+
+def test_short_tp():
+    """Short: giriş dolunca, fiyat hedefe DÜŞÜNCE (low ≤ hedef) TP."""
+    pf = Portfoy()
+    _ekle_short(pf)
+    # bar0 high 101 (giriş dolar), bar1 low 89 (hedef 90 vurulur)
+    df = _df([(99, 101), (89, 92), (95, 97)])
+    pf.guncelle("BTC", "4h", df)
+    p = pf.pozisyonlar[0]
+    assert p.durum == "TP" and p.r_sonuc == pytest.approx(2.0)
+
+
+def test_short_stop():
+    """Short: giriş dolunca, fiyat stop'a ÇIKINCA (high ≥ stop) STOP."""
+    pf = Portfoy()
+    _ekle_short(pf)
+    # bar0 high 101 (giriş dolar), bar1 high 106 (stop 105 vurulur)
+    df = _df([(99, 101), (103, 106), (100, 102)])
+    pf.guncelle("BTC", "4h", df)
+    p = pf.pozisyonlar[0]
+    assert p.durum == "STOP" and p.r_sonuc == pytest.approx(-1.0)
+
+
+def test_short_ayni_bar_stop_oncelik():
+    """Short: aynı barda hem stop hem hedef → muhafazakâr STOP."""
+    pf = Portfoy()
+    _ekle_short(pf)
+    df = _df([(99, 101), (89, 106)])    # giriş dolar; sonra hem TP hem STOP
+    pf.guncelle("BTC", "4h", df)
+    assert pf.pozisyonlar[0].durum == "STOP"
+
+
+# ---------------------------------------------------------------------------
 # İstatistikler
 # ---------------------------------------------------------------------------
 
@@ -202,6 +254,7 @@ class _Satir:
     giris: float | None
     hedef: float | None
     rr: float | None
+    taraf: str = "Long"
 
 
 @dataclass
@@ -221,6 +274,21 @@ def test_radar_sinyallerini_ekle():
     assert len(pf.aktif) == 2
     sembolleri = {p.sembol for p in pf.aktif}
     assert "BTCUSDT" in sembolleri and "SOLUSDT" in sembolleri
+
+
+def test_radar_sinyali_short_yon_ve_stop():
+    """Short Trade sinyali yön=Short ve stop>giriş olarak eklenir."""
+    pf = Portfoy()
+    # Short: giriş 100, hedef 90 (aşağı), rr 2 → stop = 100 - (90-100)/2 = 105
+    rapor = _Rapor(satirlar=[
+        _Satir("DOTUSDT", "4h", "Trade", "A", 85, 100, 90, 2.0, taraf="Short"),
+    ])
+    n = radar_sinyallerini_ekle(pf, rapor)
+    assert n == 1
+    p = pf.aktif[0]
+    assert p.yon == "Short"
+    assert p.stop == pytest.approx(105.0)   # stop girişin ÜSTÜNDE
+    assert p.hedef < p.giris < p.stop
 
 
 # ---------------------------------------------------------------------------

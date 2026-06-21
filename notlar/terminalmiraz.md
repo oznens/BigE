@@ -42,7 +42,8 @@ Price Action + Harmonik trade terminali:
 | **Temas davranışı istatistiği** | `temas.py` | ✅ **bu turda** |
 | **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
 | **Karar–cluster canlı entegrasyon** | `senaryo_uret(cluster_hafiza=)` | ✅ |
-| **Geniş evren (~90 parite)** | `radar.GENIS_EVREN` + `--genis` | ✅ **bu turda** |
+| **Geniş evren (~90 parite)** | `radar.GENIS_EVREN` + `--genis` | ✅ |
+| **Short (kısa) pozisyon desteği** | `kisa.py` + `radar_tara(taraf=)` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -184,11 +185,32 @@ python backtest/radar.py --genis --cluster --sadece Trade   # sadece Trade
   mavi daire). HTF-LTF filtresi 27 setup'ı Elenen'e attı (BTC/ETH/SOL dahil — üst
   TF aşağı). Bozuk 4 sembol (TON/MKR/AKT/THETA) IOTA/CAKE/RAY/KAVA ile değişti.
 
+## Bu turda eklenen: Short (Kısa) Pozisyon Desteği
+
+```
+python backtest/radar.py --taraf her --tf 4h --cluster        # long + short
+python backtest/portfoy.py --ekle-radar --taraf short         # short yönet
+```
+
+Sistem artık iki yönlü — long'un tam aynası:
+- **`kisa.py`** (`kisa_senaryo`): long senaryosunu yeniden yorumlar — üstteki
+  ana direnç = short GİRİŞ bölgesi, alttaki destek = short HEDEF. Bearish
+  skorlama (`_short_karar`): market yapısı düşüş +12, bearish divergence +10,
+  çift tepe +12, OBO +10, RSI≥70 +8; MTF **tersine** (HTF aşağı = short lehine).
+- **`portfoy.py`**: yön-duyarlı takip — Short'ta giriş high≥giriş'te dolar,
+  STOP high≥stop (yukarıda), TP low≤hedef (aşağıda); canlı P&L yöne göre.
+- **`radar_tara(taraf=)`**: long/short/her. Short için HTF **yukarı** → Elenen.
+
+### Canlı (çekirdek 10, taraf=her): piyasa hikayesi tutarlı
+HTF aşağı olduğu için **long'lar Skip/Elenen, short'lar A+ Trade**: DOT/DOGE/LINK
+short A+ (çift tepe/obo). DOT aynı anda short-Trade A+ ve long-Skip D → ayna
+tutarlı. Short sinyaller portföye yön=Short, stop girişin üstünde eklendi.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
-2. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
-3. **Hisse evreni** — terminalMiraz'ın 26 hissesi (ek veri kaynağı gerekir).
+1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
+2. **Hisse evreni** — terminalMiraz'ın 26 hissesi (ek veri kaynağı gerekir).
+3. **Short cluster/lab** — short senaryolarını da backtest/cluster ile doğrula.
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
 > atıldı. Sıradaki: Price Action Labs backtest motoru.
