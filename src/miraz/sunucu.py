@@ -66,21 +66,37 @@ def _kiraz_status(rapor) -> tuple[str, str]:
     return "WATCHLIST MODE", "uygun aday yok — izlemede"
 
 
-def durum_json(gozlemci: Gozlemci, rapor, aralik: int) -> dict:
-    """Gözlemci + son radar raporundan tarayıcının ihtiyaç duyduğu tam durum."""
+def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
+    """Gözlemci + son radar raporundan tarayıcının ihtiyaç duyduğu tam durum.
+
+    borsa verilirse (Binance Testnet) execution metrikleri gerçek testnet
+    hesabından okunur; yoksa paper-trading portföyünden.
+    """
     defter = gozlemci.defter
     portfoy = gozlemci.portfoy
     d_ozet = defter.ozet()
     pnl = defter.pnl_analitik()
 
-    # execution metrikleri (paper-trading portföyünden)
+    # execution metrikleri — gerçek testnet varsa ondan, yoksa paper portföy
     r_dolar = getattr(portfoy, "r_dolar", 25.0) or 25.0
     poz = getattr(portfoy, "pozisyonlar", [])
     aktif = [p for p in poz if p.durum == "Açık"]
     bekleyen = [p for p in poz if p.durum == "Bekliyor"]
     toplam_r = getattr(portfoy, "toplam_r", 0.0) or 0.0
     equity = 5000.0 + toplam_r * r_dolar
-    open_risk = round(len(aktif) * r_dolar / equity * 100, 1) if equity else 0.0
+    aktif_n, bekleyen_n = len(aktif), len(bekleyen)
+    canli = False
+    if borsa is not None:
+        try:
+            oz = borsa.ozet()
+            equity = round(oz["wallet"], 1)
+            toplam_r = round(oz["unrealized"] / r_dolar, 1) if r_dolar else 0.0
+            aktif_n = len(borsa.pozisyonlar())
+            bekleyen_n = len(borsa.acik_emirler())
+            canli = True
+        except Exception:
+            canli = False
+    open_risk = round(aktif_n * r_dolar / equity * 100, 1) if equity else 0.0
     kiraz_durum, kiraz_mesaj = _kiraz_status(rapor)
 
     # canlı aday akışı (Trade + Watch, güvene göre)
@@ -105,12 +121,12 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int) -> dict:
         "ozet": rapor.ozet,
         "durum_cubugu": {
             "kiraz": True, "sql_memory": True,
-            "order_engine": portfoy is not None,
+            "order_engine": portfoy is not None, "binance": canli,
         },
         "execution": {
-            "wallet": round(equity, 1), "aktif": len(aktif),
-            "bekleyen": len(bekleyen), "daily_pnl": round(toplam_r, 1),
-            "open_risk": open_risk, "r_dolar": r_dolar,
+            "wallet": round(equity, 1), "aktif": aktif_n,
+            "bekleyen": bekleyen_n, "daily_pnl": round(toplam_r, 1),
+            "open_risk": open_risk, "r_dolar": r_dolar, "canli": canli,
             "kiraz_durum": kiraz_durum, "kiraz_mesaj": kiraz_mesaj,
         },
         "buckets": d_ozet["buckets"],
@@ -265,7 +281,7 @@ class Sunucu:
     def __init__(self, semboller, intervallar, taraf="long", rr_hedef=1.0,
                  cluster_hafiza=None, r_dolar=25.0, gun=120, max_bekleme=24,
                  goreceli=False, aralik=180, port=8000, host="127.0.0.1",
-                 portfoy=None, defter=None,
+                 portfoy=None, defter=None, borsa=None, otomatik=False,
                  defter_dosya=DEFTER_DOSYA, portfoy_dosya=PORTFOY_DOSYA):
         self.gozlemci = Gozlemci(
             semboller=semboller, intervallar=intervallar, taraf=taraf,
@@ -275,6 +291,9 @@ class Sunucu:
         self.aralik = aralik
         self.port = port
         self.host = host
+        self.borsa = borsa
+        self.otomatik = otomatik and borsa is not None
+        self.r_dolar = r_dolar
         self.defter_dosya = defter_dosya
         self.portfoy_dosya = portfoy_dosya
         self.depo = DurumDeposu()
@@ -286,7 +305,33 @@ class Sunucu:
     def _bir_tarama(self) -> None:
         sonuc = self.gozlemci.dongu()
         self.gozlemci.kaydet(self.defter_dosya, self.portfoy_dosya)
-        self.depo.yaz(durum_json(self.gozlemci, sonuc.rapor, self.aralik))
+        if self.otomatik:
+            self._otomatik_emir(sonuc.rapor)
+        self.depo.yaz(durum_json(self.gozlemci, sonuc.rapor, self.aralik,
+                                 borsa=self.borsa))
+
+    def _otomatik_emir(self, rapor) -> None:
+        """(opt-in) Yeni Trade adayları için testnet bracket emri açar.
+
+        Aynı sembolde açık pozisyon/emir varsa atlar (çift gönderimi önler).
+        """
+        from .kiraz import emir_plani, KirazMotor
+        try:
+            acik_sem = {p["symbol"] for p in self.borsa.pozisyonlar()}
+            acik_sem |= {o.get("symbol") for o in self.borsa.acik_emirler()}
+        except Exception:
+            return
+        motor = KirazMotor(self.borsa)
+        for s in rapor.satirlar:
+            if s.kategori != "Trade" or s.symbol in acik_sem:
+                continue
+            plan = emir_plani(s, r_dolar=self.r_dolar)
+            if plan.gecerli:
+                try:
+                    motor.uygula(plan, kuru=False)
+                    acik_sem.add(s.symbol)
+                except Exception:
+                    pass
 
     def grafik_veri(self, symbol: str, interval: str) -> dict:
         return grafik_veri(symbol, interval, durum=self.depo.oku(),

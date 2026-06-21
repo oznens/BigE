@@ -200,6 +200,7 @@ document.querySelectorAll("#nav button").forEach(b=>{
 function durumCubuk(d){
   const c = d.durum_cubugu||{};
   const r=[["Testnet","r-yesil"],
+    [c.binance?"Binance Connected":"Paper Trading", c.binance?"r-yesil":""],
     ["Kiraz "+(c.kiraz?"Online":"Off"), c.kiraz?"r-mavi":""],
     ["SQL Memory "+(c.sql_memory?"Online":"Off"), c.sql_memory?"r-vurgu":""],
     ["Order Engine "+(c.order_engine?"Ready":"—"), c.order_engine?"r-yesil":""]];

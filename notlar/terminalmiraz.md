@@ -545,6 +545,41 @@ python backtest/sunucu.py --host 0.0.0.0 --port 8000 --mcap --mtf
 - Aday kartları terminalMiraz'ın skor donut'u + SL—ENTRY—TP + Long/Short rozeti
   düzenini birebir taklit eder (CSS conic-gradient donut).
 
+## Bu turda eklenen: CANLI GRAFİK + Binance Testnet (Kiraz execution)
+
+terminalMiraz'ın ana terminalindeki **CANLI GRAFİK** ("Execution-grade candle
+stream") ve **Binance Testnet bağlantısı** ("Testnet Active · Binance
+Connected") web paneline eklendi.
+
+**CANLI GRAFİK** (`sunucu.grafik_veri` + `/api/grafik` + canvas):
+- Mum akışı (yeşil/kırmızı), **ZONE** kutusu (taze senaryodan destek bölgesi),
+  **ENTRY / SL / TP** çizgileri, **SQL Memory** etiketi, **MACD** alt paneli.
+- Aday/bildirim kartına tıkla → o sembolün grafiği yüklenir; ilk aday otomatik.
+
+**Binance Testnet** (`borsa.py` + `kiraz.py`):
+- `BinanceTestnet` — USDT-M Futures **testnet** istemcisi (imzalı HMAC-SHA256).
+  Anahtarlar yalnızca ortam değişkeninden (`BINANCE_TESTNET_KEY/SECRET`), asla
+  kodda/log'da. Sadece testnet (gerçek para yok).
+- `kiraz.py` — **Kiraz** execution motoru: R bazlı pozisyon boyutu
+  (`pozisyon_miktari`), **bracket emir** planı (giriş LIMIT + SL STOP_MARKET +
+  TP TAKE_PROFIT_MARKET). `KirazMotor.uygula(plan, kuru=True)` varsayılan
+  **dry-run**; `kuru=False` ile testnet'e gönderir.
+- Web sunucu `--borsa` ile execution metriklerini gerçek testnet hesabından
+  okur (Binance Connected rozeti); `--otomatik` (opt-in, sadece --borsa ile)
+  yeni Trade adaylarına testnet bracket emri açar (çift gönderim önlemeli).
+- CLI: `python backtest/borsa.py --hesap | --plan ... | --test-emir ... --onayla`
+
+```
+# Testnet anahtarını tanımla (testnet.binancefuture.com → API Key)
+export BINANCE_TESTNET_KEY=...   ;  export BINANCE_TESTNET_SECRET=...
+
+# Canlı testnet metrikleriyle pano
+python backtest/sunucu.py --mcap --mtf --taraf her --borsa
+
+# (DİKKAT) Kiraz otomatik testnet emri açsın (sahte para)
+python backtest/sunucu.py --mcap --mtf --taraf her --borsa --otomatik
+```
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).

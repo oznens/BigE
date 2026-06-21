@@ -68,6 +68,12 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1",
                     help="0.0.0.0 → ağdaki diğer cihazlardan erişim (dikkat)")
+    ap.add_argument("--borsa", action="store_true",
+                    help="Binance Testnet hesabını oku (env: BINANCE_TESTNET_KEY"
+                         "/SECRET) — execution metrikleri canlıdan gelir")
+    ap.add_argument("--otomatik", action="store_true",
+                    help="(DİKKAT) Kiraz yeni Trade adaylarına testnet bracket "
+                         "emri açsın — yalnızca --borsa ile, testnet")
     args = ap.parse_args()
 
     semboller = _evren(args)
@@ -83,12 +89,31 @@ def main() -> None:
                else Portfoy(r_dolar=args.r))
     defter = Defter.yukle(DEFTER_DOSYA)
 
+    borsa = None
+    if args.borsa:
+        from miraz.borsa import BinanceTestnet, BorsaHata
+        try:
+            borsa = BinanceTestnet.ortamdan()
+            borsa.baglanti_testi()
+            print(f"🔌 Binance Testnet bağlı — bakiye {borsa.bakiye():.2f} USDT")
+        except BorsaHata as e:
+            print(f"⚠️  Binance Testnet bağlanamadı ({e}) — paper-trading'e "
+                  "düşülüyor")
+            borsa = None
+    if args.otomatik:
+        if borsa is None:
+            print("⚠️  --otomatik için --borsa (testnet) gerekli — kapatıldı")
+        else:
+            print("⚙️  OTOMATİK MOD: Kiraz yeni Trade adaylarına TESTNET emri "
+                  "açacak (sahte para)")
+
     s = Sunucu(
         semboller=semboller, intervallar=tflar, taraf=args.taraf,
         rr_hedef=rr_hedef, cluster_hafiza=cluster_hafiza, r_dolar=args.r,
         gun=args.gun, max_bekleme=args.max_bekleme,
         goreceli=not (args.genis or args.mcap), aralik=args.aralik,
-        port=args.port, host=args.host, portfoy=portfoy, defter=defter)
+        port=args.port, host=args.host, portfoy=portfoy, defter=defter,
+        borsa=borsa, otomatik=args.otomatik)
     s.basla()
 
 
