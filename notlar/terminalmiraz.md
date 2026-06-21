@@ -36,7 +36,8 @@ Price Action + Harmonik trade terminali:
 | R-bazlı risk | `risk.py` | ✅ |
 | Yorumcu / sinyal metni | `miraz_yorumu` + `finansaltrader_yorumu` | ✅ |
 | Render (konsept görseli) | `grafik.py` (harmonik+Fib+RSI) | ✅ |
-| **Price Action Labs (TP/Giriş/Stop)** | — | ⏳ backtest motoru |
+| **Price Action Labs (backtest/win-rate)** | `lab.py` | ✅ **bu turda** |
+| TP/Giriş/Stop Lab (parametre optimizasyonu) | `lab.py` temel | 🟡 kısmen |
 | **Cluster hafızası / benzerlik** | — | ⏳ |
 | **Temas davranışı istatistiği** | — | ⏳ |
 | **Aktif işlem yönetimi + canlı P&L** | — | ⏳ paper-trading motoru |
@@ -53,10 +54,28 @@ python backtest/radar.py --tf 4h
 - Sıralı tablo + özet ("10 tarama → 0 Trade · 5 Skip · 5 Elenen").
 - Not sütunu: mavi daire, çift tepe/dip, golden pocket, hacimli geliş.
 
+## Bu turda eklenen: Price Action Labs (`lab.py`)
+
+```
+python backtest/lab.py --sembol BTCUSDT --tf 4h
+```
+- Her karar barında (look-ahead yok) senaryo+risk üretir, giriş/stop/hedef alır.
+- İleriye simüle eder: önce giriş dolar mı, sonra TP mi STOP mu (aynı bar →
+  muhafazakâr STOP). Win-rate, toplam/beklenti R, **kaliteye göre** döküm.
+
+### İlk bulgu (önemli)
+BTC 4h, son 800 bar: genel %42 WR / -2.3R **ama kaliteye göre dramatik fark**:
+- **A kalite: %81.8 WR, +11.2R** · A+: %50, +4.1R
+- B/C/D: negatif (-11R / -3R / -3.5R)
+
+→ Kalite motoru gerçekten ayrıştırıyor; yüksek kalite (A) belirgin kârlı.
+Bu, Price Action Labs'in amacı: hangi setupların işe yaradığını **veriyle**
+göstermek ve filtre/parametreleri ona göre ayarlamak.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Price Action Labs (backtest motoru)** ⭐ — geçmiş setupların TP/giriş/stop
-   davranışını ölçüp parametreleri veriyle ayarlamak. terminalMiraz'ın kalbi.
+1. **TP/Giriş/Stop Lab** — backtest'i parametre taramasına çevir (farklı stop/TP
+   mantıklarını kıyasla, en iyi RR/giriş kuralını veriyle seç).
 2. **Aktif işlem yönetimi (paper-trading)** — Trade kararlarını sanal portföyde
    açıp TP/STOP takibi, R-bazlı P&L, günlük istatistik.
 3. **Cluster hafızası** — güncel setup'ı geçmiş benzerlerle karşılaştırıp güven.
