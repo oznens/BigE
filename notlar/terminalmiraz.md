@@ -277,6 +277,23 @@ python backtest/terminal.py --portfoy                         # portföyü panod
 
 `panel_ciz(rapor, portfoy=None, dosya=...)` → PNG. Çıktı `data/terminal.png`.
 
+## Bu turda eklenen: Harmonik — Short tarafı + Kart Pattern Adı
+
+terminalMiraz kartları harmonik pattern adını ön planda gösterir (Gartley+,
+Deep Crab...). İki eksik kapatıldı:
+
+- **Short bearish harmonik** (`kisa._bearish_harmonik_bul`): long'un "mavi
+  daire"sinin aynası — **bearish harmonik D ∩ direnç** = en yüksek güvenli short.
+  `kisa_senaryo` bunu tarar, `_short_karar` +12 güven verir, metinde 🟣 satırı
+  gösterir. Canlı: BNBUSDT 4h dirençte **AB=CD** yakaladı → A kalite Trade.
+- **Kart/tablo pattern adı:** `RadarSatiri.pattern` (long `mavi_daire_isim`,
+  short `harmonik_isim`). Radar notu artık "Gartley D" / "AB=CD D" yazıyor;
+  terminal kartında sembol altında **mor renkte pattern adı** (`4h · AB=CD`) —
+  birebir terminalMiraz görünümü.
+
+Böylece harmonik motoru (8 pattern: Gartley/Bat/Butterfly/Crab/Deep Crab/AB=CD/
+Shark/Cypher) artık **hem long hem short** akışında ve panoda görünür.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).

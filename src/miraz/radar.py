@@ -78,6 +78,7 @@ class RadarSatiri:
     not_: str = ""
     taraf: str = "Long"   # "Long" / "Short"
     stop: float | None = None
+    pattern: str | None = None   # harmonik pattern adı (Gartley/Deep Crab/...)
 
     @property
     def _sira(self) -> tuple:
@@ -131,7 +132,8 @@ def _kategori_belirle(s) -> tuple[str, str]:
         return "Elenen", "HTF aşağı — Elenen Setup (HTF-LTF filtresi)"
     notlar = []
     if s.mavi_daire is not None:
-        notlar.append("mavi daire")
+        notlar.append(f"{s.mavi_daire_isim} D" if s.mavi_daire_isim
+                      else "mavi daire")
     if s.ikili is not None and s.ikili.onayli:
         notlar.append(s.ikili.tip.lower())
     if s.kirilma_riski:
@@ -147,6 +149,8 @@ def _short_kategori(ks) -> tuple[str, str]:
     if ks.mtf_yapi == "sağlıklı" and karar in ("Trade", "Watch"):
         return "Elenen", "HTF yukarı — short Elenen (HTF-LTF filtresi)"
     notlar = []
+    if ks.harmonik_isim is not None:
+        notlar.append(f"{ks.harmonik_isim} D")
     if ks.ikili is not None and ks.ikili.onayli and ks.ikili.tip == "Çift Tepe":
         notlar.append("çift tepe")
     if ks.obo is not None and "OBO" in getattr(ks.obo, "tip", "") \
@@ -209,7 +213,8 @@ def radar_tara(semboller: list[str] | None = None,
                         giris=rp.giris if rp else None,
                         hedef=rp.hedef if rp else None,
                         rr=rp.rr_orani if rp else None, not_=notu,
-                        taraf="Long", stop=rp.stop if rp else None))
+                        taraf="Long", stop=rp.stop if rp else None,
+                        pattern=s.mavi_daire_isim))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
 
@@ -232,7 +237,8 @@ def radar_tara(semboller: list[str] | None = None,
                         kalite=ks.karar.kalite if ks.karar else "D",
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
-                        not_=notu, taraf="Short", stop=ks.fitil_seviye))
+                        not_=notu, taraf="Short", stop=ks.fitil_seviye,
+                        pattern=ks.harmonik_isim))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
     return rapor

@@ -143,11 +143,16 @@ def _kart(ax, x, y, w, h, satir):
                            edgecolor="none", zorder=3))
     # skor donut'u
     _donut(ax, x + 0.028, y + h - 0.045, skor, renk)
-    # sembol + TF
+    # sembol + TF (+ harmonik pattern adı, terminalMiraz kartı gibi)
     ax.text(x + 0.062, y + h - 0.028, satir.symbol, color=_T["metin"],
             fontsize=11, fontweight="bold", va="center", zorder=5)
-    ax.text(x + 0.062, y + h - 0.052, f"{satir.interval}", color=_T["soluk"],
-            fontsize=8, va="center", zorder=5)
+    if getattr(satir, "pattern", None):
+        alt_txt = f"{satir.interval} · {satir.pattern}"
+        pc = _T["mor"]
+    else:
+        alt_txt, pc = satir.interval, _T["soluk"]
+    ax.text(x + 0.062, y + h - 0.052, alt_txt, color=pc,
+            fontsize=8, va="center", fontweight="bold", zorder=5)
     # yön rozeti (sağ üst)
     ok = "▼ Short" if short else "▲ Long"
     ax.text(x + w - 0.012, y + h - 0.028, ok, color=yon_renk, fontsize=8.5,

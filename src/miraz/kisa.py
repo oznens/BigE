@@ -22,9 +22,27 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from . import harmonik as hrm
+from . import pivotlar as pv
 from . import senaryo as sn
 from .bicim import f as _f
 from .karar import _kalite
+
+
+def _bearish_harmonik_bul(df, n, bolge_alt, bolge_ust, min_kalite: float = 40.0):
+    """Direnç bölgesinde tamamlanan bearish harmonik D = en yüksek güvenli short.
+
+    Long'un "mavi daire"sinin aynası: harmonik PRZ (D) ∩ en güçlü direnç.
+    Döndürür: en kaliteli bearish HarmonikSonuc veya None.
+    """
+    pivlar = pv.pivot_listesi(df, n=n)
+    patternler = hrm.tara(df, pivlar, min_kalite=min_kalite)
+    pay = max((bolge_ust - bolge_alt) * 0.5, bolge_alt * 0.01)
+    adaylar = [p for p in patternler if p.yon == "Bearish"
+               and (bolge_alt - pay) <= p.D <= (bolge_ust + pay)]
+    if not adaylar:
+        return None
+    return max(adaylar, key=lambda p: (p.kalite, p.D_idx))
 
 
 @dataclass
@@ -47,6 +65,9 @@ class KisaSenaryo:
     fitil_seviye: float | None = None   # bu seviyeye fitil senaryoyu bozmaz
     hedef: float | None = None     # aşağı ana hedef (destek)
     ara_hedef: float | None = None # ilk kâr-alma (en yakın destek)
+    harmonik_d: float | None = None    # bearish harmonik D ∩ direnç = en yüksek güven
+    harmonik_idx: int | None = None    # D barı
+    harmonik_isim: str | None = None   # harmonik pattern adı (ör. "Deep Crab")
     market_yapisi: object = None
     divergence: object = None
     ikili: object = None
@@ -69,6 +90,11 @@ def _short_karar(ks: KisaSenaryo, rr: float | None) -> KisaKarar:
     katki = (g - 50) / 50 * 15
     guven += katki
     ger.append(f"Direnç gücü {g:.0f} ({katki:+.0f})")
+
+    # Bearish harmonik D ∩ direnç — en yüksek güvenli short (mavi dairenin aynası)
+    if ks.harmonik_isim is not None:
+        guven += 12
+        ger.append(f"Bearish {ks.harmonik_isim} harmonik D — dirence ret (+12)")
 
     # Market yapısı — short için düşüş İYİ (long'un tersi)
     my = ks.market_yapisi
@@ -175,6 +201,13 @@ def kisa_senaryo(df: pd.DataFrame, n: int = 5,
         if s.bolge_ust is not None and s.bolge_ust < ks.bolge_alt:
             ks.ara_hedef = round(s.bolge_ust, 6)
 
+        # Bearish harmonik D ∩ direnç = en yüksek güvenli short girişi
+        hd = _bearish_harmonik_bul(df, n, ks.bolge_alt, ks.bolge_ust)
+        if hd is not None:
+            ks.harmonik_d = round(hd.D, 6)
+            ks.harmonik_idx = hd.D_idx
+            ks.harmonik_isim = hd.isim
+
     # R/R: giriş→stop (yukarı) vs giriş→hedef (aşağı)
     rr = None
     if ks.bolge_alt is not None and ks.fitil_seviye is not None \
@@ -196,6 +229,9 @@ def _metin(ks: KisaSenaryo, rr: float | None) -> str:
         sat.append("Satılacak yakın direnç yok — short için uygun değil.")
         return "\n".join(s for s in sat if s)
     sat.append(f"Senaryo: {ks.yon}")
+    if ks.harmonik_isim is not None:
+        sat.append(f"🟣 Bearish {ks.harmonik_isim} harmonik D: {_f(ks.harmonik_d)} "
+                   f"(dirençte dönüş — en yüksek güven)")
     sat.append(f"🔻 Giriş (dirence satış): {_f(ks.bolge_alt)}–{_f(ks.bolge_ust)}")
     sat.append(f"   Stop (üstünde kapanış): {_f(ks.kritik_seviye)} "
                f"(fitil {_f(ks.fitil_seviye)})")
