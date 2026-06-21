@@ -102,7 +102,61 @@ def test_grafik_veri(monkeypatch):
     assert len(g["mumlar"][0]) == 5           # [ts,o,h,l,c]
     assert g["seviye"]["giris"] == 108 and g["seviye"]["stop"] == 104
     assert "macd" in g and len(g["macd"]["macd"]) == 60
+    assert "harmonik" in g                     # harmonik anahtarı her zaman var
     json.dumps(g)                              # serileştirilebilir
+
+
+def _zigzag(pivots, seg=10):
+    """Verilen fiyat dönüş noktalarından lineer zigzag bir DataFrame üretir.
+
+    Her ardışık pivot arası `seg` bar lineer enterpolasyon — iç pivotlar n=5
+    swing tespitiyle yakalanır. İlk/son eleman yalnızca bağlam (kenar pivotu).
+    """
+    import numpy as np
+    import pandas as pd
+    vals = [pivots[0]]
+    pos = [0]
+    for k in range(1, len(pivots)):
+        onceki, simdi = pivots[k - 1], pivots[k]
+        for j in range(1, seg + 1):
+            vals.append(onceki + (simdi - onceki) * j / seg)
+        pos.append(len(vals) - 1)
+    arr = np.array(vals)
+    idx = pd.date_range("2026-01-01", periods=len(arr), freq="h", tz="UTC")
+    df = pd.DataFrame({"open": arr, "high": arr, "low": arr, "close": arr,
+                       "volume": 1.0}, index=idx)
+    return df, pos
+
+
+def test_harmonik_ciz_tamamlanan_xabcd():
+    """_harmonik_ciz(): net bir bullish Gartley → 5 noktalı XABCD çizim verisi."""
+    # X=100, A=200, B=138.2, C=169.1, D=121.4 (ideal Gartley oranları)
+    df, pos = _zigzag([150, 100, 200, 138.2, 169.1, 121.4, 160], seg=10)
+    h = sv._harmonik_ciz(df, {})
+    assert "tamamlanan" in h
+    t = h["tamamlanan"]
+    assert t["yon"] == "Bullish"
+    assert len(t["noktalar"]) == 5
+    # noktalar mumlar konum indeksiyle (X..D = pos[1..5])
+    idxler = [p[0] for p in t["noktalar"]]
+    assert idxler == [pos[1], pos[2], pos[3], pos[4], pos[5]]
+    # AB/XA oranı ~0.618
+    assert 0.55 <= t["oranlar"]["AB_XA"] <= 0.69
+    # entry ≈ D, JSON'lanabilir
+    assert abs(t["entry"] - 121.4) < 5
+    json.dumps(h)
+
+
+def test_harmonik_ciz_pivot_yoksa_bos():
+    """Düz/pivotsuz seri → harmonik boş sözlük (çökme yok)."""
+    import numpy as np
+    import pandas as pd
+    n = 40
+    idx = pd.date_range("2026-01-01", periods=n, freq="h", tz="UTC")
+    duz = np.linspace(100, 101, n)
+    df = pd.DataFrame({"open": duz, "high": duz, "low": duz, "close": duz,
+                       "volume": 1.0}, index=idx)
+    assert sv._harmonik_ciz(df, {}) == {}
 
 
 def test_durum_deposu_kilitli():

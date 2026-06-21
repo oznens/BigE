@@ -176,12 +176,73 @@ def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
     return None
 
 
+def _harmonik_ciz(df, seviye: dict) -> dict:
+    """Grafik penceresi (df) için tamamlanmış + oluşmakta olan harmonik çizimi.
+
+    Noktalar mumlar dizisindeki **konum indeksiyle** döner (X_idx, A_idx … df'in
+    0-tabanlı bar konumu = mumlar dizisindeki i). Böylece frontend i-bazlı X
+    eksenine doğrudan oturtur. @tradermiraz'ın XABCD çizimini canlandırır:
+      • tamamlanan: 5 nokta (X-A-B-C-D), bacaklar + Fib oranları + PRZ.
+      • olusan: 4 nokta (X-A-B-C), D henüz gelmemiş → PRZ kutusu ileriye projekte.
+    """
+    from . import pivotlar as pv
+    from . import harmonik as hrm
+
+    out: dict = {}
+    try:
+        piv = pv.pivot_listesi(df, n=5)
+    except Exception:
+        return out
+    if len(piv) < 4:
+        return out
+
+    # --- Tamamlanmış harmonik: aday pattern'iyle eşleşen en güncel, yoksa en güncel
+    try:
+        tamamlananlar = hrm.tara(df, piv, min_kalite=45.0)   # D_idx'e göre sıralı
+    except Exception:
+        tamamlananlar = []
+    sec = None
+    istek = (seviye or {}).get("pattern")
+    if istek:
+        esit = [p for p in tamamlananlar if p.isim == istek]
+        sec = esit[0] if esit else None
+    if sec is None and tamamlananlar:
+        sec = tamamlananlar[0]
+    if sec is not None:
+        out["tamamlanan"] = {
+            "isim": sec.isim, "yon": sec.yon, "kalite": sec.kalite, "rr": sec.rr,
+            "noktalar": [[sec.X_idx, round(sec.X, 6)], [sec.A_idx, round(sec.A, 6)],
+                         [sec.B_idx, round(sec.B, 6)], [sec.C_idx, round(sec.C, 6)],
+                         [sec.D_idx, round(sec.D, 6)]],
+            "oranlar": {k: round(float(v), 3) for k, v in sec.oranlar.items()
+                        if k in ("AB_XA", "BC_AB", "CD_BC", "XD_XA")},
+            "entry": sec.entry, "sl": sec.sl, "tp1": sec.tp1, "tp2": sec.tp2,
+        }
+
+    # --- Oluşmakta olan harmonik: D projeksiyonu (PRZ) ileriye çizilir
+    try:
+        oh = hrm.olusan_harmonik(df, piv)
+    except Exception:
+        oh = None
+    if oh is not None:
+        out["olusan"] = {
+            "isim": oh.isim, "yon": oh.yon,
+            "noktalar": [[oh.X_idx, round(oh.X, 6)], [oh.A_idx, round(oh.A, 6)],
+                         [oh.B_idx, round(oh.B, 6)], [oh.C_idx, round(oh.C, 6)]],
+            "D_idx": len(df) - 1,            # PRZ'yi grafiğin sağ kenarına projekte et
+            "D_proj": oh.D, "prz_alt": oh.prz_alt, "prz_ust": oh.prz_ust,
+            "oranlar": {k: round(float(v), 3) for k, v in oh.oranlar.items()},
+        }
+    return out
+
+
 def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
                 gun: int = 60, bar: int = 160, max_bar: int | None = None) -> dict:
     """Bir sembol/TF için mum + MACD + setup seviyeleri (ZONE dâhil) döndürür.
 
     ZONE, taze senaryo motorundan (bolge_alt/üst) hesaplanır; setup seviyeleri
-    (giriş/stop/hedef) son tarama anlık görüntüsünden alınır.
+    (giriş/stop/hedef) son tarama anlık görüntüsünden alınır. Ayrıca harmonik
+    setup'ın XABCD çizimi (tamamlanan + oluşmakta olan) eklenir.
     """
     df = veri.indir(symbol, interval, gun=gun, max_bar=max_bar).tail(bar)
     mac = indikator.macd(df["close"])
@@ -205,12 +266,19 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
     except Exception:
         pass
 
+    # Harmonik XABCD çizimi (pivotlar df konum indeksiyle = mumlar i)
+    try:
+        harmonik = _harmonik_ciz(df, seviye)
+    except Exception:
+        harmonik = {}
+
     return {
         "symbol": symbol, "interval": interval,
         "mumlar": mumlar,
         "macd": {"macd": _kolon(mac["macd"]), "sinyal": _kolon(mac["sinyal"]),
                  "hist": _kolon(mac["histogram"])},
         "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust},
+        "harmonik": harmonik,
     }
 
 
