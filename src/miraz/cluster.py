@@ -27,7 +27,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from .lab import _senaryo_noktalari, _kur_islem, _simule
+from .lab import (_senaryo_noktalari, _kur_islem, _simule,
+                  _kisa_noktalari, _kur_kisa)
 
 
 # İmza yetersiz örnekliyse bu eşiğin altında kaba imzaya düşülür
@@ -180,20 +181,26 @@ class ClusterHafiza:
 def cluster_ogren(df_sozluk: dict, adim: int = 6, max_bar: int = 60,
                   pencere: int = 800, min_bar: int = 200,
                   giris_mod: str = "orta", stop_mod: str = "fitil",
-                  tp_mod: str = "ana") -> ClusterHafiza:
+                  tp_mod: str = "ana", yon: str = "long") -> ClusterHafiza:
     """Geçmiş veride setupları imzalarına göre kümeleyip TP/STOP öğrenir.
 
     df_sozluk: {sembol: df}. Lab motorunun look-ahead-free altyapısını kullanır.
+    yon: "long" (varsayılan) | "short" — short'ta kısa senaryolar kümelenir.
     """
+    short = yon == "short"
     hafiza = ClusterHafiza()
     for sym, df in df_sozluk.items():
-        noktalar = _senaryo_noktalari(df, adim, pencere, min_bar, 0.0)
+        if short:
+            noktalar = _kisa_noktalari(df, adim, pencere, min_bar)
+        else:
+            noktalar = _senaryo_noktalari(df, adim, pencere, min_bar, 0.0)
         for i, s in noktalar:
-            kur = _kur_islem(s, giris_mod, stop_mod, tp_mod)
+            kur = _kur_kisa(s, tp_mod) if short \
+                else _kur_islem(s, giris_mod, stop_mod, tp_mod)
             if kur is None:
                 continue
             giris, stop, hedef, rr = kur
-            sonuc, _ = _simule(df, i, giris, stop, hedef, max_bar)
+            sonuc, _ = _simule(df, i, giris, stop, hedef, max_bar, yon=yon)
             if sonuc not in ("TP", "STOP"):
                 continue
             hafiza.toplam_setup += 1

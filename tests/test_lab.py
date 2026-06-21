@@ -104,3 +104,77 @@ def test_kur_islem_stop_girisin_altinda():
     s = _S(hedef_kutu=_Kutu(alt=130.0))
     giris, stop, hedef, rr = _kur_islem(s, "orta", "fitil", "ana")
     assert stop < giris and hedef > giris and rr > 0
+
+
+# ---- Short (_simule yon="short") testleri ----
+
+def test_simule_short_tp():
+    # Short: giriş 110 (üstten sat), stop 115 (daha yukarı), hedef 95 (aşağı)
+    # bar0 setup; bar1 high≥110 → giriş dolar; bar2 low≤95 → TP
+    df = _df([(108, 112), (109, 111), (90, 96), (100, 100)])
+    sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=5,
+                       yon="short")
+    assert sonuc == "TP"
+
+
+def test_simule_short_stop():
+    # bar1 high≥110 → giriş dolar; bar2 high≥115 → STOP
+    df = _df([(108, 112), (109, 111), (112, 116), (100, 100)])
+    sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=5,
+                       yon="short")
+    assert sonuc == "STOP"
+
+
+def test_simule_short_dolmadi():
+    # high hiç 110'a ulaşmaz → Dolmadı
+    df = _df([(100, 108), (101, 109), (102, 109)])
+    sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=5,
+                       yon="short")
+    assert sonuc == "Dolmadı"
+
+
+def test_simule_short_ayni_bar_stop_oncelik():
+    # bar1: high≥110 (giriş dolar) + high≥115 (stop) aynı bar → STOP
+    df = _df([(108, 108), (90, 116)])
+    sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=3,
+                       yon="short")
+    assert sonuc == "STOP"
+
+
+# ---- _kur_kisa mod mantığı ----
+
+from dataclasses import dataclass as _dc2
+from miraz.lab import _kur_kisa
+
+
+@_dc2
+class _KS:
+    bolge_alt: float = 110.0    # direnç bandı altı (short giriş)
+    bolge_ust: float = 115.0
+    fitil_seviye: float = 117.0  # girişin üstünde (short stop)
+    ara_hedef: float = 95.0      # aşağıda (short TP)
+    hedef: float = 85.0          # ana hedef (daha aşağıda)
+    direnc_kutu: object = None
+
+
+def test_kur_kisa_giris_stop_sirasi():
+    ks = _KS()
+    giris, stop, hedef, rr = _kur_kisa(ks, "ara")
+    # short: stop > giris, hedef < giris
+    assert stop > giris and hedef < giris and rr > 0
+
+
+def test_kur_kisa_tp_modlari():
+    ks = _KS()
+    # ara → ara_hedef
+    assert _kur_kisa(ks, "ara")[2] == 95.0
+    # ana → ana hedef
+    assert _kur_kisa(ks, "ana")[2] == 85.0
+    # rr2: giriş=110, stop=117 → hedef = 110 - 2*(117-110) = 96
+    assert _kur_kisa(ks, "rr2")[2] == 96.0
+
+
+def test_kur_kisa_gecersiz_stop():
+    # fitil_seviye ≤ bolge_alt → None (stop girişin altında olamaz)
+    ks = _KS(fitil_seviye=109.0)
+    assert _kur_kisa(ks, "ara") is None

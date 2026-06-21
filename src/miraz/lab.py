@@ -99,28 +99,33 @@ class LabRapor:
 
 
 def _simule(df, bar: int, giris: float, stop: float, hedef: float,
-            max_bar: int) -> tuple[str, int]:
-    """Giriş barından sonra TP/STOP/Dolmadı sonucunu döndürür (long).
+            max_bar: int, yon: str = "long") -> tuple[str, int]:
+    """Giriş barından sonra TP/STOP/Dolmadı sonucunu döndürür.
 
-    Önce giriş limitine (giris, fiyatın altında) dokunulmalı; sonra TP/STOP.
-    Aynı barda hem stop hem hedef tetiklenirse STOP (muhafazakâr).
+    Long : giriş limiti altta (low ≤ giriş), STOP altta, TP üstte.
+    Short: giriş limiti üstte (high ≥ giriş), STOP üstte, TP altta.
+    Önce limit girişe dokunulmalı; aynı barda hem stop hem hedef → STOP (muhafazakâr).
     """
     n = len(df)
     son = min(bar + max_bar, n - 1)
     low = df["low"].to_numpy()
     high = df["high"].to_numpy()
+    short = yon == "short"
 
     doldu = False
     for j in range(bar + 1, son + 1):
         if not doldu:
-            if low[j] <= giris:        # limit giriş doldu
+            dolar = high[j] >= giris if short else low[j] <= giris
+            if dolar:
                 doldu = True
             else:
                 continue
         # giriş dolduktan sonra (aynı bar dahil) stop/hedef kontrolü
-        if low[j] <= stop:
+        stop_vurdu = high[j] >= stop if short else low[j] <= stop
+        tp_vurdu = low[j] <= hedef if short else high[j] >= hedef
+        if stop_vurdu:
             return "STOP", j
-        if high[j] >= hedef:
+        if tp_vurdu:
             return "TP", j
     return ("Açık" if doldu else "Dolmadı"), son
 
@@ -142,6 +147,52 @@ def _senaryo_noktalari(df: pd.DataFrame, adim: int, pencere: int,
         if s.destek_kutu is not None:
             noktalar.append((i, s))
     return noktalar
+
+
+def _kisa_noktalari(df: pd.DataFrame, adim: int, pencere: int,
+                    min_bar: int) -> list:
+    """Karar barlarında KISA senaryoyu BİR KEZ üretir (cache'lenir).
+
+    Döndürür: [(bar_idx, KisaSenaryo), ...] — direnç bölgesi (short giriş) olanlar.
+    """
+    from .kisa import kisa_senaryo
+    n = len(df)
+    bas = max(min_bar, n - pencere)
+    noktalar = []
+    for i in range(bas, n - 1, adim):
+        try:
+            ks = kisa_senaryo(df.iloc[:i + 1])
+        except Exception:
+            continue
+        if ks.direnc_kutu is not None:
+            noktalar.append((i, ks))
+    return noktalar
+
+
+def _kur_kisa(ks, tp_mod: str = "ara"):
+    """Kısa senaryodan (giriş, stop, hedef, rr) üretir (short).
+
+    giriş = direnç bandı altı (dirence satış); stop = fitil (bandın üstü);
+    hedef = 'ara'(en yakın destek) | 'ana'(aşağı ana hedef) | 'rr2'(sabit 2R).
+    """
+    if ks.bolge_alt is None or ks.fitil_seviye is None:
+        return None
+    giris = ks.bolge_alt
+    stop = ks.fitil_seviye               # girişin üstünde
+    if stop <= giris:
+        return None
+    if tp_mod == "ara" and ks.ara_hedef is not None and ks.ara_hedef < giris:
+        hedef = float(ks.ara_hedef)
+    elif tp_mod == "rr2":
+        hedef = giris - 2.0 * (stop - giris)
+    else:                                # ana
+        hedef = float(ks.hedef) if ks.hedef is not None else None
+    if hedef is None or hedef >= giris:
+        return None
+    rr = (giris - hedef) / (stop - giris)
+    if rr <= 0:
+        return None
+    return round(giris, 6), round(stop, 6), round(hedef, 6), round(rr, 2)
 
 
 def _kur_islem(s, giris_mod: str, stop_mod: str, tp_mod: str):
@@ -222,6 +273,36 @@ def backtest(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
     noktalar = _senaryo_noktalari(df, adim, pencere, min_bar, r_dolar)
     return _backtest_modlu(df, noktalar, giris_mod, stop_mod, tp_mod,
                            max_bar, min_guven, sadece_trade, adim)
+
+
+def backtest_kisa(df: pd.DataFrame, adim: int = 6, max_bar: int = 60,
+                  pencere: int = 600, min_bar: int = 200,
+                  sadece_trade: bool = False, min_guven: float = 0.0,
+                  tp_mod: str = "ara") -> LabRapor:
+    """Geçmiş veride KISA (short) senaryoları test eder (look-ahead yok)."""
+    noktalar = _kisa_noktalari(df, adim, pencere, min_bar)
+    rapor = LabRapor()
+    son_acilan = -10_000
+    for i, ks in noktalar:
+        if sadece_trade and (ks.karar is None or ks.karar.karar != "Trade"):
+            continue
+        if ks.karar is not None and ks.karar.guven < min_guven:
+            continue
+        kur = _kur_kisa(ks, tp_mod)
+        if kur is None:
+            continue
+        giris, stop, hedef, rr = kur
+        if i - son_acilan < adim:
+            continue
+        sonuc, _ = _simule(df, i, giris, stop, hedef, max_bar, yon="short")
+        r = {"TP": rr, "STOP": -1.0}.get(sonuc, 0.0)
+        rapor.islemler.append(Islem(
+            bar=i, giris=giris, stop=stop, hedef=hedef, rr=rr,
+            kalite=ks.karar.kalite if ks.karar else "D",
+            guven=ks.karar.guven if ks.karar else 0.0, sonuc=sonuc, r=r))
+        if sonuc in ("TP", "STOP"):
+            son_acilan = i
+    return rapor
 
 
 # ---------------------------------------------------------------------------

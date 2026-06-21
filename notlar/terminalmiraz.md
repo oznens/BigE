@@ -206,11 +206,46 @@ HTF aşağı olduğu için **long'lar Skip/Elenen, short'lar A+ Trade**: DOT/DOG
 short A+ (çift tepe/obo). DOT aynı anda short-Trade A+ ve long-Skip D → ayna
 tutarlı. Short sinyaller portföye yön=Short, stop girişin üstünde eklendi.
 
+## Bu turda eklenen: Short Cluster/Lab Doğrulaması
+
+```
+python backtest/lab.py --sembol BTCUSDT ETHUSDT SOLUSDT --tf 4h --kisa
+python backtest/cluster.py --ogren --giris ust --tp ara --yon short --semboller BTCUSDT ETHUSDT SOLUSDT BNBUSDT XRPUSDT
+```
+
+Short tarafı artık tam çift yönlü lab + cluster altyapısına sahip:
+- **`_simule(yon="short")`**: giriş `high≥giriş`, STOP `high≥stop`, TP `low≤hedef` —
+  long ile aynı mantık, yön tersine çevrilmiş.
+- **`_kisa_noktalari`** / **`_kur_kisa`** / **`backtest_kisa`**: look-ahead yok;
+  her karar barında `kisa_senaryo()` çağırır, geçerli direnç bölgesini giriş,
+  fitil seviyesini stop, ara hedefi TP olarak kullanır.
+- **`cluster_ogren(yon="short")`** / **`backtest/cluster.py --yon short`**:
+  short imzalar ayrı öğrenilir (long cluster'ı bozmaz).
+- **166 test geçiyor** — short `_simule`, `_kur_kisa` mod/geçerlilik testleri dahil.
+
+### Short backtest ilk bulgular (3 coin, 4h, 500 gün)
+BTC/ETH/SOL genel: **%34.2 WR / -19.6R** — beklenebilir; boğa döneminde short
+setuplarda TP hedefleri uzak kalıyor. Kalite sıralaması uzun yönden **tersine** çıktı
+(D'ler daha yüksek WR) → short karar motorunun gelecekte iyileştirilmesi gerektiğini
+veriyle kanıtlıyor.
+
+### Short cluster ilk bulgular (5 coin, 500 gün, 116 setup)
+Cluster belleği çalışıyor ve imzaları ayrıştırıyor:
+- `D·düz·nötr·yükseliş·yok·rr<1.5` → **%81.8 WR** (+0.23R beklenti) — kısa hedefli düz
+  short'lar boğa tepkilerinde çok sık hedge fırsatı buluyor
+- `D·düz·nötr·yükseliş·yok·rr1.5-2.5` → %12.5 WR (−0.68R) — hedef uzadı, başarı düşüyor
+- `A+·düz·nötr·düşüş·yok·rr≥2.5` → **%0 WR** (−1.00R) — yüksek RR short setuplarda bile
+  piyasa dip yapıyor; long yönlü küre sinyali
+
+→ Cluster, short tarafında da uyarıcı sinyaller üretiyor; karar motoruna entegre
+edilince A+ short setuplarda güven −10 baskısı uygulanacak.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
 2. **Hisse evreni** — terminalMiraz'ın 26 hissesi (ek veri kaynağı gerekir).
-3. **Short cluster/lab** — short senaryolarını da backtest/cluster ile doğrula.
+3. **Short karar motoru iyileştirme** — cluster bulgularına göre `kisa.py`
+   skorlarını kalibre et (RR≥2.5 short için ek ceza, boğa HTF'de zayıflatma).
 
-> terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
-> atıldı. Sıradaki: Price Action Labs backtest motoru.
+> Sistem şu an terminalMiraz'ın temel bileşenlerinin tamamını (**18/18 ✅**)
+> karşılıyor. 166 test · ~90 parite · iki yönlü lab + cluster hafızası.

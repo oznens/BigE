@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz import veri
-from miraz.lab import backtest, lab_tara
+from miraz.lab import backtest, backtest_kisa, lab_tara
 
 
 def main() -> None:
@@ -33,6 +33,8 @@ def main() -> None:
     ap.add_argument("--stop", default="fitil",
                     choices=["fitil", "yapisal", "genis"])
     ap.add_argument("--tp", default="ana", choices=["ana", "ara", "rr2"])
+    ap.add_argument("--kisa", action="store_true",
+                    help="KISA (short) senaryoları backtest et")
     ap.add_argument("--gun", type=int, default=500)
     args = ap.parse_args()
 
@@ -57,11 +59,18 @@ def main() -> None:
             except Exception as e:
                 print(f"  HATA {sym}/{tf}: {e}")
                 continue
-            r = backtest(df, adim=args.adim, max_bar=args.max_bar,
-                         pencere=args.pencere, min_guven=args.min_guven,
-                         sadece_trade=args.sadece_trade, giris_mod=args.giris,
-                         stop_mod=args.stop, tp_mod=args.tp)
-            print(f"\n=== {sym} / {tf} ===")
+            if args.kisa:
+                r = backtest_kisa(df, adim=args.adim, max_bar=args.max_bar,
+                                  pencere=args.pencere, min_guven=args.min_guven,
+                                  sadece_trade=args.sadece_trade,
+                                  tp_mod=args.tp if args.tp != "ana" else "ara")
+            else:
+                r = backtest(df, adim=args.adim, max_bar=args.max_bar,
+                             pencere=args.pencere, min_guven=args.min_guven,
+                             sadece_trade=args.sadece_trade, giris_mod=args.giris,
+                             stop_mod=args.stop, tp_mod=args.tp)
+            etiket = "SHORT" if args.kisa else "LONG"
+            print(f"\n=== {sym} / {tf} ({etiket}) ===")
             print(r.ozet_metin())
             g_dolan += len(r.dolan)
             g_tp += sum(1 for i in r.dolan if i.sonuc == "TP")

@@ -68,13 +68,15 @@ def main() -> None:
                     choices=["fitil", "yapisal", "genis"])
     ap.add_argument("--tp", default="ara", choices=["ana", "ara", "rr2"],
                     help="öğrenmede TP modu (lab doğrulaması: ara/hızlı)")
+    ap.add_argument("--yon", default="long", choices=["long", "short"],
+                    help="öğrenmede yön: long (varsayılan) | short")
     ap.add_argument("--dosya", default=str(CLUSTER_DOSYA))
     args = ap.parse_args()
 
     dosya = Path(args.dosya)
 
     if args.ogren:
-        print(f"🧬 Öğreniliyor: {args.semboller} / {args.tf} ...")
+        print(f"🧬 Öğreniliyor ({args.yon.upper()}): {args.semboller} / {args.tf} ...")
         dfs = {}
         for sym in args.semboller:
             try:
@@ -82,7 +84,7 @@ def main() -> None:
             except Exception as e:
                 print(f"  ⚠️  {sym}: {e}")
         h = cluster_ogren(dfs, pencere=args.pencere, giris_mod=args.giris,
-                          stop_mod=args.stop, tp_mod=args.tp)
+                          stop_mod=args.stop, tp_mod=args.tp, yon=args.yon)
         h.kaydet(dosya)
         print(f"✅ {h.toplam_setup} setup, {len(h.clusterlar)} imza kaydedildi "
               f"→ {dosya.name}")
