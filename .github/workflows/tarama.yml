@@ -32,7 +32,7 @@ jobs:
           cache: pip
 
       - name: Bağımlılıkları kur
-        run: pip install pandas numpy requests
+        run: pip install pandas numpy requests pyarrow
 
       - name: Tarama + statik site üret
         run: python backtest/statik_site.py --cikti site --mtf --taraf her
