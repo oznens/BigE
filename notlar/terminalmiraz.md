@@ -512,6 +512,39 @@ Butterfly / Deep Crab**. Highest RR = 1R → TP=1R doğrulandı (yine).
   **Profit Factor**, Win Rate, En İyi/Kötü Gün, **Parite / TF / Konsept
   performans tabloları**. terminalMiraz PNL modülünün birebir karşılığı.
 
+## Bu turda eklenen: Web Sunucu — tarayıcıdan açılan pano (`sunucu.py`)
+
+@tradermiraz terminalMiraz'ı **CMD ekranında değil**, bir sunucuda çalışan
+**web uygulaması** olarak tutuyor; kendi bilgisayarından tarayıcıyla girip
+izliyor (ekran görüntüleri zaten tarayıcı/masaüstü GUI). Bizimkini de aynı
+şekle getirdik: `rich` CMD panosunun yanına gerçek bir **web sunucu** eklendi.
+
+```
+# Sunucuyu başlat (arka planda sürekli tarar)
+python backtest/sunucu.py --mcap --mtf --taraf her
+# → tarayıcıda http://localhost:8000
+
+# Özel port / aralık
+python backtest/sunucu.py --port 8080 --aralik 120 --mcap --mtf --taraf her
+
+# Aynı ağdaki telefondan da bak (güvenlik yok, dikkat)
+python backtest/sunucu.py --host 0.0.0.0 --port 8000 --mcap --mtf
+```
+
+- **Mimari:** `Sunucu` arka planda bir iş parçacığında Gözlemci döngüsünü her
+  `--aralik` sn çalıştırır; sonucu `durum_json()` ile JSON'a çevirip kilitli bir
+  `DurumDeposu`'ya yazar. Yerleşik `http.server` `/` adresinde koyu temalı
+  paneli (`web/index.html`), `/api/durum`'da canlı JSON'u sunar. Tarayıcı 4
+  sn'de bir JSON'u çekip paneli tazeler. **Ek bağımlılık yok** (stdlib).
+- **Panel sekmeleri:** **DASHBOARD** (durum çubuğu + Binance Execution metrikleri
+  + KIRAZ STATUS + Result Journal bucket/lifecycle + CANLI ADAY AKIŞI kartları +
+  SONUÇ BİLDİRİMLERİ), **PNL ANALYTICS** (Net PNL / Profit Factor / WR / en
+  iyi-kötü gün + parite/TF/konsept tabloları), **MEMORY** (konsept katmanları +
+  parite hafıza şeridi + zaman dilimi karakteri).
+- Önceki `defter.json`/`portfoy.json` durumundan sürer; her tarama diske yazar.
+- Aday kartları terminalMiraz'ın skor donut'u + SL—ENTRY—TP + Long/Short rozeti
+  düzenini birebir taklit eder (CSS conic-gradient donut).
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
