@@ -77,6 +77,7 @@ class RadarSatiri:
     rr: float | None
     not_: str = ""
     taraf: str = "Long"   # "Long" / "Short"
+    stop: float | None = None
 
     @property
     def _sira(self) -> tuple:
@@ -208,7 +209,7 @@ def radar_tara(semboller: list[str] | None = None,
                         giris=rp.giris if rp else None,
                         hedef=rp.hedef if rp else None,
                         rr=rp.rr_orani if rp else None, not_=notu,
-                        taraf="Long"))
+                        taraf="Long", stop=rp.stop if rp else None))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
 
@@ -231,7 +232,7 @@ def radar_tara(semboller: list[str] | None = None,
                         kalite=ks.karar.kalite if ks.karar else "D",
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
-                        not_=notu, taraf="Short"))
+                        not_=notu, taraf="Short", stop=ks.fitil_seviye))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
     return rapor

@@ -44,6 +44,8 @@ Price Action + Harmonik trade terminali:
 | **Karar–cluster canlı entegrasyon** | `senaryo_uret(cluster_hafiza=)` | ✅ |
 | **Geniş evren (~90 parite)** | `radar.GENIS_EVREN` + `--genis` | ✅ |
 | **Short (kısa) pozisyon desteği** | `kisa.py` + `radar_tara(taraf=)` | ✅ **bu turda** |
+| **TP = 1R mesafe hedefi (mor kutu değil)** | `risk.mesafe_hedef` | ✅ **bu turda** |
+| **Görsel terminal panosu (dashboard)** | `terminal.py` + `backtest/terminal.py` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -239,6 +241,41 @@ Cluster belleği çalışıyor ve imzaları ayrıştırıyor:
 
 → Cluster, short tarafında da uyarıcı sinyaller üretiyor; karar motoruna entegre
 edilince A+ short setuplarda güven −10 baskısı uygulanacak.
+
+## Bu turda eklenen: TP = 1R Mesafe Hedefi (mor kutu kaldırıldı)
+
+terminalMiraz görselleri incelendi — TP'yi **yapısal mor kutu/mor çizgi değil**,
+girişe STOP mesafesi kadar simetrik uzaklığa koyuyor:
+- **Deep Crab TAOUSDT (short):** SL 243.295 · ENTRY 233.069 · TP 222.843 →
+  entry↔SL = entry↔TP = 10.226 → **R/R = 1R** (kartta yazılı)
+- **Dashboard HBAR (long):** Entry 0.0865 · SL 0.0853 · TP 0.0878 → ~1.01R
+- **Dashboard ALGO (short):** Entry 0.1174 · SL 0.1205 · TP 0.1143 → ~1.00R
+
+→ `risk.mesafe_hedef(giris, stop, rr=1.0)`: hedef = giriş ± rr·|giriş−stop|.
+`risk_plani` / `kademeli_plan` / radar short / lab (`tp_mod="rr"`, varsayılan) hepsi
+artık 1R mesafe hedefi kullanıyor. `rr_hedef` parametresiyle çarpan ayarlanabilir;
+yapısal hedefler (`ara`/`ana`) Lab karşılaştırması için duruyor.
+
+## Bu turda eklenen: Görsel Terminal Panosu (`terminal.py`)
+
+```
+python backtest/terminal.py --semboller BTCUSDT ETHUSDT SOLUSDT --tf 4h --taraf her
+python backtest/terminal.py --genis --cluster --taraf her    # 90 parite panosu
+python backtest/terminal.py --portfoy                         # portföyü panoda göster
+```
+
+@tradermiraz'ın terminalMiraz arayüzünün **birebir koyu temalı kopyası** (PNG):
+- **Başlık + günlük özet şeridi:** tarama sayısı · Aday/İzle/Atla/Elenen.
+- **Üst komuta metrikleri:** SCANNER / FILTERED / SKIP / ELENEN kutuları
+  (terminalMiraz'ın Scanner/Filtered/Harmonik/Late Result kartları).
+- **Sağ büyük sayaçlar:** AKTİF · SONUÇ · bugün TP/STOP/R (portföyden).
+- **CANLI ADAY AKIŞI:** her setup bir kart — kalite **skor donut'u**, sembol/TF,
+  ▲Long/▼Short rozeti, kategori, not, R/R ve **SL—ENTRY—TP kaydırıcısı** (Deep
+  Crab kartının aynısı).
+- **SONUÇ BİLDİRİMLERİ:** portföy varsa kapanan/aktif pozisyonlar, yoksa radar
+  Aday/İzle sinyalleri.
+
+`panel_ciz(rapor, portfoy=None, dosya=...)` → PNG. Çıktı `data/terminal.png`.
 
 ## Sıradaki adımlar (yol haritası)
 

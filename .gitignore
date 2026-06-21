@@ -1,5 +1,6 @@
 data/*.parquet
 data/*.csv
+data/*.png
 data/grafikler/
 data/miraz_tweet/
 __pycache__/
