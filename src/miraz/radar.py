@@ -23,11 +23,44 @@ from . import veri
 # HTF eşlemesi (setup TF → üst zaman dilimi)
 _UST_TF = {"15m": "1h", "1h": "4h", "4h": "1d", "1d": "1w"}
 
-# terminalMiraz çekirdek evreni (örnek; genişletilebilir)
-VARSAYILAN_EVREN = [
+# Çekirdek evren — hızlı tarama (terminalMiraz "öncelikli takip" listesi)
+CEKIRDEK_EVREN = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
     "AVAXUSDT", "LINKUSDT", "DOGEUSDT", "DOTUSDT",
 ]
+
+# Geniş evren — terminalMiraz ölçeği (~90 likit MEXC USDT paritesi).
+# MEXC'te bulunmayan semboller tarama sırasında hatalar listesine düşer, atlanır.
+GENIS_EVREN = [
+    # Majörler & L1
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
+    "AVAXUSDT", "DOGEUSDT", "DOTUSDT", "LINKUSDT", "TRXUSDT", "IOTAUSDT",
+    "LTCUSDT", "BCHUSDT", "NEARUSDT", "ATOMUSDT", "XLMUSDT", "ETCUSDT",
+    "HBARUSDT", "ICPUSDT", "ALGOUSDT", "VETUSDT", "FILUSDT", "EGLDUSDT",
+    # L2 / yeni L1
+    "ARBUSDT", "OPUSDT", "SUIUSDT", "APTUSDT", "SEIUSDT", "INJUSDT",
+    "TIAUSDT", "STXUSDT", "KASUSDT", "RUNEUSDT", "MINAUSDT", "FLOWUSDT",
+    "STRKUSDT", "ZKUSDT", "MANTAUSDT", "DYMUSDT",
+    # DeFi
+    "UNIUSDT", "AAVEUSDT", "CAKEUSDT", "LDOUSDT", "CRVUSDT", "COMPUSDT",
+    "SNXUSDT", "SUSHIUSDT", "DYDXUSDT", "GMXUSDT", "PENDLEUSDT", "ENAUSDT",
+    "ONDOUSDT", "JUPUSDT", "PYTHUSDT", "JTOUSDT",
+    # AI & DePIN
+    "FETUSDT", "RENDERUSDT", "TAOUSDT", "WLDUSDT", "VIRTUALUSDT", "ARUSDT",
+    "RAYUSDT", "GRTUSDT",
+    # Meme
+    "SHIBUSDT", "PEPEUSDT", "WIFUSDT", "BONKUSDT", "FLOKIUSDT", "BOMEUSDT",
+    "MEMEUSDT", "NOTUSDT", "DOGSUSDT",
+    # Gaming / Metaverse / NFT
+    "SANDUSDT", "MANAUSDT", "AXSUSDT", "GALAUSDT", "IMXUSDT", "APEUSDT",
+    "ENJUSDT", "BEAMUSDT", "ORDIUSDT",
+    # Diğer likit
+    "KAVAUSDT", "CHZUSDT", "QNTUSDT", "JASMYUSDT", "ROSEUSDT", "CFXUSDT",
+    "WUSDT", "ENSUSDT", "ZROUSDT", "MOVEUSDT",
+]
+
+# Geriye dönük uyumluluk: varsayılan evren = çekirdek (hızlı).
+VARSAYILAN_EVREN = CEKIRDEK_EVREN
 
 
 @dataclass
@@ -108,11 +141,13 @@ def _kategori_belirle(s) -> tuple[str, str]:
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
-               cluster_hafiza: object = None) -> RadarRapor:
+               cluster_hafiza: object = None,
+               goreceli: bool = True) -> RadarRapor:
     """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
 
     cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
     başarısına göre düzeltilir (terminalMiraz cluster katmanı).
+    goreceli=False geniş evren taramasında göreceli güç indirmesini atlar (hız).
     """
     semboller = semboller or VARSAYILAN_EVREN
     intervallar = intervallar or ["4h"]
@@ -124,11 +159,13 @@ def radar_tara(semboller: list[str] | None = None,
                 df = veri.indir(sym, tf, gun=gun)
                 ust_tf = _UST_TF.get(tf)
                 df_ust = veri.indir(sym, ust_tf, gun=gun) if ust_tf else None
-                from . import oran
-                try:
-                    gguc = oran.goreceli_guc(sym)
-                except Exception:
-                    gguc = None
+                gguc = None
+                if goreceli:
+                    from . import oran
+                    try:
+                        gguc = oran.goreceli_guc(sym)
+                    except Exception:
+                        gguc = None
                 s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
                                     r_dolar=r_dolar,
                                     cluster_hafiza=cluster_hafiza)

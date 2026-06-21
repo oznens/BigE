@@ -41,7 +41,8 @@ Price Action + Harmonik trade terminali:
 | **Cluster hafızası / benzerlik** | `cluster.py` | ✅ **bu turda** |
 | **Temas davranışı istatistiği** | `temas.py` | ✅ **bu turda** |
 | **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
-| **Karar–cluster canlı entegrasyon** | `senaryo_uret(cluster_hafiza=)` | ✅ **bu turda** |
+| **Karar–cluster canlı entegrasyon** | `senaryo_uret(cluster_hafiza=)` | ✅ |
+| **Geniş evren (~90 parite)** | `radar.GENIS_EVREN` + `--genis` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -167,11 +168,27 @@ Cluster `tp ana` (agresif) ile öğrenilirse tüm WR'lar düşük (~%12-24) → 
 ile öğrenilince WR'lar **%54-87** aralığına yayılır → cluster gerçek ayrıştırıcı
 olur. Canlı: BTC %59→+5, SOL %64→+5 (A→A+). cluster.json yereldir (gitignore).
 
+## Bu turda eklenen: Evren Genişletme (terminalMiraz ölçeği)
+
+```
+python backtest/radar.py --genis --tf 4h --cluster          # 90 parite
+python backtest/radar.py --genis --cluster --sadece Trade   # sadece Trade
+```
+
+- `radar.py`: **GENIS_EVREN** (90 likit MEXC USDT paritesi — majör/L1/L2/DeFi/AI/
+  meme/gaming kategorileri) + CEKIRDEK_EVREN (hızlı 10). `--genis` bayrağı.
+- `radar_tara(goreceli=False)`: geniş taramada göreceli güç indirmesi atlanır
+  (hız). MEXC'te olmayan semboller hata listesine düşüp atlanır (graceful skip).
+- **Canlı (90 parite, 4h, cluster):** 88 başarılı tarama → **18 Trade · 6 Watch ·
+  37 Skip · 27 Elenen**. En güçlüler: TRX/FLOW/UNI/JUP/WLD/ENJ A+ %100 (çift dip/
+  mavi daire). HTF-LTF filtresi 27 setup'ı Elenen'e attı (BTC/ETH/SOL dahil — üst
+  TF aşağı). Bozuk 4 sembol (TON/MKR/AKT/THETA) IOTA/CAKE/RAY/KAVA ile değişti.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
-2. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
-3. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
+1. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
+2. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
+3. **Hisse evreni** — terminalMiraz'ın 26 hissesi (ek veri kaynağı gerekir).
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
 > atıldı. Sıradaki: Price Action Labs backtest motoru.

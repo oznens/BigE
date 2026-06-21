@@ -6,7 +6,18 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.radar import RadarRapor, RadarSatiri, _kategori_belirle
+from miraz.radar import (RadarRapor, RadarSatiri, _kategori_belirle,
+                         CEKIRDEK_EVREN, GENIS_EVREN, VARSAYILAN_EVREN)
+
+
+def test_evren_genis_ve_tekil():
+    """Geniş evren büyük, tekrarsız ve hepsi USDT paritesi."""
+    assert len(GENIS_EVREN) >= 80
+    assert len(GENIS_EVREN) == len(set(GENIS_EVREN))   # tekrar yok
+    assert all(s.endswith("USDT") for s in GENIS_EVREN)
+    # Çekirdek evren geniş evrenin alt kümesi
+    assert set(CEKIRDEK_EVREN).issubset(set(GENIS_EVREN))
+    assert VARSAYILAN_EVREN == CEKIRDEK_EVREN
 
 
 def _satir(kat, guven, sym="BTCUSDT"):
