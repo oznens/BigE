@@ -307,11 +307,15 @@ def senaryo_ciz(
     symbol: str = "Ethereum / TetherUS",
     interval: str = "4sa",
     borsa: str = "Binance",
+    indikator: bool = False,
 ) -> Path:
     """Senaryo planını @tradermiraz / TradingView stilinde grafiğe çizer.
 
     Beyaz tema, siyah/turuncu mumlar, sağ fiyat ekseni + renkli fiyat
     etiketleri, yeşil destek kutusu, mor hedef kutusu, kırmızı iptal çizgisi.
+
+    indikator=True ise @finansalTRader katmanı eklenir: fiyat üzerine Fib
+    golden pocket (0.618–0.786) çizgileri + altına RSI paneli.
     """
     tam_uzunluk = len(df)
     ofset = max(0, tam_uzunluk - son_n)
@@ -321,7 +325,14 @@ def senaryo_ciz(
     bar_w = (x[1] - x[0]) if len(x) > 1 else 0.16
     x_sag = x1 + bar_w * 28   # sağda gelecek projeksiyonu (Miraz gibi)
 
-    fig, ax = plt.subplots(figsize=(16, 8.5))
+    ax_rsi = None
+    if indikator:
+        fig, (ax, ax_rsi) = plt.subplots(
+            2, 1, figsize=(16, 9.6), sharex=True,
+            gridspec_kw={"height_ratios": [4.2, 1], "hspace": 0.06})
+        ax_rsi.set_facecolor(_TV["bg"])
+    else:
+        fig, ax = plt.subplots(figsize=(16, 8.5))
     fig.patch.set_facecolor(_TV["bg"])
     ax.set_facecolor(_TV["bg"])
 
@@ -387,6 +398,24 @@ def senaryo_ciz(
                    edgecolor="#0097a7", linewidth=1.6, alpha=0.65, zorder=6)
         _fiyat_etiketi(ax, senaryo.mavi_daire, "#0097a7")
 
+    # --- @finansalTRader katmanı: Fib golden pocket çizgileri ---
+    if indikator and getattr(senaryo, "fib", None) is not None:
+        fr = senaryo.fib
+        # golden pocket bandı (0.618–0.705/0.786)
+        gp_alt, gp_ust = sorted((fr.golden_alt, fr.golden_ust))
+        ax.add_patch(Rectangle(
+            (x0, gp_alt), x_sag - x0, gp_ust - gp_alt,
+            facecolor="#9b59b6", alpha=0.13, edgecolor="none", zorder=1))
+        for sv in fr.seviyeler:
+            if sv.oran in (0.5, 0.618, 0.786):
+                ax.axhline(sv.fiyat, color="#8e44ad", linewidth=0.9,
+                           linestyle=(0, (4, 3)), alpha=0.7, zorder=3)
+                ax.text(x0 + bar_w, sv.fiyat,
+                        f"Fib {sv.oran:.3f}".rstrip("0").rstrip("."),
+                        va="bottom", ha="left", fontsize=7,
+                        color="#8e44ad", zorder=5)
+        _fiyat_etiketi(ax, fr.golden_alt, "#8e44ad")
+
     # --- Güncel fiyat etiketi (koyu) ---
     ax.axhline(senaryo.fiyat, color=_TV["fiyat_tag"], linewidth=0.7,
                linestyle=(0, (1, 2)), alpha=0.7, zorder=4)
@@ -404,6 +433,35 @@ def senaryo_ciz(
     ax.grid(True, color=_TV["grid"], linewidth=0.8, zorder=0)
     for kenar in ("top", "left", "bottom", "right"):
         ax.spines[kenar].set_visible(False)
+
+    # --- RSI paneli (@finansalTRader katmanı) ---
+    if ax_rsi is not None:
+        from .indikator import rsi as _rsi_f
+        r = _rsi_f(df["close"]).iloc[ofset:]
+        ax_rsi.plot(x, r.to_numpy(), color="#8e44ad", linewidth=1.2, zorder=3)
+        for sv, dur in [(70, "#f23645"), (50, "#b0b3b8"), (30, "#26a69a")]:
+            ax_rsi.axhline(sv, color=dur, linewidth=0.8,
+                           linestyle=(0, (4, 3)), alpha=0.7, zorder=2)
+        ax_rsi.axhspan(70, 100, color="#f23645", alpha=0.06, zorder=1)
+        ax_rsi.axhspan(0, 30, color="#26a69a", alpha=0.06, zorder=1)
+        son_rsi = float(r.iloc[-1]) if pd.notna(r.iloc[-1]) else 50
+        ax_rsi.scatter([x1], [son_rsi], s=24, color="#8e44ad", zorder=4)
+        ax_rsi.text(x_sag, son_rsi, f" RSI {son_rsi:.0f}", va="center",
+                    ha="left", fontsize=8, color="#8e44ad", fontweight="bold")
+        ax_rsi.set_ylim(0, 100)
+        ax_rsi.set_yticks([30, 50, 70])
+        ax_rsi.set_xlim(x0 - bar_w, x_sag)
+        ax_rsi.yaxis.tick_right()
+        ax_rsi.tick_params(axis="y", colors=_TV["eksen"], labelsize=7, length=0)
+        ax_rsi.tick_params(axis="x", colors=_TV["eksen"], labelsize=8, length=0)
+        ax_rsi.xaxis.set_major_locator(mdates.AutoDateLocator())
+        ax_rsi.xaxis.set_major_formatter(_TurkceTarih())
+        ax_rsi.grid(True, color=_TV["grid"], linewidth=0.6, zorder=0)
+        for kenar in ("top", "left", "bottom", "right"):
+            ax_rsi.spines[kenar].set_visible(False)
+        ax_rsi.text(0.006, 0.88, "RSI (14)", transform=ax_rsi.transAxes,
+                    fontsize=8, color="#8e44ad", fontweight="bold", va="top")
+        plt.setp(ax.get_xticklabels(), visible=False)
 
     # --- Üst-sol başlık satırı (sembol + OHLC) ---
     son = dfg.iloc[-1]

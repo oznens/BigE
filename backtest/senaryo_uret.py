@@ -30,6 +30,8 @@ def main() -> None:
                     help="Hangi yorum: miraz / finansaltrader / her ikisi")
     ap.add_argument("--grafik", action="store_true",
                     help="Senaryoyu PNG grafiğe de çiz")
+    ap.add_argument("--indikator", action="store_true",
+                    help="Grafiğe @finansalTRader katmanı (Fib + RSI paneli) ekle")
     ap.add_argument("--son-n", type=int, default=260,
                     help="Grafikte gösterilecek mum sayısı")
     ap.add_argument("--gun", type=int, default=500)
@@ -77,11 +79,13 @@ def main() -> None:
                            sembol, f"{sembol[:-4]} / TetherUS")
                 _tf = {"1h": "1sa", "4h": "4sa", "1d": "1g",
                        "15m": "15dk"}.get(tf, tf)
-                cikti = Path("data/grafikler") / f"{sembol}_{tf}_senaryo.png"
+                _ek = "_analiz" if args.indikator else ""
+                cikti = Path("data/grafikler") / f"{sembol}_{tf}_senaryo{_ek}.png"
                 yol = grafik.senaryo_ciz(
                     df, s, dosya=cikti, son_n=args.son_n,
-                    symbol=_ad, interval=_tf, borsa="Binance",
-                    baslik=f"miraz otomatik senaryo — {s.yon}")
+                    symbol=_ad, interval=_tf, borsa="MEXC",
+                    baslik=f"miraz otomatik senaryo — {s.yon}",
+                    indikator=args.indikator)
                 print(f"✅ Grafik: {yol}")
 
 
