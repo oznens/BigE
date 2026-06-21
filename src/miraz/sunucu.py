@@ -201,13 +201,25 @@ def _harmonik_ciz(df, seviye: dict) -> dict:
         tamamlananlar = hrm.tara(df, piv, min_kalite=45.0)   # D_idx'e göre sıralı
     except Exception:
         tamamlananlar = []
+    # İşlenen setup'a bağla: yön (taraf) + pattern adı + D'si GİRİŞE en yakın olan
+    # = grafikte çizilen XABCD ile kartın ENTRY/yönü örtüşsün. Yön isteniyor ama
+    # o yönde tamamlanmış pattern yoksa çelişkili ters pattern çizme (hiç çizme).
     sec = None
-    istek = (seviye or {}).get("pattern")
-    if istek:
-        esit = [p for p in tamamlananlar if p.isim == istek]
-        sec = esit[0] if esit else None
-    if sec is None and tamamlananlar:
-        sec = tamamlananlar[0]
+    if tamamlananlar:
+        sv = seviye or {}
+        istek_pat = sv.get("pattern")
+        istek_giris = sv.get("giris")
+        yon_iste = {"Long": "Bullish", "Short": "Bearish"}.get(sv.get("taraf"))
+        aday = tamamlananlar
+        if yon_iste:
+            aday = [p for p in aday if p.yon == yon_iste]
+        if aday:
+            if istek_pat:
+                patli = [p for p in aday if p.isim == istek_pat]
+                if patli:
+                    aday = patli
+            sec = (min(aday, key=lambda p: abs(p.D - istek_giris))
+                   if istek_giris is not None else aday[0])  # yoksa en güncel
     if sec is not None:
         out["tamamlanan"] = {
             "isim": sec.isim, "yon": sec.yon, "kalite": sec.kalite, "rr": sec.rr,

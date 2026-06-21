@@ -147,6 +147,18 @@ def test_harmonik_ciz_tamamlanan_xabcd():
     json.dumps(h)
 
 
+def test_harmonik_ciz_setupa_baglanir():
+    """Çizilen XABCD setup'a bağlanır: yön eşleşmeli, D girişe en yakın olmalı."""
+    df, pos = _zigzag([150, 100, 200, 138.2, 169.1, 121.4, 160], seg=10)
+    # Bullish Gartley D≈121.4 — Long setup, giriş 121 → çizilir, yön Bullish
+    h = sv._harmonik_ciz(df, {"taraf": "Long", "giris": 121.0, "pattern": None})
+    assert "tamamlanan" in h and h["tamamlanan"]["yon"] == "Bullish"
+    assert h["tamamlanan"]["noktalar"][4][0] == pos[5]      # D barı
+    # Short setup istenir ama bu pencerede bearish tamamlanan yok → çizilmez
+    h2 = sv._harmonik_ciz(df, {"taraf": "Short", "giris": 121.0})
+    assert "tamamlanan" not in h2
+
+
 def test_harmonik_ciz_pivot_yoksa_bos():
     """Düz/pivotsuz seri → harmonik boş sözlük (çökme yok)."""
     import numpy as np
