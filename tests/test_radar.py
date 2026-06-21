@@ -117,6 +117,40 @@ def test_gec_kalmis_eksik_veri():
 
 # ---- Bayat bölge filtresi (_hedef_zaten_gorundu) ----
 
+def test_radar_ilerleme_callback(monkeypatch):
+    """radar_tara her parite/TF sonrası ilerleme(yapilan, toplam, rapor) çağırır."""
+    import pandas as pd
+    import numpy as np
+    from miraz import radar as r
+    n = 80
+    idx = pd.date_range("2026-01-01", periods=n, freq="h", tz="UTC")
+    base = 100 + np.cumsum(np.random.RandomState(0).randn(n))
+    df = pd.DataFrame({"open": base, "high": base + 1, "low": base - 1,
+                       "close": base, "volume": 1.0}, index=idx)
+    monkeypatch.setattr(r.veri, "indir", lambda *a, **k: df)
+
+    cagrilar = []
+    r.radar_tara(["BTCUSDT", "ETHUSDT"], ["1h"], taraf="long",
+                 goreceli=False, ilerleme=lambda y, t, rp: cagrilar.append((y, t)))
+    assert cagrilar == [(1, 2), (2, 2)]          # yapilan artar, toplam=2
+
+
+def test_radar_veri_hatasi_ilerlemeyi_kesmez(monkeypatch):
+    """Bir paritede veri hatası olsa da ilerleme sayacı ilerler (df=None yolu)."""
+    from miraz import radar as r
+
+    def patla(sym, tf, **k):
+        raise RuntimeError("veri yok")
+    monkeypatch.setattr(r.veri, "indir", patla)
+
+    cagrilar = []
+    rep = r.radar_tara(["BTCUSDT", "ETHUSDT"], ["1h"], taraf="long",
+                       goreceli=False,
+                       ilerleme=lambda y, t, rp: cagrilar.append(y))
+    assert cagrilar == [1, 2]                     # hata olsa da sayaç ilerledi
+    assert len(rep.hatalar) == 2                  # iki parite de hata listesinde
+
+
 def test_hedef_zaten_gorundu():
     import pandas as pd
     from miraz.radar import _hedef_zaten_gorundu

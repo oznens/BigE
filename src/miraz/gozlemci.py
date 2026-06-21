@@ -268,14 +268,17 @@ class Gozlemci:
         self.portfoy = portfoy or Portfoy(r_dolar=r_dolar)
         self.defter = defter or Defter()
 
-    def dongu(self) -> DonguSonuc:
-        """Tek bir tarama-kayıt-takip turu çalıştırır."""
+    def dongu(self, ilerleme=None) -> DonguSonuc:
+        """Tek bir tarama-kayıt-takip turu çalıştırır.
+
+        ilerleme: radar_tara'ya geçer — tarama sürerken canlı yüzde için.
+        """
         # 1. Tara
         rapor = radar_tara(
             self.semboller, self.intervallar, r_dolar=self.r_dolar,
             gun=self.gun, cluster_hafiza=self.cluster_hafiza,
             goreceli=self.goreceli, taraf=self.taraf, rr_hedef=self.rr_hedef,
-            max_bar=self.max_bar)
+            max_bar=self.max_bar, ilerleme=ilerleme)
 
         # 2. Trade sinyallerini portföye + deftere ekle
         eklenen = radar_sinyallerini_ekle(self.portfoy, rapor)

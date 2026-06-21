@@ -222,19 +222,24 @@ def radar_tara(semboller: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
                cluster_hafiza: object = None,
                goreceli: bool = True, taraf: str = "long",
-               rr_hedef: float = 1.0, max_bar: int | None = None) -> RadarRapor:
+               rr_hedef: float = 1.0, max_bar: int | None = None,
+               ilerleme=None) -> RadarRapor:
     """Çoklu parite × TF tarar, kategorize edilmiş RadarRapor döndürür.
 
     cluster_hafiza verilirse her senaryonun güveni geçmiş benzer setupların
     başarısına göre düzeltilir (terminalMiraz cluster katmanı).
     goreceli=False geniş evren taramasında göreceli güç indirmesini atlar (hız).
     taraf: "long" (varsayılan) | "short" | "her" (ikisi de).
+    ilerleme: verilirse her parite/TF sonrası ilerleme(yapilan, toplam, rapor)
+              çağrılır (canlı yüzde göstergesi için).
     """
     semboller = semboller or VARSAYILAN_EVREN
     intervallar = intervallar or ["4h"]
     rapor = RadarRapor()
     long_acik = taraf in ("long", "her")
     short_acik = taraf in ("short", "her")
+    toplam = len(semboller) * len(intervallar)
+    yapilan = 0
 
     for sym in semboller:
         for tf in intervallar:
@@ -245,9 +250,9 @@ def radar_tara(semboller: list[str] | None = None,
                           if ust_tf else None)
             except Exception as e:
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
-                continue
+                df = None
 
-            if long_acik:
+            if df is not None and long_acik:
                 try:
                     gguc = None
                     if goreceli:
@@ -298,7 +303,7 @@ def radar_tara(semboller: list[str] | None = None,
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
 
-            if short_acik:
+            if df is not None and short_acik:
                 try:
                     from .kisa import kisa_senaryo
                     from .risk import mesafe_hedef
@@ -346,4 +351,11 @@ def radar_tara(semboller: list[str] | None = None,
                         pattern=_s_pat, kaynak=_s_kaynak))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
+
+            yapilan += 1
+            if ilerleme is not None:
+                try:
+                    ilerleme(yapilan, toplam, rapor)
+                except Exception:
+                    pass
     return rapor

@@ -613,6 +613,21 @@ klines'tan MEXC **futures** (contract) klines'a çevrildi; spot yedek kaldı.
   long: yüksek ≥ hedef) hareket olmuş demektir → setup **Elenen** ("bölge
   çiğnenmiş (hedef zaten görüldü)"). Late filtresinin tamamlayıcısı.
 
+## Bu turda eklenen: Canlı tarama ilerleme yüzdesi
+
+90 parite × 4 TF taraması tek seferde bitince sonuç geliyordu → dakikalarca geri
+bildirim yok, kullanıcı "takıldı/hata" sanıyordu. Artık tarama **akarken**
+ilerleme gösteriliyor:
+
+- `radar_tara(ilerleme=cb)`: her parite/TF sonrası `cb(yapilan, toplam, rapor)`
+  çağrılır. Veri hatası olsa bile sayaç ilerler (df=None yolu, `continue` yerine).
+- `Gozlemci.dongu(ilerleme=)` → radar'a geçer.
+- Web sunucu `_bir_tarama`: throttle'lı (1.2 sn) ilerleme anlık görüntüsü yazar
+  (`tarama_durumu="taranıyor"`, `ilerleme={yapilan,toplam,yuzde}`); adaylar
+  **tarama sürerken akar** (kısmi rapordan). Bitince `tarama_durumu="tamam"`.
+- Web panel: üstte **ilerleme çubuğu** — "Taranıyor… %42 (152/360) · 3 aday ·
+  7 izle". Tarama bitince gizlenir. Poll 2.5 sn.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).

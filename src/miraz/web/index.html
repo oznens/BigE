@@ -94,6 +94,12 @@
   .donut span{width:32px;height:32px;border-radius:50%;background:var(--panel2);
     display:grid;place-items:center}
   .kartrow{display:flex;gap:10px;align-items:center}
+  .ilerleme{margin:0 0 14px;background:var(--panel2);border:1px solid var(--kenar);
+    border-radius:8px;height:26px;position:relative;overflow:hidden}
+  #ilerleme-dolu{height:100%;width:0;background:linear-gradient(90deg,
+    var(--vurgu),var(--yesil));transition:width .4s ease}
+  #ilerleme-yazi{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:12px;font-weight:600;color:var(--metin)}
 </style>
 </head>
 <body>
@@ -114,6 +120,11 @@
     <button data-s="pnl">PNL ANALYTICS</button>
     <button data-s="memory">MEMORY</button>
   </nav>
+
+  <div id="ilerleme" class="ilerleme gizli">
+    <div id="ilerleme-dolu"></div>
+    <span id="ilerleme-yazi"></span>
+  </div>
 
   <!-- DASHBOARD -->
   <section id="s-dashboard">
@@ -440,6 +451,17 @@ async function tik(){
       $("#saat").textContent = (d.mesaj||"tarama bekleniyor")+" …";
       return;
     }
+    // canlı ilerleme çubuğu
+    const bar = $("#ilerleme");
+    if(d.tarama_durumu==="taranıyor" && d.ilerleme){
+      bar.classList.remove("gizli");
+      $("#ilerleme-dolu").style.width = d.ilerleme.yuzde+"%";
+      $("#ilerleme-yazi").textContent =
+        `Taranıyor… %${d.ilerleme.yuzde} (${d.ilerleme.yapilan}/${d.ilerleme.toplam}) · `+
+        `${d.ozet.Trade} aday · ${d.ozet.Watch} izle`;
+    } else {
+      bar.classList.add("gizli");
+    }
     durumCubuk(d);
     execKutu(d.execution);
     bucketKutu(d.buckets);
@@ -466,7 +488,7 @@ async function tik(){
   }catch(e){ $("#saat").textContent = "sunucuya ulaşılamadı…"; }
 }
 tik();
-setInterval(tik, 4000);
+setInterval(tik, 2500);
 </script>
 </body>
 </html>

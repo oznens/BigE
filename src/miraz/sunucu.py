@@ -317,12 +317,32 @@ class Sunucu:
         self.taraf = taraf
 
     def _bir_tarama(self) -> None:
-        sonuc = self.gozlemci.dongu()
+        # tarama sürerken canlı ilerleme (yüzde + akan adaylar) yaz — throttle
+        son_yaz = [0.0]
+
+        def _ilerleme(yapilan, toplam, rapor):
+            import time as _t
+            simdi = _t.time()
+            if simdi - son_yaz[0] < 1.2 and yapilan < toplam:
+                return
+            son_yaz[0] = simdi
+            d = durum_json(self.gozlemci, rapor, self.aralik, borsa=self.borsa)
+            d["tarama_durumu"] = "taranıyor"
+            d["ilerleme"] = {"yapilan": yapilan, "toplam": toplam,
+                             "yuzde": round(100 * yapilan / toplam) if toplam
+                             else 0}
+            self.depo.yaz(d)
+
+        sonuc = self.gozlemci.dongu(ilerleme=_ilerleme)
         self.gozlemci.kaydet(self.defter_dosya, self.portfoy_dosya)
         if self.otomatik:
             self._otomatik_emir(sonuc.rapor)
-        self.depo.yaz(durum_json(self.gozlemci, sonuc.rapor, self.aralik,
-                                 borsa=self.borsa))
+        d = durum_json(self.gozlemci, sonuc.rapor, self.aralik, borsa=self.borsa)
+        d["tarama_durumu"] = "tamam"
+        d["ilerleme"] = {"yapilan": len(self.semboller) * len(self.intervallar),
+                         "toplam": len(self.semboller) * len(self.intervallar),
+                         "yuzde": 100}
+        self.depo.yaz(d)
 
     def _otomatik_emir(self, rapor) -> None:
         """(opt-in) Yeni Trade adayları için testnet bracket emri açar.
