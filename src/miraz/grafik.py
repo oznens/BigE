@@ -398,6 +398,14 @@ def senaryo_ciz(
                    edgecolor="#0097a7", linewidth=1.6, alpha=0.65, zorder=6)
         _fiyat_etiketi(ax, senaryo.mavi_daire, "#0097a7")
 
+    # --- Oluşmakta olan harmonik (X-A-B-C + kesikli D projeksiyonu + PRZ) ---
+    oh = getattr(senaryo, "olusan", None)
+    if oh is not None:
+        try:
+            _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w)
+        except Exception:
+            pass
+
     # --- @finansalTRader katmanı: Fib golden pocket çizgileri ---
     if indikator and getattr(senaryo, "fib", None) is not None:
         fr = senaryo.fib

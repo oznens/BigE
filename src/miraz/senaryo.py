@@ -121,6 +121,7 @@ class Senaryo:
     obo: object = None                    # omuz-baş-omuz (OBO/TOBO) — hoca tarzı
     rsi: float | None = None              # güncel RSI (hoca tarzı)
     macd_yon: str | None = None           # "AL" / "SAT" (hoca tarzı)
+    olusan: object = None                 # oluşmakta olan harmonik (D projeksiyonu)
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -194,6 +195,10 @@ def senaryo_uret(
                                        son_n=90)
     if trend_cizgi is not None and trend_cizgi.yon != "Yükselen":
         trend_cizgi = None
+
+    # Oluşmakta olan harmonik (gelecek D projeksiyonu + PRZ) — grafikte gösterilir
+    _piv_h = pv.pivot_listesi(df, n=n)
+    olusan = hrm.olusan_harmonik(df, _piv_h)
 
     # Mavi daire: destek bölgesinde tamamlanan bullish harmonik D = en yüksek güven
     mavi_daire = mavi_daire_idx = mavi_daire_isim = None
@@ -271,7 +276,7 @@ def senaryo_uret(
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
         divergence=divg, elliott=elliott, obo=obo,
-        rsi=rsi_deg, macd_yon=macd_yon, metin=metin)
+        rsi=rsi_deg, macd_yon=macd_yon, olusan=olusan, metin=metin)
 
     # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
     from .karar import karar_uret
