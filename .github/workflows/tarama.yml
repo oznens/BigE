@@ -35,7 +35,7 @@ jobs:
         run: pip install pandas numpy requests pyarrow
 
       - name: Tarama + statik site üret
-        run: python backtest/statik_site.py --cikti site --mtf --taraf her
+        run: python backtest/statik_site.py --cikti site --genis --mtf --taraf her
 
       - name: Pages artefaktını yükle
         uses: actions/upload-pages-artifact@v3
