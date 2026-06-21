@@ -113,6 +113,37 @@ def test_ozet_lifecycle_sayar():
     assert o["Shelved"] == 1 and o["Expired"] == 1
 
 
+def test_pnl_analitik():
+    """pnl_analitik(): profit factor, açık/kapalı PNL, en iyi/kötü gün, kırılım."""
+    d = Defter()
+    d.kayitlar = [
+        Kayit(1, "2026-06-01T10:00", "BTCUSDT", "1h", "Long", "A", 80,
+              100, 95, 110, 1.0, durum="TP", r_sonuc=2.0, kaynak="Harmonik",
+              kapanis_zaman="2026-06-01T12:00"),
+        Kayit(2, "2026-06-01T10:00", "ETHUSDT", "4h", "Long", "B", 70,
+              100, 95, 110, 1.0, durum="STOP", r_sonuc=-1.0,
+              kaynak="Price Action", kapanis_zaman="2026-06-01T13:00"),
+        Kayit(3, "2026-06-02T10:00", "BTCUSDT", "1h", "Long", "A", 80,
+              100, 95, 110, 1.0, durum="TP", r_sonuc=1.0, kaynak="Harmonik",
+              kapanis_zaman="2026-06-02T12:00"),
+        Kayit(4, "2026-06-02T10:00", "SOLUSDT", "1h", "Long", "C", 60,
+              100, 95, 110, 1.0, durum="Açık", r_sonuc=0.5),
+    ]
+    a = d.pnl_analitik()
+    assert a["net_pnl"] == 2.0          # 2 -1 +1
+    assert a["acik_pnl"] == 0.5
+    assert a["tp"] == 2 and a["stop"] == 1
+    assert a["profit_factor"] == 3.0    # kazanç 3 / zarar 1
+    # 06-01: +2-1=+1 · 06-02: +1 → her iki gün de +1R
+    assert a["en_iyi_gun"] == 1.0 and a["en_kotu_gun"] == 1.0
+    assert a["kazanc_gun"] == 2 and a["zarar_gun"] == 0
+    # parite kırılımı: BTC 2 işlem, +3R
+    assert a["parite"]["BTCUSDT"]["r"] == 3.0
+    assert a["parite"]["BTCUSDT"]["wr"] == 100.0
+    # TF kırılımı
+    assert "1h" in a["tf"] and "4h" in a["tf"]
+
+
 def test_setup_ekle_kaynak_tasinir():
     """Radar satırındaki kaynak alanı kayda işlenir."""
     d = Defter()

@@ -130,10 +130,17 @@ def main() -> None:
                     help="sürekli modda döngü arası saniye (vars. 180)")
     ap.add_argument("--durum", action="store_true",
                     help="defter & portföy durumunu göster, çık")
+    ap.add_argument("--pnl", action="store_true",
+                    help="PNL ANALYTICS ekranını göster (parite/TF/konsept), çık")
     args = ap.parse_args()
 
     if args.durum:
         _durum_goster()
+        return
+
+    if args.pnl:
+        from miraz.dashboard import pnl_yazdir
+        pnl_yazdir(Defter.yukle(DEFTER_DOSYA))
         return
 
     semboller = _evren(args)

@@ -78,7 +78,7 @@ def test_pano_olustur_temel_metinler():
     assert "PRICE ACTION RESULT" in metin and "HARMONİK RESULT" in metin
     assert "LATE RESULT" in metin
     assert "RESULT JOURNAL" in metin           # lifecycle satırı
-    assert "KIRAZ VERDICT" in metin            # Kiraz karar motoru
+    assert "KIRAZ STATUS" in metin             # Kiraz karar motoru
     assert "BINANCE EXECUTION" in metin        # execution metrikleri
     assert "BTCUSDT" in metin and "ETHUSDT" in metin
     assert "CANLI ADAY AKIŞI" in metin
@@ -133,3 +133,22 @@ def test_pano_yazdir_calisir(capsys):
     db.pano_yazdir(_Rapor([_Satir()]), bilgi="x")
     out = capsys.readouterr().out
     assert "TERMINALMIRAZ PRO" in out
+
+
+def test_pnl_analitik_pano():
+    """PNL ANALYTICS ekranı metrikleri ve tabloları içerir."""
+    d = Defter()
+    d.kayitlar = [
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1.0,
+              durum="TP", r_sonuc=2.0, kaynak="Harmonik",
+              kapanis_zaman="2026-06-01T12:00"),
+        Kayit(2, "", "ETHUSDT", "4h", "Long", "B", 70, 100, 95, 110, 1.0,
+              durum="STOP", r_sonuc=-1.0, kaynak="Price Action",
+              kapanis_zaman="2026-06-01T13:00"),
+    ]
+    metin = _render(db.pnl_analitik_pano(d))
+    assert "PNL ANALYTICS" in metin
+    assert "PROFIT FACTOR" in metin and "WIN RATE" in metin
+    assert "CONCEPT PERFORMANCE" in metin
+    assert "PAIR PERFORMANCE" in metin and "TIMEFRAME PERFORMANCE" in metin
+    assert "BTCUSDT" in metin

@@ -158,6 +158,56 @@ class Defter:
         o["buckets"] = buckets
         return o
 
+    def pnl_analitik(self) -> dict:
+        """terminalMiraz PNL ANALYTICS ekranının verisi: profit factor, açık/
+        kapalı PNL, en iyi/kötü gün, parite & TF performansı."""
+        kapali = [k for k in self.kayitlar if k.durum in ("TP", "STOP")]
+        kazanc = sum(k.r_sonuc for k in kapali if k.r_sonuc > 0)
+        zarar = -sum(k.r_sonuc for k in kapali if k.r_sonuc < 0)
+        kapali_r = round(sum(k.r_sonuc for k in kapali), 2)
+        acik = [k for k in self.kayitlar if k.durum == "Açık"]
+        tp = sum(1 for k in kapali if k.durum == "TP")
+        stop = sum(1 for k in kapali if k.durum == "STOP")
+
+        # günlük PNL → en iyi / en kötü gün
+        gunluk: dict[str, float] = {}
+        for k in kapali:
+            gun = (k.kapanis_zaman or "")[:10] or "?"
+            gunluk[gun] = gunluk.get(gun, 0.0) + k.r_sonuc
+        en_iyi = max(gunluk.values()) if gunluk else 0.0
+        en_kotu = min(gunluk.values()) if gunluk else 0.0
+        kazanc_gun = sum(1 for v in gunluk.values() if v > 0)
+        zarar_gun = sum(1 for v in gunluk.values() if v < 0)
+
+        # parite & TF kırılımı (WR + toplam R)
+        def _kir(anahtar):
+            d: dict[str, dict] = {}
+            for k in kapali:
+                key = getattr(k, anahtar)
+                e = d.setdefault(key, {"tp": 0, "stop": 0, "r": 0.0})
+                e["tp" if k.durum == "TP" else "stop"] += 1
+                e["r"] += k.r_sonuc
+            for e in d.values():
+                t = e["tp"] + e["stop"]
+                e["wr"] = round(100 * e["tp"] / t, 1) if t else 0.0
+                e["r"] = round(e["r"], 2)
+            return d
+
+        return {
+            "net_pnl": kapali_r,
+            "acik_pnl": round(sum(k.r_sonuc for k in acik), 2),
+            "kapali_pnl": kapali_r,
+            "tp": tp, "stop": stop,
+            "cancelled": sum(1 for k in self.kayitlar if k.durum == "Cancelled"),
+            "wr": round(100 * tp / (tp + stop), 1) if (tp + stop) else 0.0,
+            "profit_factor": round(kazanc / zarar, 2) if zarar else (
+                kazanc if kazanc else 0.0),
+            "en_iyi_gun": round(en_iyi, 1), "en_kotu_gun": round(en_kotu, 1),
+            "kazanc_gun": kazanc_gun, "zarar_gun": zarar_gun,
+            "parite": _kir("sembol"), "tf": _kir("interval"),
+            "konsept": o_buckets if (o_buckets := self.ozet()["buckets"]) else {},
+        }
+
     # --- kalıcılık ---
 
     def kaydet(self, dosya: str | Path = DEFTER_DOSYA) -> None:

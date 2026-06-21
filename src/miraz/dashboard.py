@@ -232,9 +232,9 @@ def _durum_cubugu(defter, portfoy) -> Text:
 
 
 def _execution_metrikleri(defter, portfoy) -> Table:
-    """Account Equity / Aktif Pozisyon / Bekleyen Emir / Günlük PNL satırı."""
+    """Equity / Pozisyon / Emir / Günlük PNL / Open Risk satırı (PRO Dashboard)."""
     t = Table.grid(expand=True, padding=(0, 1))
-    for _ in range(4):
+    for _ in range(5):
         t.add_column(ratio=1)
 
     if portfoy is not None:
@@ -244,20 +244,26 @@ def _execution_metrikleri(defter, portfoy) -> Table:
         aktif = [p for p in poz if p.durum == "Açık"]
         bekleyen = [p for p in poz if p.durum == "Bekliyor"]
         equity = 5000.0 + toplam_r * r_dolar       # test bakiyesi (R=25$)
+        # açık risk: her açık pozisyon 1R → toplam R'nin equity'ye oranı
+        acik_risk = (len(aktif) * r_dolar / equity * 100) if equity else 0.0
+        risk_renk = "green" if acik_risk < 5 else ("yellow" if acik_risk < 10
+                                                   else "red")
         pnl_renk = "green" if toplam_r >= 0 else "red"
         metr = [
-            ("ACCOUNT EQUITY", f"{equity:,.0f}", "Test USDT", "cyan"),
+            ("WALLET BALANCE", f"{equity:,.0f}", "Test USDT", "cyan"),
             ("ACTIVE POSITIONS", str(len(aktif)), "açık işlem", "green"),
             ("PENDING ORDERS", str(len(bekleyen)), "emir bekliyor", "yellow"),
-            ("TOTAL PNL", f"{toplam_r:+.1f}R", f"R={r_dolar:.0f}$", pnl_renk),
+            ("DAILY PNL", f"{toplam_r:+.1f}R", f"R={r_dolar:.0f}$", pnl_renk),
+            ("OPEN RISK", f"%{acik_risk:.1f}", "risk limitine göre", risk_renk),
         ]
     else:
         d = defter.ozet() if defter is not None else {}
         metr = [
-            ("ACCOUNT EQUITY", "—", "portföy yok", "bright_black"),
+            ("WALLET BALANCE", "—", "portföy yok", "bright_black"),
             ("ACTIVE", str(d.get("aktif", 0)), "aktif kayıt", "green"),
             ("PENDING", str(d.get("Aday", 0)), "aday", "yellow"),
-            ("TOTAL PNL", f"{d.get('toplam_r', 0.0):+.1f}R", "defter", "cyan"),
+            ("DAILY PNL", f"{d.get('toplam_r', 0.0):+.1f}R", "defter", "cyan"),
+            ("OPEN RISK", "—", "portföy yok", "bright_black"),
         ]
 
     panels = []
@@ -289,13 +295,24 @@ def _lifecycle_satiri(d_ozet: dict) -> Text:
 
 
 def _kiraz_verdict(rapor, portfoy) -> Text:
-    """Kiraz karar motoru durumu: aday varsa EXECUTION, yoksa WATCHLIST MODE."""
+    """Kiraz karar motoru durumu (terminalMiraz Dashboard'daki KIRAZ STATUS).
+
+    EXECUTION : işleme uygun aday var.
+    WATCHLIST : aktif setup var ama (izle/filtre) risk filtresi emir beklemede,
+                ya da hiç uygun aday yok — izlemede.
+    """
     aday = rapor.ozet.get("Trade", 0)
+    izle = rapor.ozet.get("Watch", 0)
     t = Text()
-    t.append("KIRAZ VERDICT: ", style="bold cyan")
+    t.append("KIRAZ STATUS: ", style="bold cyan")
     if aday > 0:
         t.append("EXECUTION MODE", style="bold green")
-        t.append(f"  ({aday} aday işleme uygun)", style="bright_black")
+        t.append(f"  ({aday} aday işleme uygun — Kiraz emir açıyor)",
+                 style="bright_black")
+    elif izle > 0:
+        t.append("WATCHLIST MODE", style="bold blue")
+        t.append(f"  ({izle} aktif setup var ama risk filtresi emir beklemede)",
+                 style="bright_black")
     else:
         t.append("WATCHLIST MODE", style="bold blue")
         t.append("  (uygun aday yok — izlemede)", style="bright_black")
@@ -395,3 +412,94 @@ def pano_olustur(rapor, defter=None, portfoy=None, bilgi: str = "") -> Group:
 def pano_yazdir(rapor, defter=None, portfoy=None, bilgi: str = "") -> None:
     """Panoyu terminale bir kez yazar."""
     console.print(pano_olustur(rapor, defter=defter, portfoy=portfoy, bilgi=bilgi))
+
+
+# ── PNL ANALYTICS ekranı (terminalMiraz PNL modülü) ─────────────────────────
+
+def pnl_analitik_pano(defter) -> Group:
+    """terminalMiraz 'PNL ANALYTICS' ekranı: metrik kartları + parite/TF/konsept
+    performans tabloları."""
+    a = defter.pnl_analitik()
+
+    # üst metrik kartları
+    mt = Table.grid(expand=True, padding=(0, 1))
+    for _ in range(6):
+        mt.add_column(ratio=1)
+    pnl_renk = "green" if a["net_pnl"] >= 0 else "red"
+    wr_renk = "green" if a["wr"] >= 60 else ("yellow" if a["wr"] >= 40 else "red")
+    pf_renk = "green" if a["profit_factor"] >= 1.5 else (
+        "yellow" if a["profit_factor"] >= 1 else "red")
+    kartlar = [
+        ("NET PNL", f"{a['net_pnl']:+.1f}R", "tüm performans", pnl_renk),
+        ("OPEN PNL", f"{a['acik_pnl']:+.1f}R", "açık sonuç", "cyan"),
+        ("WIN RATE", f"%{a['wr']:.0f}", "TP / STOP", wr_renk),
+        ("PROFIT FACTOR", f"{a['profit_factor']:.2f}", "kazanç/zarar", pf_renk),
+        ("TP / STOP", f"{a['tp']} / {a['stop']}", "kapanan", "white"),
+        ("CANCELLED", str(a["cancelled"]), "iptal/expired", "magenta"),
+    ]
+    panels = []
+    for baslik, deger, alt, renk in kartlar:
+        ic = Text()
+        ic.append(f"{deger}\n", style=f"bold {renk}")
+        ic.append(alt, style="bright_black")
+        panels.append(Panel(ic, title=f"[{renk}]{baslik}[/]",
+                            border_style="bright_black", padding=(0, 1)))
+    mt.add_row(*panels)
+
+    # en iyi/kötü gün şeridi
+    gun = Text()
+    gun.append("EN İYİ GÜN ", style="bright_black")
+    gun.append(f"{a['en_iyi_gun']:+.1f}R   ", style="bold green")
+    gun.append("EN KÖTÜ GÜN ", style="bright_black")
+    gun.append(f"{a['en_kotu_gun']:+.1f}R   ", style="bold red")
+    gun.append(f"{a['kazanc_gun']} kazanç günü · {a['zarar_gun']} zarar günü",
+               style="bright_black")
+
+    def _perf_tablo(baslik, veri, ad_sutun):
+        tb = Table(title=baslik, border_style="bright_black", expand=True)
+        tb.add_column(ad_sutun, style="cyan")
+        tb.add_column("WR", justify="right")
+        tb.add_column("TP/STOP", justify="right")
+        tb.add_column("R", justify="right")
+        sirali = sorted(veri.items(), key=lambda kv: kv[1]["r"], reverse=True)
+        for ad, e in sirali[:6]:
+            wr_s = (f"[green]%{e['wr']:.0f}[/]" if e["wr"] >= 60
+                    else f"[yellow]%{e['wr']:.0f}[/]" if e["wr"] >= 40
+                    else f"[red]%{e['wr']:.0f}[/]")
+            r_s = (f"[green]{e['r']:+.1f}[/]" if e["r"] >= 0
+                   else f"[red]{e['r']:+.1f}[/]")
+            tb.add_row(ad, wr_s, f"{e['tp']}/{e['stop']}", r_s)
+        if not sirali:
+            tb.add_row("—", "", "", "")
+        return tb
+
+    # konsept (kaynak motoru) tablosu — buckets'tan
+    konsept_tb = Table(title="CONCEPT PERFORMANCE", border_style="bright_black",
+                       expand=True)
+    konsept_tb.add_column("Motor", style="cyan")
+    konsept_tb.add_column("WR", justify="right")
+    konsept_tb.add_column("TP/STOP", justify="right")
+    for ad, b in a["konsept"].items():
+        wr_s = (f"[green]%{b['wr']:.0f}[/]" if b["wr"] >= 60
+                else f"[yellow]%{b['wr']:.0f}[/]" if b["wr"] >= 40
+                else f"[red]%{b['wr']:.0f}[/]")
+        konsept_tb.add_row(ad, wr_s, f"{b['tp']}/{b['stop']}")
+
+    alt = Table.grid(expand=True, padding=(0, 1))
+    alt.add_column(ratio=1)
+    alt.add_column(ratio=1)
+    alt.add_column(ratio=1)
+    alt.add_row(konsept_tb,
+                _perf_tablo("PAIR PERFORMANCE", a["parite"], "Parite"),
+                _perf_tablo("TIMEFRAME PERFORMANCE", a["tf"], "TF"))
+
+    baslik = Panel(
+        Text("PNL ANALYTICS  ·  SQL Memory weighted performance",
+             style="bold cyan"),
+        border_style="cyan", padding=(0, 1))
+    return Group(baslik, Panel(Group(mt, gun), border_style="bright_black",
+                               padding=(0, 1)), alt)
+
+
+def pnl_yazdir(defter) -> None:
+    console.print(pnl_analitik_pano(defter))

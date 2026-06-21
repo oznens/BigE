@@ -466,14 +466,51 @@ etiketi kalkar, listeye geri döner (tweet [7] "mülakata defalarca girmek").
 Mayıs özeti (tweet [14]): 862 üretildi · 190 Late · 45 filtre · 18 rafa · 15
 iptal · 177 No-Entry (0:0) · +39R net. Genel: 2.678 sonuçlanan, %59.7 WR.
 
+### Tüm terminal ekranları tek tek incelendi (152 görsel → ~13 UI ekranı)
+
+@tradermiraz'ın attığı **bütün** terminalMiraz görselleri çekildi (152 benzersiz
+görsel; ~13'ü gerçek terminal UI, gerisi trade grafiği/AI görsel). Modül haritası:
+
+**Ana uygulama üst menüsü:** `LAB · BACKTEST · SCANNER · MEMORY · SETUP`
+(slogan: *KNOWLEDGE INTO ACTION*). Ortada **CANLI GRAFİK** — "Execution-grade
+candle stream": mum akışı + ZONE kutusu + SQL Memory çizgisi + SL + MACD +
+İŞLEM ÖZETİ (Aday rozeti).
+
+**Execution (Binance) sol menüsü:** Dashboard · Trade · Pozisyonlar · Geçmiş ·
+Cüzdan · PNL · Sistem Günlüğü · API · Risk. Keşfedilen ekranlar:
+
+1. **Dashboard** — 6 metrik: Wallet Balance · Available Balance · Active
+   Positions · Pending Orders · Daily PNL · **Open Risk %** (günlük risk
+   limitine göre). Recent Execution Activity: **FILLED / BLOCK** (Kiraz risk
+   filtresi bloklar). **KIRAZ STATUS: WATCHLIST MODE** — *"Aktif setup var
+   ancak risk filtresi nedeniyle otomatik emir beklemede."*
+2. **PNL ANALYTICS** — Net/Closed/Open PNL · Win Rate · **Profit Factor 2.55** ·
+   Total Trades · TP/STOP/Cancelled Count · **Performance Curve** (Equity/
+   Balance/Growth, Today→All Time) · **Concept/Pair/Timeframe Performance**.
+3. **Geçmiş (Trade History)** — Total/TP/SL/Cancelled/WR · **Best Day / Worst
+   Day** · Trade Timeline ("Hedef alındı"/"Zarar kesildi"/"Manuel kazanç") ·
+   Concept Performance Snapshot · **Trade Memory Summary** (Most Profitable/Used
+   Concept, Most Traded Pair, Highest RR=**1R**, Longest Trade, Best Month).
+4. **MEMORY** — Parite Hafıza Şeridi (parite başına skor + Stop riski) · **Konsept
+   Katmanları** (kod adlı PA konseptleri: VOID/Absorb/Ask/Cavity/Root/Fault…,
+   her biri TP/STOP) · MEMORY FLOW takvimi (günlük TP/STOP) · Zaman Dilimi
+   Karakteri (konsept hangi TF'de daha sağlıklı). = *Price/Harmonic Memory Lab*.
+
+Harmonik konseptler gerçek isimlerle: **Harmonic Shark / Cypher / Gartley /
+Butterfly / Deep Crab**. Highest RR = 1R → TP=1R doğrulandı (yine).
+
 ### Koda yansıttıklarımız (bu inceleme sonrası)
 
 - **`kaynak` etiketleri gerçek isimlere çevrildi:** `Scanner` → **Price Action**;
   `Harmonik`, `Late` korunur. Bucket WR'leri Price Action / Harmonik / Late.
 - **Lifecycle sayaçları:** `Defter.ozet()` artık No-Entry / Cancelled / Shelved /
   Expired / Filtered'ı ayrı sayar (RESULT JOURNAL satırı).
-- **Dashboard execution başlığı:** durum çubuğu (Kiraz / SQL Memory) + Equity /
-  Aktif Pozisyon / Bekleyen Emir / Günlük PNL metrik satırı + Kiraz Verdict.
+- **Dashboard execution başlığı:** durum çubuğu (Kiraz / SQL Memory) + Wallet
+  Balance / Aktif Pozisyon / Bekleyen Emir / Günlük PNL / **Open Risk %** +
+  **KIRAZ STATUS** (gerçek WATCHLIST/EXECUTION semantiğiyle).
+- **PNL ANALYTICS ekranı (`--pnl`):** `Defter.pnl_analitik()` → Net/Open PNL,
+  **Profit Factor**, Win Rate, En İyi/Kötü Gün, **Parite / TF / Konsept
+  performans tabloları**. terminalMiraz PNL modülünün birebir karşılığı.
 
 ## Sıradaki adımlar (yol haritası)
 
