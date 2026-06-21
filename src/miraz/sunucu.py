@@ -30,6 +30,8 @@ from pathlib import Path
 
 from .gozlemci import Gozlemci, Defter, DEFTER_DOSYA, PORTFOY_DOSYA
 from .portfoy import Portfoy
+from . import veri
+from . import indikator
 
 WEB_DIZIN = Path(__file__).resolve().parent / "web"
 
@@ -128,6 +130,63 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# CANLI GRAFİK — mum + ZONE + SQL Memory çizgisi + MACD (terminalMiraz grafiği)
+# ---------------------------------------------------------------------------
+
+def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
+    """Son anlık görüntüdeki aday/bildirimlerden bu sembolün setup seviyeleri."""
+    for liste in (durum.get("adaylar", []), durum.get("bildirimler", [])):
+        for s in liste:
+            sym = s.get("symbol") or s.get("sembol")
+            if sym == symbol and s.get("interval") == interval:
+                return {
+                    "giris": s.get("giris"), "stop": s.get("stop"),
+                    "hedef": s.get("hedef"), "taraf": s.get("taraf", "Long"),
+                    "pattern": s.get("pattern"), "kaynak": s.get("kaynak"),
+                    "rr": s.get("rr"),
+                }
+    return None
+
+
+def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
+                gun: int = 60, bar: int = 160) -> dict:
+    """Bir sembol/TF için mum + MACD + setup seviyeleri (ZONE dâhil) döndürür.
+
+    ZONE, taze senaryo motorundan (bolge_alt/üst) hesaplanır; setup seviyeleri
+    (giriş/stop/hedef) son tarama anlık görüntüsünden alınır.
+    """
+    df = veri.indir(symbol, interval, gun=gun).tail(bar)
+    mac = indikator.macd(df["close"])
+
+    def _kolon(seri):
+        return [None if v != v else round(float(v), 6) for v in seri]
+
+    mumlar = [[int(ts.timestamp()), round(float(o), 6), round(float(yk), 6),
+               round(float(dk), 6), round(float(c), 6)]
+              for ts, o, yk, dk, c in zip(
+                  df.index, df["open"], df["high"], df["low"], df["close"])]
+
+    seviye = _seviye_bul(durum or {}, symbol, interval) or {}
+
+    # ZONE: taze senaryodan destek bölgesi (long) — best-effort
+    zone_alt = zone_ust = None
+    try:
+        from .senaryo import senaryo_uret
+        s = senaryo_uret(df)
+        zone_alt, zone_ust = s.bolge_alt, s.bolge_ust
+    except Exception:
+        pass
+
+    return {
+        "symbol": symbol, "interval": interval,
+        "mumlar": mumlar,
+        "macd": {"macd": _kolon(mac["macd"]), "sinyal": _kolon(mac["sinyal"]),
+                 "hist": _kolon(mac["histogram"])},
+        "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust},
+    }
+
+
+# ---------------------------------------------------------------------------
 # Durum deposu — tarama thread'i yazar, HTTP handler okur (kilitli)
 # ---------------------------------------------------------------------------
 
@@ -151,7 +210,7 @@ class DurumDeposu:
 # HTTP handler
 # ---------------------------------------------------------------------------
 
-def _handler_sinifi(depo: DurumDeposu):
+def _handler_sinifi(depo: DurumDeposu, grafik_fn=None):
     index_yol = WEB_DIZIN / "index.html"
 
     class Handler(BaseHTTPRequestHandler):
@@ -166,8 +225,14 @@ def _handler_sinifi(depo: DurumDeposu):
             self.end_headers()
             self.wfile.write(govde)
 
+        def _json(self, veri_, kod=200):
+            self._gonder(kod, json.dumps(veri_, ensure_ascii=False).encode("utf-8"),
+                         "application/json; charset=utf-8")
+
         def do_GET(self):
-            yol = self.path.split("?")[0]
+            from urllib.parse import urlparse, parse_qs
+            p = urlparse(self.path)
+            yol, sorgu = p.path, parse_qs(p.query)
             if yol in ("/", "/index.html"):
                 try:
                     html = index_yol.read_bytes()
@@ -175,8 +240,17 @@ def _handler_sinifi(depo: DurumDeposu):
                     html = b"<h1>index.html yok</h1>"
                 self._gonder(200, html, "text/html; charset=utf-8")
             elif yol == "/api/durum":
-                govde = json.dumps(depo.oku(), ensure_ascii=False).encode("utf-8")
-                self._gonder(200, govde, "application/json; charset=utf-8")
+                self._json(depo.oku())
+            elif yol == "/api/grafik":
+                sym = (sorgu.get("symbol") or [""])[0].upper()
+                ivl = (sorgu.get("interval") or [""])[0]
+                if not sym or not ivl or grafik_fn is None:
+                    self._json({"hata": "symbol/interval gerekli"}, 400)
+                    return
+                try:
+                    self._json(grafik_fn(sym, ivl))
+                except Exception as e:
+                    self._json({"hata": str(e)}, 500)
             else:
                 self._gonder(404, b"yok", "text/plain; charset=utf-8")
 
@@ -214,6 +288,10 @@ class Sunucu:
         self.gozlemci.kaydet(self.defter_dosya, self.portfoy_dosya)
         self.depo.yaz(durum_json(self.gozlemci, sonuc.rapor, self.aralik))
 
+    def grafik_veri(self, symbol: str, interval: str) -> dict:
+        return grafik_veri(symbol, interval, durum=self.depo.oku(),
+                           gun=self.gozlemci.gun)
+
     def _tarama_dongusu(self) -> None:
         while not self._dur.is_set():
             try:
@@ -228,7 +306,7 @@ class Sunucu:
         t = threading.Thread(target=self._tarama_dongusu, daemon=True)
         t.start()
         httpd = ThreadingHTTPServer((self.host, self.port),
-                                    _handler_sinifi(self.depo))
+                                    _handler_sinifi(self.depo, self.grafik_veri))
         print(f"🟢 Sunucu çalışıyor → http://{self.host}:{self.port}")
         print(f"   {len(self.semboller)} parite × {len(self.intervallar)} TF "
               f"({' '.join(self.intervallar)}) · {self.taraf} · "
