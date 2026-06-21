@@ -51,6 +51,8 @@ Price Action + Harmonik trade terminali:
 | **Expired (giriş gelmeyen emir) filtresi** | `portfoy` max_bekleme | ✅ **bu turda** |
 | **PaMonic (PA + Harmonik çakışması)** | `senaryo.pamonic` + `karar` +15 | ✅ **bu turda** |
 | **3 risk modu (güvenli/dengeli/riskli)** | `radar.RISK_MODLARI` | ✅ **bu turda** |
+| **Mcap'e göre dinamik evren + haftalık kontrol** | `evren.py` + `backtest/evren.py` | ✅ **bu turda** |
+| TradeFi (26 hisse) evreni | — | ⏳ (ek veri kaynağı) |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
 ## Bu turda eklenen: Piyasa Radar (`radar.py`)
@@ -332,6 +334,28 @@ kapatıldı:
 Ayrıca tweet verileri: terminalMiraz **92 parite + 26 hisse = 118 enstrüman ×
 4 TF = 472 tarama**; 2 aylık 590 TP/430 STOP (~%58 WR); R=25$ (test 10$).
 Hisse (TradeFi) evreni bizde henüz yok (ek veri kaynağı gerekir).
+
+## Bu turda eklenen: Mcap Evreni — Dinamik Parite Seçimi (`evren.py`)
+
+terminalMiraz pariteleri **piyasa değerine (mcap) göre** seçer ve düzenli
+(haftalık) "bu coin hâlâ listede mi?" kontrolü yapar; mcap'i düşeni atar,
+yükseleni ekler.
+
+```
+python backtest/evren.py --guncelle --n 90    # haftalık: taze liste + değişim
+python backtest/evren.py --listele            # mcap sıralı liste
+python backtest/radar.py --mcap --mtf         # mcap evrenini tara
+python backtest/terminal.py --mcap --taraf her
+```
+
+- **Kaynak:** CoinGecko (mcap sırası) ∩ MEXC (spot USDT paritesi olanlar).
+- **Eleme:** stablecoin (USDT/USDC/DAI...), wrapped/staked türevleri (WBTC/
+  stETH...), ASCII olmayan junk semboller (ör. `币安人生`) regex ile elenir.
+- **Değişim raporu:** önceki `data/evren.json` ile karşılaştırıp **eklenen /
+  çıkan** pariteleri yazar (haftalık kontrol). Canlı: ilk 90 → BTC#1, ETH#2,
+  BNB#4 (USDT#3, USDC#5 stablecoin atlandı).
+- `radar.py --mcap` ve `terminal.py --mcap` bu evreni kullanır (data/evren.json
+  yereldir, gitignore).
 
 ## Sıradaki adımlar (yol haritası)
 

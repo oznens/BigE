@@ -38,6 +38,8 @@ def main() -> None:
     ap.add_argument("--taraf", default="long", choices=["long", "short", "her"])
     ap.add_argument("--genis", action="store_true",
                     help="GENIS_EVREN (~90 parite) tara")
+    ap.add_argument("--mcap", action="store_true",
+                    help="mcap evrenini kullan (data/evren.json)")
     ap.add_argument("--hizli", action="store_true",
                     help="göreceli güç indirmesini atla (hız)")
     ap.add_argument("--cluster", action="store_true",
@@ -47,7 +49,12 @@ def main() -> None:
     ap.add_argument("--cikti", default=str(KOK / "data" / "terminal.png"))
     args = ap.parse_args()
 
-    semboller = args.semboller or (GENIS_EVREN if args.genis else VARSAYILAN_EVREN)
+    if args.mcap and not args.semboller:
+        from miraz.evren import evren_yukle
+        semboller = evren_yukle() or VARSAYILAN_EVREN
+    else:
+        semboller = args.semboller or (GENIS_EVREN if args.genis
+                                       else VARSAYILAN_EVREN)
     tflar = TERMINALMIRAZ_TF if args.mtf else args.tf
     rr_hedef = RISK_MODLARI[args.risk_mod]
 
@@ -61,7 +68,7 @@ def main() -> None:
           f"{len(tflar)} TF ({' '.join(tflar)}) · risk={args.risk_mod} ...")
     rapor = radar_tara(semboller, tflar, gun=args.gun,
                        cluster_hafiza=cluster_hafiza,
-                       goreceli=not (args.hizli or args.genis),
+                       goreceli=not (args.hizli or args.genis or args.mcap),
                        taraf=args.taraf, rr_hedef=rr_hedef)
 
     portfoy = None

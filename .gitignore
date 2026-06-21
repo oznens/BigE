@@ -12,3 +12,4 @@ __pycache__/
 # Paper-trading / cluster çalışma durumu (yerel, üretilen)
 portfoy.json
 cluster.json
+data/evren.json

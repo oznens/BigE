@@ -27,6 +27,8 @@ def main() -> None:
                     help=f"varsayılan: çekirdek {len(CEKIRDEK_EVREN)} coin")
     ap.add_argument("--genis", action="store_true",
                     help=f"geniş evren ({len(GENIS_EVREN)} parite) tara")
+    ap.add_argument("--mcap", action="store_true",
+                    help="mcap evrenini kullan (data/evren.json — bkz. evren.py)")
     ap.add_argument("--tf", nargs="+", default=["4h"])
     ap.add_argument("--mtf", action="store_true",
                     help=f"terminalMiraz 4 zaman dilimi: {' '.join(TERMINALMIRAZ_TF)}")
@@ -47,11 +49,19 @@ def main() -> None:
                     help="long (varsayılan) / short / her (ikisi de)")
     args = ap.parse_args()
 
-    semboller = args.sembol or (GENIS_EVREN if args.genis else CEKIRDEK_EVREN)
+    if args.mcap and not args.sembol:
+        from miraz.evren import evren_yukle
+        mcap_liste = evren_yukle()
+        if not mcap_liste:
+            print("⚠️  data/evren.json yok — önce: python backtest/evren.py --guncelle")
+            return
+        semboller = mcap_liste
+    else:
+        semboller = args.sembol or (GENIS_EVREN if args.genis else CEKIRDEK_EVREN)
     tflar = TERMINALMIRAZ_TF if args.mtf else args.tf
     rr_hedef = RISK_MODLARI[args.risk_mod]
-    # Geniş evrende göreceli güç varsayılan olarak atlanır (hız)
-    goreceli = not (args.hizli or args.genis)
+    # Geniş/mcap evrende göreceli güç varsayılan olarak atlanır (hız)
+    goreceli = not (args.hizli or args.genis or args.mcap)
 
     hafiza = None
     if args.cluster and CLUSTER_DOSYA.exists():
