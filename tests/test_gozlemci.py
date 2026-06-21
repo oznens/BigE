@@ -24,6 +24,7 @@ class _Satir:
     taraf: str = "Long"
     stop: float = 95.0
     pattern: str = "Gartley"
+    kaynak: str = "Scanner"
 
 
 def test_setup_ekle_ve_dedup():
@@ -73,6 +74,51 @@ def test_ozet_sayar():
     assert o["TP"] == 1 and o["STOP"] == 1
     assert o["wr"] == 50.0
     assert o["toplam_r"] == 0.0     # +1 -1
+
+
+def test_ozet_bucket_kaynak():
+    """ozet() her kaynak bucket'ı (Scanner/Harmonic/Filtered/Late) ayrı sayar."""
+    d = Defter()
+    d.kayitlar = [
+        Kayit(1, "", "A", "1h", "Long", "A", 80, 100, 95, 110, 1.0, durum="TP",
+              r_sonuc=1.0, kaynak="Harmonic"),
+        Kayit(2, "", "B", "1h", "Long", "B", 70, 100, 95, 110, 1.0, durum="STOP",
+              r_sonuc=-1.0, kaynak="Harmonic"),
+        Kayit(3, "", "C", "1h", "Long", "C", 60, 100, 95, 110, 1.0, durum="TP",
+              r_sonuc=1.0, kaynak="Scanner"),
+        Kayit(4, "", "D", "1h", "Long", "C", 60, 100, 95, 110, 1.0, durum="Açık",
+              kaynak="Filtered"),
+    ]
+    b = d.ozet()["buckets"]
+    assert b["Harmonic"] == {"tp": 1, "stop": 1, "toplam": 2, "wr": 50.0}
+    assert b["Scanner"] == {"tp": 1, "stop": 0, "toplam": 1, "wr": 100.0}
+    assert b["Filtered"]["toplam"] == 0    # hâlâ açık, sayılmaz
+    assert b["Late"]["toplam"] == 0
+
+
+def test_setup_ekle_kaynak_tasinir():
+    """Radar satırındaki kaynak alanı kayda işlenir."""
+    d = Defter()
+    k = d.setup_ekle(_Satir(kaynak="Harmonic"))
+    assert k.kaynak == "Harmonic"
+
+
+def test_yukle_kaynaksiz_eski_kayit(tmp_path):
+    """kaynak alanı olmayan eski defter.json yüklenince varsayılan Scanner olur."""
+    dosya = tmp_path / "defter.json"
+    dosya.write_text(json.dumps({
+        "id_sayac": 1, "tarama_turu": 1, "toplam_tarama": 1, "son_dongu": "",
+        "kayitlar": [{
+            "id": 1, "acilis_zaman": "", "sembol": "BTCUSDT", "interval": "1h",
+            "taraf": "Long", "kalite": "A", "guven": 80, "giris": 100,
+            "stop": 95, "hedef": 110, "rr": 1.0, "pattern": None,
+            "durum": "TP", "kapanis_zaman": "", "r_sonuc": 1.0,
+        }],
+    }), encoding="utf-8")
+    d = Defter.yukle(dosya)
+    assert d.kayitlar[0].kaynak == "Scanner"
+    assert d.ozet()["buckets"]["Scanner"]["tp"] == 1
+
 
 
 def test_defter_kalicilik(tmp_path):

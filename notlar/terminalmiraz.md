@@ -45,7 +45,8 @@ Price Action + Harmonik trade terminali:
 | **Geniş evren (~90 parite)** | `radar.GENIS_EVREN` + `--genis` | ✅ |
 | **Short (kısa) pozisyon desteği** | `kisa.py` + `radar_tara(taraf=)` | ✅ **bu turda** |
 | **TP = 1R mesafe hedefi (mor kutu değil)** | `risk.mesafe_hedef` | ✅ **bu turda** |
-| **Görsel terminal panosu (dashboard)** | `terminal.py` + `backtest/terminal.py` | ✅ **bu turda** |
+| **Görsel terminal panosu (PNG)** | `terminal.py` + `backtest/terminal.py` | ✅ |
+| **Canlı terminal panosu (4 bucket + akış)** | `dashboard.py` + `backtest/dashboard.py` | ✅ **bu turda** |
 | **Intraday TF (M15/M30/H1/H2)** | `veri` 2h-resample + `radar.TERMINALMIRAZ_TF` | ✅ **bu turda** |
 | **Late (geç kalmış) filtresi** | `radar._gec_kalmis` | ✅ **bu turda** |
 | **Expired (giriş gelmeyen emir) filtresi** | `portfoy` max_bekleme | ✅ **bu turda** |
@@ -389,6 +390,39 @@ defter kayıtları portföyden senkronize edilir → her şey diske yazılır.
 - `--pano` ile her döngüde `terminal.png` panosu yenilenir. Önceki durum yüklenip
   kaldığı yerden sürer. (defter.json/portfoy.json yereldir, gitignore.)
 
+## Bu turda eklenen: Canlı Terminal Panosu (`dashboard.py`)
+
+terminalMiraz **terminal üzerinden kullanılıyor**: "TerminalMiraz Mobile"
+ekranında üstte **4 result bucket** (SCANNER / FILTERED / HARMONIK / LATE —
+her biri kendi kümülatif TP/STOP/WR'siyle), solda **CANLI ADAY AKIŞI**
+kartları, sağda **SONUÇ BİLDİRİMLERİ** (kapanan trade'ler Entry/SL/TP +
+sonuç). `terminal.png` statik PNG'ydi; bu modül aynı düzeni **canlı terminal
+ekranı** olarak (`rich`) çizer — gözlemci döngüsüne bağlı, kendini yeniler.
+
+```
+# Tek tur (tara → kaydet → panoyu bas)
+python backtest/dashboard.py --bir --mcap --mtf --taraf her --cluster
+
+# Sürekli mod (terminalMiraz ekranı — her 180 sn yeniler)
+python backtest/dashboard.py --surekli --aralik 180 --mcap --mtf --taraf her
+
+# Defter & bucket performans durumu (tarama yapmaz)
+python backtest/dashboard.py --durum
+```
+
+- **4 bucket = kaynak etiketi:** her setup taranırken bir `kaynak` alır —
+  **Harmonic** (harmonik D'li Trade), **Scanner** (saf PA Trade), **Filtered**
+  (Watch), **Late** (geç-kalmış elenen). `RadarSatiri.kaynak` → `Kayit.kaynak`
+  taşınır; `Defter.ozet()["buckets"]` her bucket'ın kapalı TP/STOP/WR'sini ayrı
+  hesaplar. Böylece "hangi kaynak daha iyi çalışıyor?" canlı görünür
+  (tweet: SCANNER %87.5, HARMONIK %66.7, LATE %25 gibi).
+- **CANLI ADAY AKIŞI:** Trade/Watch kartları — ok (▲/▼) + sembol/TF + kategori
+  rozeti, `kaynak | pattern | yön`, `Entry / SL / TP / R/R`. terminalMiraz'ın
+  "Scanner | Harmonic Gartley+ | Bullish" kart satırının birebir karşılığı.
+- **SONUÇ BİLDİRİMLERİ:** defterdeki son kapanan kayıtlar (Entry/SL/TP + `±R`
+  + zaman) — terminalMiraz'ın sağ "SONUC BILDIRIMLERI" sütunu.
+- Eski `defter.json` (kaynaksız) geriye dönük uyumlu: `kaynak` yoksa Scanner.
+
 ## Sıradaki adımlar (yol haritası)
 
 1. **Telegram/X otomasyon** — sinyal dağıtımı (opsiyonel).
@@ -396,5 +430,7 @@ defter kayıtları portföyden senkronize edilir → her şey diske yazılır.
 3. **Short karar motoru iyileştirme** — cluster bulgularına göre `kisa.py`
    skorlarını kalibre et (RR≥2.5 short için ek ceza, boğa HTF'de zayıflatma).
 
-> Sistem şu an terminalMiraz'ın temel bileşenlerinin tamamını (**18/18 ✅**)
-> karşılıyor. 166 test · ~90 parite · iki yönlü lab + cluster hafızası.
+> Sistem şu an terminalMiraz'ın temel bileşenlerinin tamamını karşılıyor;
+> hem statik PNG panosu (`terminal.py`) hem de **canlı terminal ekranı**
+> (`dashboard.py`) ile terminalMiraz gibi terminalden kullanılıyor.
+> 203 test · ~90 parite · iki yönlü lab + cluster hafızası + Learning Journal.

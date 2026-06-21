@@ -88,6 +88,7 @@ class RadarSatiri:
     taraf: str = "Long"   # "Long" / "Short"
     stop: float | None = None
     pattern: str | None = None   # harmonik pattern adı (Gartley/Deep Crab/...)
+    kaynak: str = "Scanner"      # Scanner / Harmonic / Filtered / Late / HTF
 
     @property
     def _sira(self) -> tuple:
@@ -247,6 +248,18 @@ def radar_tara(semboller: list[str] | None = None,
                             s.fiyat, rp.giris, rp.hedef, "Long"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
+                    # kaynak bucket belirleme (Learning Journal için)
+                    _pat = s.mavi_daire_isim
+                    if kategori == "Trade" and _pat:
+                        _kaynak = "Harmonic"
+                    elif kategori == "Trade":
+                        _kaynak = "Scanner"
+                    elif kategori == "Watch":
+                        _kaynak = "Filtered"
+                    elif "Late" in notu:
+                        _kaynak = "Late"
+                    else:
+                        _kaynak = "HTF"
                     rapor.satirlar.append(RadarSatiri(
                         symbol=sym, interval=tf, fiyat=s.fiyat, kategori=kategori,
                         kalite=s.karar.kalite if s.karar else "D",
@@ -255,7 +268,7 @@ def radar_tara(semboller: list[str] | None = None,
                         hedef=rp.hedef if rp else None,
                         rr=rp.rr_orani if rp else None, not_=notu,
                         taraf="Long", stop=rp.stop if rp else None,
-                        pattern=s.mavi_daire_isim))
+                        pattern=_pat, kaynak=_kaynak))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
 
@@ -279,6 +292,18 @@ def radar_tara(semboller: list[str] | None = None,
                             ks.fiyat, s_giris, s_hedef, "Short"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
+                    # kaynak bucket belirleme
+                    _s_pat = ks.harmonik_isim
+                    if kategori == "Trade" and _s_pat:
+                        _s_kaynak = "Harmonic"
+                    elif kategori == "Trade":
+                        _s_kaynak = "Scanner"
+                    elif kategori == "Watch":
+                        _s_kaynak = "Filtered"
+                    elif "Late" in notu:
+                        _s_kaynak = "Late"
+                    else:
+                        _s_kaynak = "HTF"
                     rapor.satirlar.append(RadarSatiri(
                         symbol=sym, interval=tf, fiyat=ks.fiyat,
                         kategori=kategori,
@@ -286,7 +311,7 @@ def radar_tara(semboller: list[str] | None = None,
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
                         not_=notu, taraf="Short", stop=ks.fitil_seviye,
-                        pattern=ks.harmonik_isim))
+                        pattern=_s_pat, kaynak=_s_kaynak))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")
     return rapor

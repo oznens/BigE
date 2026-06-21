@@ -61,6 +61,7 @@ class Kayit:
     durum: str = "Aday"      # Aday / Açık / TP / STOP / Expired / Manuel
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
+    kaynak: str = "Scanner"  # Scanner / Harmonic / Filtered / Late / HTF
 
     @property
     def aktif(self) -> bool:
@@ -99,7 +100,8 @@ class Defter:
             interval=satir.interval, taraf=taraf, kalite=satir.kalite,
             guven=satir.guven, giris=round(float(satir.giris), 6),
             stop=round(float(stop), 6), hedef=round(float(satir.hedef), 6),
-            rr=round(float(satir.rr), 2), pattern=getattr(satir, "pattern", None))
+            rr=round(float(satir.rr), 2), pattern=getattr(satir, "pattern", None),
+            kaynak=getattr(satir, "kaynak", "Scanner"))
         self.kayitlar.append(k)
         return k
 
@@ -127,14 +129,28 @@ class Defter:
     def ozet(self) -> dict:
         o = {"toplam": len(self.kayitlar), "aktif": 0, "Aday": 0, "Açık": 0,
              "TP": 0, "STOP": 0, "Expired": 0, "Manuel": 0}
+        buckets: dict[str, dict] = {
+            "Scanner":  {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Harmonic": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Filtered": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Late":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+        }
         for k in self.kayitlar:
             o[k.durum] = o.get(k.durum, 0) + 1
             if k.aktif:
                 o["aktif"] += 1
+            b = getattr(k, "kaynak", "Scanner")
+            if b in buckets and k.durum in ("TP", "STOP"):
+                buckets[b]["tp" if k.durum == "TP" else "stop"] += 1
         bitti = o["TP"] + o["STOP"]
         o["wr"] = round(100 * o["TP"] / bitti, 1) if bitti else 0.0
         o["toplam_r"] = round(sum(k.r_sonuc for k in self.kayitlar
                                   if not k.aktif), 2)
+        for b, bkt in buckets.items():
+            done = bkt["tp"] + bkt["stop"]
+            bkt["toplam"] = done
+            bkt["wr"] = round(100 * bkt["tp"] / done, 1) if done else 0.0
+        o["buckets"] = buckets
         return o
 
     # --- kalıcılık ---
@@ -177,6 +193,7 @@ class DonguSonuc:
     portfoy_wr: float
     portfoy_aktif: int
     metin: str = ""
+    rapor: object = None   # RadarRapor — CANLI ADAY AKIŞI için
 
 
 class Gozlemci:
@@ -234,7 +251,7 @@ class Gozlemci:
             tarama=len(rapor.satirlar), radar_ozet=rapor.ozet,
             eklenen=eklenen, degisenler=degisenler, defter_ozet=d_ozet,
             portfoy_r=self.portfoy.toplam_r, portfoy_wr=self.portfoy.win_rate,
-            portfoy_aktif=len(self.portfoy.aktif))
+            portfoy_aktif=len(self.portfoy.aktif), rapor=rapor)
         sonuc.metin = self._metin(sonuc, rapor)
         return sonuc
 
