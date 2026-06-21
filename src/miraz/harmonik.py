@@ -408,8 +408,37 @@ def olusan_harmonik(df, pivotlar: list, son_n_pivot: int = 12
         # PRZ darlığı filtresi: iki projeksiyon %8'den fazla ayrışmasın
         if oh.D and (oh.prz_ust - oh.prz_alt) / abs(oh.D) > 0.08:
             continue
+        # Geçerlilik: C'den sonraki fiyat yapıyı bozmamış / PRZ'ye girmemiş olmalı
+        if not _olusan_gecerli(df, oh):
+            continue
         adaylar.append(oh)
     if not adaylar:
         return None
     # En yeni C'ye sahip (en güncel) olanı seç
     return max(adaylar, key=lambda o: o.C_idx)
+
+
+def _olusan_gecerli(df, oh) -> bool:
+    """C'den bugüne fiyat, oluşan harmoniği bozmuş veya PRZ'yi yutmuş mu?
+
+    - Bullish: C sonrası fiyat A'yı (pattern tepesi) aşmamalı; ayrıca PRZ'ye
+      (aşağıdaki D bölgesi) henüz girmemiş olmalı (girmişse D oluşmuş, 'forming' değil).
+    - Bearish: simetrik (A pattern dibi; yukarıdaki PRZ girilmemeli).
+    """
+    sonrasi = df.iloc[oh.C_idx + 1:]
+    if len(sonrasi) == 0:
+        return True
+    yuksek = float(sonrasi["high"].max())
+    dusuk = float(sonrasi["low"].min())
+    pay = abs(oh.D) * 0.002 if oh.D else 0.0   # küçük fitil toleransı
+    if oh.yon == "Bullish":
+        if yuksek > oh.A + pay:            # yapı bozuldu (A aşıldı)
+            return False
+        if dusuk <= oh.prz_ust + pay:      # D bölgesine zaten girilmiş
+            return False
+    else:  # Bearish
+        if dusuk < oh.A - pay:
+            return False
+        if yuksek >= oh.prz_alt - pay:
+            return False
+    return True

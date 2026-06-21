@@ -157,7 +157,7 @@ def _olusan_harmonik_ciz(ax, df, oh, ofset, x, x1, bar_w):
                            alpha=0.18, edgecolor="#f23645", linewidth=1.0,
                            zorder=3))
     ax.scatter([xD], [oh.D], s=70, color="#f23645", marker="o", zorder=6)
-    ax.annotate(f"D? ({oh.isim})\nPRZ {oh.prz_alt:,.0f}–{oh.prz_ust:,.0f}",
+    ax.annotate(f"D? ({oh.isim})\nPRZ {_tr_sayi(oh.prz_alt)}–{_tr_sayi(oh.prz_ust)}",
                 (xD, oh.D), textcoords="offset points", xytext=(6, 0),
                 ha="left", va="center", fontsize=7.5, color="#c0392b",
                 fontweight="bold", zorder=7)
