@@ -98,6 +98,20 @@ def karar_uret(senaryo, rr: float | None = None) -> KararSonuc:
         elif ik.tip == "Çift Tepe" and ik.onayli:
             guven -= 12; ger.append("Onaylı çift tepe — long aleyhine (−12)")
 
+    # Temas davranışı (bölge geçmişte tepki mi verdi, kırıldı mı?)
+    tm = getattr(senaryo, "temas", None)
+    if tm is not None and getattr(tm, "guven_etkisi", 0):
+        etki = tm.guven_etkisi
+        guven += etki
+        if tm.son_davranis == "kırılma":
+            ger.append(f"Temas: bölge son sefer kırıldı ({etki:+.0f})")
+        elif tm.toplam == 0:
+            ger.append(f"Temas: taze bölge ({etki:+.0f})")
+        else:
+            ger.append(
+                f"Temas: %{tm.tepki_orani*100:.0f} tepki, "
+                f"{tm.tepki + tm.kirilma} test ({etki:+.0f})")
+
     # RSI divergence (hoca dersi — trend yorgunluğu)
     dv = getattr(senaryo, "divergence", None)
     if dv is not None:

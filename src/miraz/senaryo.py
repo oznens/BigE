@@ -122,6 +122,7 @@ class Senaryo:
     rsi: float | None = None              # güncel RSI (hoca tarzı)
     macd_yon: str | None = None           # "AL" / "SAT" (hoca tarzı)
     olusan: object = None                 # oluşmakta olan harmonik (D projeksiyonu)
+    temas: object = None                  # destek bölgesi temas davranışı (TemasSonuc)
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -277,6 +278,12 @@ def senaryo_uret(
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
         divergence=divg, elliott=elliott, obo=obo,
         rsi=rsi_deg, macd_yon=macd_yon, olusan=olusan, metin=metin)
+
+    # Temas davranışı (destek bölgesi geçmişte tepki mi verdi, kırıldı mı?)
+    if destek_kutu is not None and bolge_alt is not None and bolge_ust is not None:
+        from .temas import temas_analizi
+        s.temas = temas_analizi(df, float(bolge_alt), float(bolge_ust))
+        s.metin = s.metin + "\n" + s.temas.metin
 
     # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
     from .karar import karar_uret

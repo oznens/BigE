@@ -39,7 +39,7 @@ Price Action + Harmonik trade terminali:
 | **Price Action Labs (backtest/win-rate)** | `lab.py` | ✅ **bu turda** |
 | TP/Giriş/Stop Lab (parametre taraması) | `lab.lab_tara` | ✅ **bu turda** |
 | **Cluster hafızası / benzerlik** | `cluster.py` | ✅ **bu turda** |
-| **Temas davranışı istatistiği** | — | ⏳ |
+| **Temas davranışı istatistiği** | `temas.py` | ✅ **bu turda** |
 | **Aktif işlem yönetimi + canlı P&L** | `portfoy.py` | ✅ **bu turda** |
 | Telegram/X otomasyon | — | ⏳ (opsiyonel) |
 
@@ -127,12 +127,29 @@ Tek pozitif beklentili küme **A·yükseliş** (+0.02R); `düşüş` ve düşük
 (C/D) kümeleri belirgin negatif (−0.55 … −1.00R). Cluster hafızası kaliteyi
 **imza düzeyinde** doğruluyor — düşüş yapısında long açma.
 
+## Bu turda eklenen: Temas Davranışı (`temas.py`)
+
+Miraz: "Bir destek ne kadar çok test edilirse o kadar zayıflar; taze ve her
+seferinde sert tepki vermiş bölge en güçlüsüdür."
+
+- `temas_analizi(df, alt, ust)` bir destek bandının geçmişini durum makinesiyle
+  olaylara böler: **tepki** (reddedip üstte kapanış) · **kırılma** (alt sınır
+  altı kapanış) · **içeride** (sürüyor).
+- Özet: tepki oranı, son davranış, **yorgunluk** (çok test = zayıflama) ve
+  güven etkisi (+12..−12). Son davranış kırılma → güçlü negatif; taze bölge →
+  hafif pozitif; yüksek tepki oranı + az test → güçlü pozitif.
+- **Senaryo + karar motoruna entegre:** `senaryo.temas` alanı, `karar.py`
+  güven skoruna katkı, senaryo metninde tek satır özet.
+
+### Canlı örnek
+BTC 4h destek bölgesi 17 kez test edilmiş (15 tepki/2 kırılma, %88) — ama çok
+yıpranmış olduğu için net güven +1; SOL bölgesi 8 olay %88 → temiz +1.
+
 ## Sıradaki adımlar (yol haritası)
 
-1. **Temas davranışı** — bölge kaç kez dokunulmuş → TP/Skip oranı.
-2. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
-3. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
-4. **Karar–cluster entegrasyonu** — `benzerlik.guven_etkisi`yi radar/karar
+1. **Evren genişletme** — 92+ parite, hisse (MEXC + ek kaynak).
+2. **Kısa pozisyon desteği** — Short sinyalleri portföye ekle (short senaryo motoru).
+3. **Karar–cluster entegrasyonu** — `benzerlik.guven_etkisi`yi radar/karar
    güvenine canlı uygula (hafıza yüklenmişse).
 
 > terminalMiraz'a evrimin ilk büyük adımı (Piyasa Radar + Elenen kategorisi)
