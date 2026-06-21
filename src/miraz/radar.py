@@ -88,7 +88,9 @@ class RadarSatiri:
     taraf: str = "Long"   # "Long" / "Short"
     stop: float | None = None
     pattern: str | None = None   # harmonik pattern adı (Gartley/Deep Crab/...)
-    kaynak: str = "Scanner"      # Scanner / Harmonic / Filtered / Late / HTF
+    # terminalMiraz Result Journal motoru: Price Action / Harmonik / Late
+    # (+ lifecycle nedeni Filtered / HTF). TradeFi (hisse) bizde yok.
+    kaynak: str = "Price Action"
 
     @property
     def _sira(self) -> tuple:
@@ -248,16 +250,16 @@ def radar_tara(semboller: list[str] | None = None,
                             s.fiyat, rp.giris, rp.hedef, "Long"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
-                    # kaynak bucket belirleme (Learning Journal için)
+                    # kaynak motoru belirleme (terminalMiraz Result Journal)
                     _pat = s.mavi_daire_isim
-                    if kategori == "Trade" and _pat:
-                        _kaynak = "Harmonic"
-                    elif kategori == "Trade":
-                        _kaynak = "Scanner"
-                    elif kategori == "Watch":
-                        _kaynak = "Filtered"
-                    elif "Late" in notu:
+                    if "Late" in notu:
                         _kaynak = "Late"
+                    elif _pat:
+                        _kaynak = "Harmonik"      # harmonik D'li setup
+                    elif kategori == "Watch":
+                        _kaynak = "Filtered"      # eleme/lifecycle nedeni
+                    elif kategori == "Trade":
+                        _kaynak = "Price Action"  # saf PA setup
                     else:
                         _kaynak = "HTF"
                     rapor.satirlar.append(RadarSatiri(
@@ -292,16 +294,16 @@ def radar_tara(semboller: list[str] | None = None,
                             ks.fiyat, s_giris, s_hedef, "Short"):
                         kategori = "Elenen"
                         notu = "Late (geç kalmış)" + (f" · {notu}" if notu else "")
-                    # kaynak bucket belirleme
+                    # kaynak motoru belirleme (short)
                     _s_pat = ks.harmonik_isim
-                    if kategori == "Trade" and _s_pat:
-                        _s_kaynak = "Harmonic"
-                    elif kategori == "Trade":
-                        _s_kaynak = "Scanner"
+                    if "Late" in notu:
+                        _s_kaynak = "Late"
+                    elif _s_pat:
+                        _s_kaynak = "Harmonik"
                     elif kategori == "Watch":
                         _s_kaynak = "Filtered"
-                    elif "Late" in notu:
-                        _s_kaynak = "Late"
+                    elif kategori == "Trade":
+                        _s_kaynak = "Price Action"
                     else:
                         _s_kaynak = "HTF"
                     rapor.satirlar.append(RadarSatiri(

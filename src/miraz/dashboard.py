@@ -53,11 +53,11 @@ _KAT_RENK = {
 }
 
 _BUCKET_RENK = {
-    "Scanner":  _C["scanner"],
-    "Harmonic": _C["harmonic"],
-    "Filtered": _C["filtered"],
-    "Late":     _C["late"],
-    "HTF":      _C["htf"],
+    "Price Action": _C["scanner"],
+    "Harmonik":     _C["harmonic"],
+    "Late":         _C["late"],
+    "Filtered":     _C["filtered"],
+    "HTF":          _C["htf"],
 }
 
 
@@ -79,14 +79,13 @@ def _fmt(v: float | None) -> str:
 # ── 4 komuta metriği ─────────────────────────────────────────────────────────
 
 def _metrik_tablosu(buckets: dict) -> Table:
-    """4 bucket'ı (Scanner/Filtered/Harmonic/Late) yan yana gösterir."""
+    """Strateji motoru bucket'ları (Price Action/Harmonik/Late) yan yana."""
     t = Table.grid(expand=True, padding=(0, 1))
-    for _ in range(4):
+    for _ in range(3):
         t.add_column(ratio=1)
 
-    siralama = [("SCANNER RESULT", "Scanner"),
-                ("FILTERED RESULT", "Filtered"),
-                ("HARMONIK RESULT", "Harmonic"),
+    siralama = [("PRICE ACTION RESULT", "Price Action"),
+                ("HARMONİK RESULT", "Harmonik"),
                 ("LATE RESULT", "Late")]
 
     panels = []
@@ -113,7 +112,7 @@ def _kart_metni(satir) -> Text:
     yon_renk = _C["short"] if short else _C["long"]
     yon_ok = "▼" if short else "▲"
     kat_renk = _KAT_RENK.get(satir.kategori, "white")
-    kaynak = getattr(satir, "kaynak", "Scanner")
+    kaynak = getattr(satir, "kaynak", "Price Action")
     b_renk = _BUCKET_RENK.get(kaynak, "white")
 
     t = Text()
@@ -174,8 +173,9 @@ def _bildirimler(portfoy, defter=None) -> list[Panel]:
     """Kapanan kayıtları (Defter'den) veya portföy pozisyonlarını gösterir."""
     panels = []
     durum_renk = {
-        "TP": "green", "STOP": "red",
-        "Expired": "yellow", "Manuel": "bright_black",
+        "TP": "green", "STOP": "red", "Expired": "yellow",
+        "No-Entry": "bright_black", "Cancelled": "magenta",
+        "Shelved": "blue", "Manuel": "bright_black",
     }
 
     if defter is not None:
@@ -186,7 +186,7 @@ def _bildirimler(portfoy, defter=None) -> list[Panel]:
             durum_txt = (f"{k.durum} {k.r_sonuc:+.1f}R"
                          if k.durum in ("TP", "STOP") else k.durum.upper())
             pat = k.pattern or ""
-            kaynak = getattr(k, "kaynak", "Scanner")
+            kaynak = getattr(k, "kaynak", "Price Action")
             kaynak_pat = (f"{kaynak} | {pat} | {k.taraf}" if pat
                           else f"{kaynak} | {k.taraf}")
             panels.append(_bildirim_satiri(
@@ -218,6 +218,90 @@ def _bildirimler(portfoy, defter=None) -> list[Panel]:
     return panels
 
 
+# ── execution durum çubuğu + metrikler (TERMINALMIRAZ PRO) ──────────────────
+
+def _durum_cubugu(defter, portfoy) -> Text:
+    """Üst durum rozetleri: Kiraz / SQL Memory / Order Engine (PRO başlığı)."""
+    t = Text()
+    t.append(" ● Testnet ", style="black on green")
+    t.append("  ● Kiraz Online ", style="black on cyan")
+    t.append("  ● SQL Memory Online ", style="black on blue")
+    if portfoy is not None:
+        t.append("  ● Order Engine Ready ", style="black on green")
+    return t
+
+
+def _execution_metrikleri(defter, portfoy) -> Table:
+    """Account Equity / Aktif Pozisyon / Bekleyen Emir / Günlük PNL satırı."""
+    t = Table.grid(expand=True, padding=(0, 1))
+    for _ in range(4):
+        t.add_column(ratio=1)
+
+    if portfoy is not None:
+        toplam_r = getattr(portfoy, "toplam_r", 0.0) or 0.0
+        r_dolar = getattr(portfoy, "r_dolar", 25.0) or 25.0
+        poz = getattr(portfoy, "pozisyonlar", [])
+        aktif = [p for p in poz if p.durum == "Açık"]
+        bekleyen = [p for p in poz if p.durum == "Bekliyor"]
+        equity = 5000.0 + toplam_r * r_dolar       # test bakiyesi (R=25$)
+        pnl_renk = "green" if toplam_r >= 0 else "red"
+        metr = [
+            ("ACCOUNT EQUITY", f"{equity:,.0f}", "Test USDT", "cyan"),
+            ("ACTIVE POSITIONS", str(len(aktif)), "açık işlem", "green"),
+            ("PENDING ORDERS", str(len(bekleyen)), "emir bekliyor", "yellow"),
+            ("TOTAL PNL", f"{toplam_r:+.1f}R", f"R={r_dolar:.0f}$", pnl_renk),
+        ]
+    else:
+        d = defter.ozet() if defter is not None else {}
+        metr = [
+            ("ACCOUNT EQUITY", "—", "portföy yok", "bright_black"),
+            ("ACTIVE", str(d.get("aktif", 0)), "aktif kayıt", "green"),
+            ("PENDING", str(d.get("Aday", 0)), "aday", "yellow"),
+            ("TOTAL PNL", f"{d.get('toplam_r', 0.0):+.1f}R", "defter", "cyan"),
+        ]
+
+    panels = []
+    for baslik, deger, alt, renk in metr:
+        ic = Text()
+        ic.append(f"{deger}\n", style=f"bold {renk}")
+        ic.append(alt, style="bright_black")
+        panels.append(Panel(ic, title=f"[{renk}]{baslik}[/]",
+                            border_style="bright_black", padding=(0, 1)))
+    t.add_row(*panels)
+    return t
+
+
+def _lifecycle_satiri(d_ozet: dict) -> Text:
+    """RESULT JOURNAL alt satırı: Filtered/Shelved/No-Entry/Expired/Cancelled."""
+    t = Text()
+    t.append("RESULT JOURNAL  ", style="bold cyan")
+    durumlar = [
+        ("Filtered", d_ozet.get("Filtered", 0), "yellow"),
+        ("Shelved", d_ozet.get("Shelved", 0), "blue"),
+        ("No-Entry", d_ozet.get("No-Entry", 0), "bright_black"),
+        ("Expired", d_ozet.get("Expired", 0), "yellow"),
+        ("Cancelled", d_ozet.get("Cancelled", 0), "magenta"),
+    ]
+    for ad, sayi, renk in durumlar:
+        t.append(f"{ad} ", style="bright_black")
+        t.append(f"{sayi}  ", style=f"bold {renk}")
+    return t
+
+
+def _kiraz_verdict(rapor, portfoy) -> Text:
+    """Kiraz karar motoru durumu: aday varsa EXECUTION, yoksa WATCHLIST MODE."""
+    aday = rapor.ozet.get("Trade", 0)
+    t = Text()
+    t.append("KIRAZ VERDICT: ", style="bold cyan")
+    if aday > 0:
+        t.append("EXECUTION MODE", style="bold green")
+        t.append(f"  ({aday} aday işleme uygun)", style="bright_black")
+    else:
+        t.append("WATCHLIST MODE", style="bold blue")
+        t.append("  (uygun aday yok — izlemede)", style="bright_black")
+    return t
+
+
 # ── ana pano ─────────────────────────────────────────────────────────────────
 
 def pano_olustur(rapor, defter=None, portfoy=None, bilgi: str = "") -> Group:
@@ -225,15 +309,25 @@ def pano_olustur(rapor, defter=None, portfoy=None, bilgi: str = "") -> Group:
     simdi = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     ozet = rapor.ozet
 
-    # ── başlık ──
+    d_ozet_full = defter.ozet() if defter is not None else {}
+
+    # ── başlık (TERMINALMIRAZ PRO + durum çubuğu) ──
     baslik_satir = Text()
-    baslik_satir.append("TerminalMiraz", style="bold cyan")
-    baslik_satir.append("  ·  CANLI TARAMA PANELİ", style="bold white")
+    baslik_satir.append("TERMINALMIRAZ PRO", style="bold cyan")
+    baslik_satir.append("  ·  Execution & Setup Memory", style="bold white")
     baslik_satir.append(f"  {simdi}", style="bright_black")
     if bilgi:
         baslik_satir.append(f"\n{bilgi}", style="bright_black")
+    baslik_paneli = Panel(
+        Group(baslik_satir, _durum_cubugu(defter, portfoy)),
+        border_style="cyan", padding=(0, 1))
 
-    baslik_paneli = Panel(baslik_satir, border_style="cyan", padding=(0, 1))
+    # ── execution metrikleri (Equity / Pozisyon / Emir / PNL) + Kiraz ──
+    exec_panel = Panel(
+        Group(_execution_metrikleri(defter, portfoy),
+              _kiraz_verdict(rapor, portfoy)),
+        title="[bold cyan]BINANCE EXECUTION (Testnet)[/]",
+        border_style="bright_black", padding=(0, 1))
 
     # ── günlük özet şeridi ──
     ozet_txt = Text()
@@ -243,17 +337,16 @@ def pano_olustur(rapor, defter=None, portfoy=None, bilgi: str = "") -> Group:
     ozet_txt.append(f"Atla {ozet['Skip']}  ", style="bright_black")
     ozet_txt.append(f"Elenen {ozet['Elenen']}", style="red")
 
-    # ── 4 metrik kutusu ──
-    buckets = (defter.ozet().get("buckets", {}) if defter is not None
-               else {"Scanner": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-                     "Filtered": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-                     "Harmonic": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-                     "Late": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0}})
+    # ── strateji bucket'ları + RESULT JOURNAL lifecycle satırı ──
+    buckets = d_ozet_full.get("buckets") or {
+        "Price Action": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+        "Harmonik": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+        "Late": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0}}
     metrik_t = _metrik_tablosu(buckets)
 
     metrik_panel = Panel(
-        Group(ozet_txt, metrik_t),
-        title="[bold cyan]MOBIL KOMUTA METRİKLERİ[/]",
+        Group(ozet_txt, metrik_t, _lifecycle_satiri(d_ozet_full)),
+        title="[bold cyan]RESULT JOURNAL — LIVE SETUP MEMORY[/]",
         border_style="bright_black", padding=(0, 1))
 
     # ── 2 sütunlu ana gövde ──
@@ -296,7 +389,7 @@ def pano_olustur(rapor, defter=None, portfoy=None, bilgi: str = "") -> Group:
     ana_tablo.add_column(ratio=2)
     ana_tablo.add_row(sol_panel, sag_panel)
 
-    return Group(baslik_paneli, metrik_panel, ana_tablo)
+    return Group(baslik_paneli, exec_panel, metrik_panel, ana_tablo)
 
 
 def pano_yazdir(rapor, defter=None, portfoy=None, bilgi: str = "") -> None:

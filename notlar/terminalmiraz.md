@@ -421,7 +421,59 @@ python backtest/dashboard.py --durum
   "Scanner | Harmonic Gartley+ | Bullish" kart satırının birebir karşılığı.
 - **SONUÇ BİLDİRİMLERİ:** defterdeki son kapanan kayıtlar (Entry/SL/TP + `±R`
   + zaman) — terminalMiraz'ın sağ "SONUC BILDIRIMLERI" sütunu.
-- Eski `defter.json` (kaynaksız) geriye dönük uyumlu: `kaynak` yoksa Scanner.
+- Eski `defter.json` (kaynaksız) geriye dönük uyumlu: `kaynak` yoksa Price Action.
+
+## Tweet+ekran arşivi derin inceleme (Xquik, Haziran 2026)
+
+@tradermiraz + @terminalMiraz tweet'leri ve 5 terminal ekranı tek tek
+incelendi. **@terminalMiraz ayrı bir bot hesabı** (builder), kendi setup
+tweet'lerini atıyor ("terminalMiraz | SEMBOL TF" + Harmonik/PA + D bölgesi).
+Netleşen mimari aşağıya işlendi; kodu buna göre hizaladık.
+
+### İki ayrı terminal ekranı (tweet görselleri)
+
+1. **TERMINALMIRAZ PRO — Binance Execution Dashboard** (icra ekranı):
+   sol menü *Dashboard / Trade / Pozisyonlar / Geçmiş / Cüzdan / PNL / Sistem
+   Günlüğü / API / Risk*; üst durum çubuğu *Testnet Active · Binance Connected
+   · **Kiraz Online** · **SQL Memory Online***; metrik satırı *Account Equity
+   (W) · Available Balance (A) · Active Positions (P) · Pending Orders (O) ·
+   Daily PNL (D)*; *Execution Overview* (Testnet/Isolated/One-way/Order Engine
+   Ready); *Recent Execution Activity* (Entry filled→**OPEN**, Stop loss→
+   **STOP**, Manual close→**MANUAL**, Blocked→**BLOCK**); *Kiraz Execution
+   Verdict* → **WATCHLIST MODE**.
+2. **PERFORMANCE INTELLIGENCE — Live Setup Result Memory** (sonuç hafızası):
+   BUGÜN/DÜN/TÜM GEÇMİŞ WR donut'ları, **RESULT JOURNAL** bucket'ları, *Engine
+   Quality Heatmap*, *Month Result Distribution*, *TradeFi PA Performance Curve*.
+
+### Kiraz = ayrı karar/icra motoru
+
+**Miraz** setup'ı *bulur*; **Kiraz** *onaylar/risk yönetir/emir açar* (tweet:
+"Kiraz karar motoru"). Kiraz Status: WATCHLIST MODE (sadece izle) ↔ Execution
+Mode. Risk standardı **R = 25$ (last 10$)**, Binance **TestFutures** 5000$.
+
+### Gerçek RESULT JOURNAL kategorileri (ekran t3 + tweet [14])
+
+Strateji motorları (her biri ayrı WR): **Price Action · Harmonik · Late ·
+TradeFi PA · TradeFi Harmonik**. (Bizde TradeFi=hisse verisi yok → 0.)
+
+Lifecycle/eleme durumları (Setup → filtre hattı, tweet "Bu gördüğünüz ekran"):
+**Rafakalkan/Shelved · Expired · Cancelled · Late · No-Entry (Entry Olmadı)**.
+Tespit edilen her SETUP bu hattan geçer; geçenler **Kalite Motoru**'na
+(6-7 yıllık birikim) girer; setup bulununca **bildirim sesi**. Filtrelenen
+setup'lar entry'ye kadar **sürekli yeniden sınanır**; şart sağlarsa "Filtreli"
+etiketi kalkar, listeye geri döner (tweet [7] "mülakata defalarca girmek").
+
+Mayıs özeti (tweet [14]): 862 üretildi · 190 Late · 45 filtre · 18 rafa · 15
+iptal · 177 No-Entry (0:0) · +39R net. Genel: 2.678 sonuçlanan, %59.7 WR.
+
+### Koda yansıttıklarımız (bu inceleme sonrası)
+
+- **`kaynak` etiketleri gerçek isimlere çevrildi:** `Scanner` → **Price Action**;
+  `Harmonik`, `Late` korunur. Bucket WR'leri Price Action / Harmonik / Late.
+- **Lifecycle sayaçları:** `Defter.ozet()` artık No-Entry / Cancelled / Shelved /
+  Expired / Filtered'ı ayrı sayar (RESULT JOURNAL satırı).
+- **Dashboard execution başlığı:** durum çubuğu (Kiraz / SQL Memory) + Equity /
+  Aktif Pozisyon / Bekleyen Emir / Günlük PNL metrik satırı + Kiraz Verdict.
 
 ## Sıradaki adımlar (yol haritası)
 

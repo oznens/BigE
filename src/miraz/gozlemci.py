@@ -58,10 +58,13 @@ class Kayit:
     hedef: float
     rr: float
     pattern: str | None = None
-    durum: str = "Aday"      # Aday / Açık / TP / STOP / Expired / Manuel
+    # terminalMiraz lifecycle: Aday → Açık → TP/STOP/Expired/No-Entry/
+    # Cancelled/Shelved/Manuel
+    durum: str = "Aday"
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
-    kaynak: str = "Scanner"  # Scanner / Harmonic / Filtered / Late / HTF
+    # Result Journal motoru: Price Action / Harmonik / Late
+    kaynak: str = "Price Action"
 
     @property
     def aktif(self) -> bool:
@@ -101,7 +104,7 @@ class Defter:
             guven=satir.guven, giris=round(float(satir.giris), 6),
             stop=round(float(stop), 6), hedef=round(float(satir.hedef), 6),
             rr=round(float(satir.rr), 2), pattern=getattr(satir, "pattern", None),
-            kaynak=getattr(satir, "kaynak", "Scanner"))
+            kaynak=getattr(satir, "kaynak", "Price Action"))
         self.kayitlar.append(k)
         return k
 
@@ -127,19 +130,21 @@ class Defter:
     # --- istatistik ---
 
     def ozet(self) -> dict:
+        # lifecycle sayaçları (terminalMiraz Result Journal alt satırı)
         o = {"toplam": len(self.kayitlar), "aktif": 0, "Aday": 0, "Açık": 0,
-             "TP": 0, "STOP": 0, "Expired": 0, "Manuel": 0}
+             "TP": 0, "STOP": 0, "Expired": 0, "No-Entry": 0, "Cancelled": 0,
+             "Shelved": 0, "Filtered": 0, "Manuel": 0}
+        # strateji motoru bucket'ları (Result Journal üst satırı)
         buckets: dict[str, dict] = {
-            "Scanner":  {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-            "Harmonic": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-            "Filtered": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-            "Late":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Price Action": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Harmonik":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Late":         {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
         }
         for k in self.kayitlar:
             o[k.durum] = o.get(k.durum, 0) + 1
             if k.aktif:
                 o["aktif"] += 1
-            b = getattr(k, "kaynak", "Scanner")
+            b = getattr(k, "kaynak", "Price Action")
             if b in buckets and k.durum in ("TP", "STOP"):
                 buckets[b]["tp" if k.durum == "TP" else "stop"] += 1
         bitti = o["TP"] + o["STOP"]

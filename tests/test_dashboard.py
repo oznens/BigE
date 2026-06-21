@@ -32,7 +32,7 @@ class _Satir:
     taraf: str = "Long"
     stop: float = 48200.0
     pattern: str = "Gartley"
-    kaynak: str = "Harmonic"
+    kaynak: str = "Harmonik"
 
     @property
     def _sira(self):
@@ -67,19 +67,30 @@ def test_fmt_buyukluk_kademeleri():
 
 def test_pano_olustur_temel_metinler():
     rapor = _Rapor([
-        _Satir(symbol="BTCUSDT", kategori="Trade", kaynak="Harmonic"),
+        _Satir(symbol="BTCUSDT", kategori="Trade", kaynak="Harmonik"),
         _Satir(symbol="ETHUSDT", kategori="Watch", kaynak="Filtered",
                pattern=None),
     ])
     grup = db.pano_olustur(rapor, bilgi="Tarama #1")
     metin = _render(grup)
     # başlık + bucket başlıkları + semboller görünür
-    assert "TerminalMiraz" in metin
-    assert "SCANNER RESULT" in metin and "HARMONIK RESULT" in metin
-    assert "LATE RESULT" in metin and "FILTERED RESULT" in metin
+    assert "TERMINALMIRAZ PRO" in metin
+    assert "PRICE ACTION RESULT" in metin and "HARMONİK RESULT" in metin
+    assert "LATE RESULT" in metin
+    assert "RESULT JOURNAL" in metin           # lifecycle satırı
+    assert "KIRAZ VERDICT" in metin            # Kiraz karar motoru
+    assert "BINANCE EXECUTION" in metin        # execution metrikleri
     assert "BTCUSDT" in metin and "ETHUSDT" in metin
     assert "CANLI ADAY AKIŞI" in metin
     assert "SONUÇ BİLDİRİMLERİ" in metin
+
+
+def test_pano_kiraz_verdict_modlari():
+    """Aday varsa EXECUTION, yoksa WATCHLIST MODE."""
+    var = _render(db.pano_olustur(_Rapor([_Satir(kategori="Trade")])))
+    assert "EXECUTION MODE" in var
+    yok = _render(db.pano_olustur(_Rapor([_Satir(kategori="Skip")])))
+    assert "WATCHLIST MODE" in yok
 
 
 def test_pano_bucket_wr_defterden():
@@ -88,12 +99,12 @@ def test_pano_bucket_wr_defterden():
     d = Defter()
     d.kayitlar = [
         Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1.0,
-              durum="TP", r_sonuc=1.0, kaynak="Harmonic"),
+              durum="TP", r_sonuc=1.0, kaynak="Harmonik"),
         Kayit(2, "", "ETHUSDT", "1h", "Long", "B", 70, 100, 95, 110, 1.0,
-              durum="STOP", r_sonuc=-1.0, kaynak="Harmonic"),
+              durum="STOP", r_sonuc=-1.0, kaynak="Harmonik"),
     ]
     metin = _render(db.pano_olustur(rapor, defter=d))
-    # Harmonic bucket: 2 kapalı, 1 TP, 1 STOP, %50
+    # Harmonik bucket: 2 kapalı, 1 TP, 1 STOP, %50
     assert "TP 1" in metin and "STOP 1" in metin
     assert "%50" in metin
 
@@ -104,7 +115,7 @@ def test_pano_bildirimler_kapanan_kayit():
     d = Defter()
     d.kayitlar = [
         Kayit(1, "", "SOLUSDT", "4h", "Short", "A", 80, 150, 160, 140, 1.0,
-              durum="TP", r_sonuc=1.0, kaynak="Harmonic", pattern="Gartley",
+              durum="TP", r_sonuc=1.0, kaynak="Harmonik", pattern="Gartley",
               kapanis_zaman="2025-06-01T12:00:00+00:00"),
     ]
     metin = _render(db.pano_olustur(rapor, defter=d))
@@ -121,4 +132,4 @@ def test_pano_yazdir_calisir(capsys):
     """pano_yazdir konsola hatasız yazar."""
     db.pano_yazdir(_Rapor([_Satir()]), bilgi="x")
     out = capsys.readouterr().out
-    assert "TerminalMiraz" in out
+    assert "TERMINALMIRAZ PRO" in out
