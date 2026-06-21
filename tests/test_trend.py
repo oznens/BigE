@@ -136,3 +136,19 @@ def test_kirilma_riski_hacimli_geliste():
     if s.destek_kutu is not None:
         assert s.kirilma_riski, "Hacimli gelişte kırılma riski işaretlenmeli"
         assert "kırılma" in s.yon.lower() or s.kirilma_riski
+
+
+def test_iki_hoca_yorumu():
+    """Senaryo iki ayrı hoca yorumu üretebilmeli."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+    from miraz import veri, senaryo as sn
+    df = veri.indir("BTCUSDT", "4h")
+    s = sn.senaryo_uret(df, df_ust=df)
+    m = sn.miraz_yorumu("BTCUSDT", s)
+    f = sn.finansaltrader_yorumu("BTCUSDT", s)
+    assert "BTC" in m
+    assert "Günaydın" in f and ("Fib" in f or "RSI" in f)
+    assert m != f                      # iki farklı üslup
+    assert s.rsi is not None

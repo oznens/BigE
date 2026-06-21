@@ -119,6 +119,8 @@ class Senaryo:
     divergence: object = None             # RSI divergence (Divergence) — hoca tarzı
     elliott: object = None                # Elliott dalga sayımı — hoca tarzı
     obo: object = None                    # omuz-baş-omuz (OBO/TOBO) — hoca tarzı
+    rsi: float | None = None              # güncel RSI (hoca tarzı)
+    macd_yon: str | None = None           # "AL" / "SAT" (hoca tarzı)
     karar: object = None                  # Setup Intelligence kararı (KararSonuc)
     metin: str = ""               # okunabilir plan
 
@@ -235,6 +237,16 @@ def senaryo_uret(
     from .obo import obo_bul as _obo_bul
     obo = _obo_bul(df, n=n)
 
+    # İndikatör anlık görüntüsü (hoca tarzı yorum için): RSI + MACD yönü
+    from .indikator import rsi as _rsi_f, macd as _macd_f
+    try:
+        _rsi_seri = _rsi_f(df["close"])
+        rsi_deg = float(_rsi_seri.iloc[-1]) if pd.notna(_rsi_seri.iloc[-1]) else None
+        _m = _macd_f(df["close"])
+        macd_yon = "AL" if _m["macd"].iloc[-1] > _m["sinyal"].iloc[-1] else "SAT"
+    except Exception:
+        rsi_deg = macd_yon = None
+
     # Yön kararı: destek bölgesi varsa tepki beklentisi; yoksa nötr
     if destek_kutu is None:
         yon = "Nötr"
@@ -258,7 +270,8 @@ def senaryo_uret(
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,
-        divergence=divg, elliott=elliott, obo=obo, metin=metin)
+        divergence=divg, elliott=elliott, obo=obo,
+        rsi=rsi_deg, macd_yon=macd_yon, metin=metin)
 
     # Karar motoru (Setup Intelligence — Trade/Watch/Skip + kalite + güven)
     from .karar import karar_uret
@@ -459,12 +472,102 @@ def miraz_yorumu(symbol: str, s: Senaryo, vade: str = "Kısa vade") -> str:
     return "\n".join(sat)
 
 
-def yazdir(symbol: str, interval: str, s: Senaryo,
-           yorum: bool = True, vade: str = "Kısa vade") -> None:
+def finansaltrader_yorumu(symbol: str, s: Senaryo,
+                          vade: str = "Kısa vade") -> str:
+    """Senaryoyu @finansalTRader (Miraz'ın hocası) üslubunda yoruma çevirir.
+
+    Hocanın araç seti: Fibonacci Retracement (0.618 golden pocket), RSI,
+    MACD, divergence (trend yorgunluğu), Elliott dalga, OBO/TOBO.
+    """
+    coin = _COIN_AD.get(symbol, symbol.replace("USDT", ""))
+    sat = [f"Günaydın arkadaşlar.. #{coin}USD.. Güncelleme.. ({vade})", ""]
+
+    # RSI + MACD momentum okuması
+    if s.rsi is not None:
+        if s.rsi >= 70:
+            rsi_yorum = f"RSI {s.rsi:.0f} — aşırı alım, tepki/yorgunluk riski"
+        elif s.rsi <= 30:
+            rsi_yorum = f"RSI {s.rsi:.0f} — aşırı satım, tepki alınabilir"
+        elif s.rsi >= 55:
+            rsi_yorum = f"RSI {s.rsi:.0f} — momentum yukarı tarafta"
+        elif s.rsi <= 45:
+            rsi_yorum = f"RSI {s.rsi:.0f} — momentum zayıf"
+        else:
+            rsi_yorum = f"RSI {s.rsi:.0f} — nötr bölge"
+        macd_txt = (f", MACD {s.macd_yon.lower()} tarafında"
+                    if s.macd_yon else "")
+        sat.append(f"✍️ Momentum: {rsi_yorum}{macd_txt}.")
+
+    # Fibonacci Retracement — hocanın imza aracı
+    if s.fib is not None:
+        rol = "destek" if s.fib.yon == "Yükseliş" else "direnç"
+        if s.fib.fiyat_golden_icinde:
+            sat.append(
+                f"📐 Fiyat tam Fib.Retr 0,618 golden pocket "
+                f"({_tr_para(s.fib.golden_alt)}–{_tr_para(s.fib.golden_ust)}$) "
+                f"içinde — buradan {rol} tepkisi izlenir.")
+        else:
+            sat.append(
+                f"📐 Fib.Retr 0,618 bölgesi "
+                f"{_tr_para(s.fib.golden_alt)}–{_tr_para(s.fib.golden_ust)}$ "
+                f"({rol}) — fiyatın bu bölgeye tepkisi belirleyici.")
+
+    # Divergence (trend yorgunluğu)
+    if s.divergence is not None:
+        if s.divergence.tip == "Bearish":
+            sat.append(
+                "📉 Dikkat: Bearish divergence gelişiyor — trend yorgunluğu "
+                "var, bear (satış) hareketi gelebilir.")
+        else:
+            sat.append(
+                "📈 Bullish divergence gelişiyor — düşüş yoruluyor, "
+                "tepki/dönüş ihtimali artıyor.")
+    else:
+        sat.append("• Henüz belirgin bir divergence (trend yorgunluğu) yok.")
+
+    # Market yapısı
+    if s.market_yapisi is not None:
+        my = s.market_yapisi
+        if my.durum == "yükseliş":
+            sat.append("✅ Market yapısı yukarı (HH+HL) — yapı sağlam.")
+        elif my.durum == "düşüş":
+            sat.append("⚠️ Market yapısı aşağı (LH+LL) — tepkiler satış fırsatı.")
+        elif my.kirilim and "aşağı" in my.kirilim:
+            sat.append("⚠️ Market yapısı kırılımla aşağı döndü (CHoCH).")
+
+    # Elliott
+    if s.elliott is not None:
+        sat.append(f"🌊 {s.elliott.aciklama}")
+
+    # OBO/TOBO
+    if s.obo is not None:
+        sat.append(f"👤 {s.obo.tip} yapısı: {s.obo.aciklama}")
+
+    # Hedef özet (Fib + kutu)
+    if s.hedef_kutu is not None:
+        sat.append(
+            f"🎯 Yukarıda {_tr_para(s.hedef_kutu.alt)}–"
+            f"{_tr_para(s.hedef_kutu.ust)}$ direnci hedef/referans.")
+
+    return "\n".join(sat)
+
+
+def yazdir(symbol: str, interval: str, s: Senaryo, yorum: bool = True,
+           vade: str = "Kısa vade", hoca: str = "her ikisi") -> None:
+    """Senaryo planını ve seçili yorum(lar)ı yazdırır.
+
+    hoca: "miraz" / "finansaltrader" / "her ikisi" (iki ayrı yorum).
+    """
     print(f"\n{'='*64}\n{symbol} / {interval} — Senaryo Planı\n{'='*64}")
     print(s.metin)
     print("=" * 64)
-    if yorum:
-        print("\n--- @tradermiraz tarzı yorum ---\n")
+    if not yorum:
+        return
+    if hoca in ("miraz", "her ikisi"):
+        print("\n--- @tradermiraz tarzı yorum (saf Price Action) ---\n")
         print(miraz_yorumu(symbol, s, vade=vade))
+        print()
+    if hoca in ("finansaltrader", "her ikisi"):
+        print("\n--- @finansalTRader tarzı yorum (Fib + RSI + indikatör) ---\n")
+        print(finansaltrader_yorumu(symbol, s, vade=vade))
         print()

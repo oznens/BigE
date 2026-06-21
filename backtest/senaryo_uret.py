@@ -25,6 +25,9 @@ def main() -> None:
     ap.add_argument("--min-guc", type=float, default=50.0)
     ap.add_argument("--vade", default="Kısa vade",
                     help="Yorumda kullanılacak vade (ör. 'Orta vade')")
+    ap.add_argument("--hoca", default="her ikisi",
+                    choices=["miraz", "finansaltrader", "her ikisi"],
+                    help="Hangi yorum: miraz / finansaltrader / her ikisi")
     ap.add_argument("--grafik", action="store_true",
                     help="Senaryoyu PNG grafiğe de çiz")
     ap.add_argument("--son-n", type=int, default=260,
@@ -57,7 +60,7 @@ def main() -> None:
             s = sn.senaryo_uret(df, n=args.pivot_n, tolerans=args.tolerans,
                                 min_guc=args.min_guc, df_ust=df_ust, gguc=gguc,
                                 r_dolar=args.r)
-            sn.yazdir(sembol, tf, s, vade=args.vade)
+            sn.yazdir(sembol, tf, s, vade=args.vade, hoca=args.hoca)
 
             if args.r > 0 and args.kademe > 0:
                 from miraz.risk import kademeli_plan
