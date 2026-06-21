@@ -241,6 +241,60 @@ def _stop_zaten_vuruldu(df, stop, taraf: str, bar: int = 40) -> bool:
     return float(son["low"].min()) <= stop
 
 
+# Konsept confluence puanları (teyit/çelişki için taban ağırlık; guç ile ölçeklenir)
+KONSEPT_PUAN = {"Reservoir": 6, "Shear": 6, "Strike": 5, "Root": 5, "Shade": 5,
+                "Torque": 5, "Cavity": 4, "Drift": 4, "Ladder": 4, "Buffer": 3}
+KONSEPT_TAVAN = 18.0   # net konsept etkisinin ± sınırı (güçlü mod)
+
+
+def _konsept_etki(kons_sinyal: dict, yon: str) -> tuple[float, str | None]:
+    """Konsept teyidi/çelişkisinden net güven etkisi (±KONSEPT_TAVAN).
+
+    Setupla aynı yöndeki konseptler güveni artırır (confluence), ters yöndeki
+    güçlü konsept düşürür. Katkı = taban_puan × (konsept gücü/100). Nötr katkısız.
+    """
+    ters = "Short" if yon == "Long" else "Long"
+    etki = 0.0
+    teyit, celiski = [], []
+    for isim, s in (kons_sinyal or {}).items():
+        puan = KONSEPT_PUAN.get(isim, 3) * (getattr(s, "guc", 0) / 100.0)
+        if s.yon == yon:
+            etki += puan
+            teyit.append(isim)
+        elif s.yon == ters:
+            etki -= puan
+            celiski.append(isim)
+    etki = max(-KONSEPT_TAVAN, min(KONSEPT_TAVAN, etki))
+    if not (teyit or celiski):
+        return 0.0, None
+    parcalar = []
+    if teyit:
+        parcalar.append("teyit " + "+".join(teyit))
+    if celiski:
+        parcalar.append("çelişki " + "+".join(celiski))
+    return round(etki, 1), f"Konsept {', '.join(parcalar)} ({etki:+.0f})"
+
+
+def _konsept_skor_uygula(karar_obj, etki: float, trade_engeli: bool = False) -> None:
+    """Temel karara konsept etkisini ekler; karar/kalite/güveni yeniden türetir.
+
+    Eşikler karar motoruyla aynı: Trade ≥70, Watch ≥50, aksi Skip. trade_engeli
+    (ör. hacimli kırılma riski) varken konsept güveni Trade'e terfi ettirmez.
+    """
+    from .karar import _kalite
+    if not etki or karar_obj is None:
+        return
+    g = max(0.0, min(100.0, getattr(karar_obj, "guven", 0.0) + etki))
+    karar_obj.guven = round(g, 1)
+    karar_obj.kalite = _kalite(g)
+    if g >= 70 and not trade_engeli:
+        karar_obj.karar = "Trade"
+    elif g >= 50:
+        karar_obj.karar = "Watch"
+    else:
+        karar_obj.karar = "Skip"
+
+
 def radar_tara(semboller: list[str] | None = None,
                intervallar: list[str] | None = None,
                r_dolar: float = 25.0, gun: int = 400,
@@ -304,10 +358,17 @@ def radar_tara(semboller: list[str] | None = None,
                     s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
                                         r_dolar=r_dolar,
                                         cluster_hafiza=cluster_hafiza)
-                    kategori, notu = _kategori_belirle(s)
                     from .risk import risk_plani
                     rp = (risk_plani(s, r_dolar=r_dolar, rr_hedef=rr_hedef)
                           if s.destek_kutu else None)
+                    # Konsept confluence: teyit/çelişki güveni ±18 oynatır,
+                    # Watch↔Trade eşiğini gerçekten değiştirebilir
+                    k_etki, k_metin = _konsept_etki(kons_sinyal, "Long")
+                    _konsept_skor_uygula(s.karar, k_etki,
+                                         trade_engeli=bool(s.kirilma_riski))
+                    kategori, notu = _kategori_belirle(s)
+                    if k_metin:
+                        notu = (notu + " · " if notu else "") + k_metin
                     # Stop çiğnenmiş: stop bölgesi yakın geçmişte zaten delinmiş
                     # → setup geçersiz (girilmiş olsa çoktan stop olurdu)
                     if rp and kategori in ("Trade", "Watch") and \
@@ -356,7 +417,12 @@ def radar_tara(semboller: list[str] | None = None,
                     from .kisa import kisa_senaryo
                     from .risk import mesafe_hedef
                     ks = kisa_senaryo(df, df_ust=df_ust)
+                    # Konsept confluence (short): teyit/çelişki güveni ±18 oynatır
+                    k_etki, k_metin = _konsept_etki(kons_sinyal, "Short")
+                    _konsept_skor_uygula(ks.karar, k_etki)
                     kategori, notu = _short_kategori(ks)
+                    if k_metin:
+                        notu = (notu + " · " if notu else "") + k_metin
                     # terminalMiraz tarzı short TP: girişe stop mesafesi kadar (1R)
                     # giriş = harmonik D varsa orası (kisa_senaryo çözdü), yoksa bölge altı
                     s_giris = ks.giris

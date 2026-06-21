@@ -188,6 +188,56 @@ def test_stop_zaten_vuruldu():
     assert _stop_zaten_vuruldu(df3, None, "Long") is False
 
 
+# ---- Konsept confluence skoru ----
+
+class _KS:
+    def __init__(self, yon, guc):
+        self.yon = yon
+        self.guc = guc
+
+
+def test_konsept_etki_teyit_celiski():
+    from miraz.radar import _konsept_etki, KONSEPT_TAVAN
+    # 2 teyit (Long) - 1 çelişki (Short) → net pozitif ama ölçülü
+    ks = {"Root": _KS("Long", 80), "Cavity": _KS("Long", 70),
+          "Shade": _KS("Short", 75)}
+    etki, metin = _konsept_etki(ks, "Long")
+    assert etki > 0 and "teyit" in metin and "çelişki" in metin
+    # ters yön için aynı sinyaller net negatif
+    etki_s, _ = _konsept_etki(ks, "Short")
+    assert etki_s < 0
+    # çok sayıda güçlü teyit tavanı aşmaz
+    cok = {k: _KS("Long", 100) for k in
+           ("Reservoir", "Shear", "Strike", "Root", "Torque", "Cavity")}
+    etki_cok, _ = _konsept_etki(cok, "Long")
+    assert etki_cok == KONSEPT_TAVAN
+
+
+def test_konsept_etki_bossa_sifir():
+    from miraz.radar import _konsept_etki
+    assert _konsept_etki({}, "Long") == (0.0, None)
+    # sadece Nötr → etki yok
+    assert _konsept_etki({"Buffer": _KS("Nötr", 90)}, "Long") == (0.0, None)
+
+
+def test_konsept_skor_watch_trade_terfi():
+    from miraz.radar import _konsept_skor_uygula
+
+    class K:
+        karar = "Watch"; kalite = "C"; guven = 60.0
+    k = K()
+    _konsept_skor_uygula(k, 15.0)            # 60+15=75 ≥70 → Trade
+    assert k.karar == "Trade" and k.guven == 75.0
+    # trade_engeli (hacim riski) varken terfi olmaz
+    k2 = K(); k2.guven = 60.0; k2.karar = "Watch"
+    _konsept_skor_uygula(k2, 15.0, trade_engeli=True)
+    assert k2.karar == "Watch"               # ≥70 ama engelli → Watch kalır
+    # negatif etki Trade'i Watch'a düşürür
+    k3 = K(); k3.guven = 72.0; k3.karar = "Trade"
+    _konsept_skor_uygula(k3, -18.0)          # 54 → Watch
+    assert k3.karar == "Watch"
+
+
 # ---- PaMonic notu ----
 
 def test_pamonic_notu():
