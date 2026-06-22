@@ -6,8 +6,10 @@ name: Sürekli Tarama (Pages)
 
 on:
   schedule:
-    - cron: "*/30 * * * *"      # her 30 dk (UTC)
+    - cron: "*/30 * * * *"      # her 30 dk (UTC) — GitHub best-effort, gecikebilir
   workflow_dispatch:            # elle de tetiklenebilir
+  repository_dispatch:          # harici pinger (cron-job.org vb.) → GARANTİ tetik
+    types: [tarama]
   push:                         # default branch'e her push → taze tarama + deploy
     branches: ["claude/inspiring-brown-FdsNk"]
     paths-ignore: ["site/**", "data/**"]
