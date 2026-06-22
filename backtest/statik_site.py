@@ -21,20 +21,52 @@ import argparse
 import json
 import shutil
 import sys
+import urllib.request
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(KOK / "src"))
 
-from miraz.gozlemci import Gozlemci                     # noqa: E402
+from miraz.gozlemci import Gozlemci, Defter             # noqa: E402
+from miraz.portfoy import Portfoy                       # noqa: E402
 from miraz.radar import (CEKIRDEK_EVREN, GENIS_EVREN,   # noqa: E402
                          TERMINALMIRAZ_TF)
 from miraz.sunucu import durum_json, grafik_veri, WEB_DIZIN  # noqa: E402
+
+# Konteyner her run'da sıfırlandığı için defter/portföy hafızasını canlı
+# Pages'ten indirip taşırız (round-trip kalıcılık, git/secret gerektirmez).
+PAGES_URL = "https://oznens.github.io/BigE"
 
 
 def _yaz_json(yol: Path, veri: dict) -> None:
     yol.parent.mkdir(parents=True, exist_ok=True)
     yol.write_text(json.dumps(veri, ensure_ascii=False), encoding="utf-8")
+
+
+def _onceki_state(cikti: Path, onceki_url: str | None) -> tuple[Defter, Portfoy]:
+    """Önceki tarama hafızasını (defter+portföy) yükler.
+
+    GitHub Actions konteynerı her run'da temiz başladığı için, bir önceki
+    snapshot'ın yayınladığı defter.json/portfoy.json'u canlı Pages'ten indirir;
+    yoksa (ilk run) boş başlar. Böylece setuplar ve lifecycle taramalar arası
+    korunur — eski setuplar her turda taze veriyle TP/STOP/Expired'a ilerler.
+    """
+    d_yol = cikti / "defter.json"
+    p_yol = cikti / "portfoy.json"
+    if onceki_url:
+        taban = onceki_url.rstrip("/")
+        for ad, yol in (("defter.json", d_yol), ("portfoy.json", p_yol)):
+            try:
+                with urllib.request.urlopen(f"{taban}/{ad}", timeout=15) as r:
+                    yol.write_bytes(r.read())
+            except Exception:                       # ilk run / 404 / ağ → boş başla
+                pass
+    defter = Defter.yukle(d_yol) if d_yol.exists() else Defter()
+    try:
+        portfoy = Portfoy.yukle(p_yol) if p_yol.exists() else Portfoy()
+    except Exception:
+        portfoy = Portfoy()
+    return defter, portfoy
 
 
 def _grafik_hedefleri(durum: dict) -> list[tuple[str, str]]:
@@ -53,12 +85,20 @@ def _grafik_hedefleri(durum: dict) -> list[tuple[str, str]]:
 
 
 def uret(cikti: Path, semboller: list[str], intervallar: list[str],
-         taraf: str, max_bar: int, aralik: int, gun: int) -> None:
+         taraf: str, max_bar: int, aralik: int, gun: int,
+         onceki_url: str | None = PAGES_URL) -> None:
     cikti.mkdir(parents=True, exist_ok=True)
+
+    # 0) Önceki tarama hafızasını taşı (defter + portföy) — taramalar arası
+    #    setupların ve lifecycle'ın korunması için (konteyner her run'da temiz)
+    defter, portfoy = _onceki_state(cikti, onceki_url)
+    print(f"📓 Önceki hafıza: {len(defter.kayitlar)} kayıt · "
+          f"{len(portfoy.pozisyonlar)} pozisyon")
 
     # 1) Tek tur tarama (sunucunun _bir_tarama'sının statik karşılığı)
     goz = Gozlemci(semboller=semboller, intervallar=intervallar, taraf=taraf,
-                   goreceli=False, gun=gun, max_bar=max_bar)
+                   goreceli=False, gun=gun, max_bar=max_bar,
+                   defter=defter, portfoy=portfoy)
     print(f"⏳ Tarama: {len(semboller)} parite × {len(intervallar)} TF "
           f"({' '.join(intervallar)}) · {taraf}")
     sonuc = goz.dongu()
@@ -70,6 +110,11 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
                                    # dek "tarama bekleniyor" gösterir
     _yaz_json(cikti / "durum.json", durum)
     print(f"✅ durum.json — {durum['ozet']}")
+
+    # 1b) Güncel hafızayı yayınla → bir sonraki run bunu indirip sürdürür
+    goz.defter.kaydet(cikti / "defter.json")
+    goz.portfoy.kaydet(cikti / "portfoy.json")
+    print(f"✅ defter.json + portfoy.json — {len(goz.defter.kayitlar)} kayıt taşındı")
 
     # 2) Her tıklanabilir sembol/TF için grafik verisi
     grafik_dizin = cikti / "grafik"
@@ -107,12 +152,15 @@ def main() -> None:
     ap.add_argument("--max-bar", type=int, default=900)
     ap.add_argument("--gun", type=int, default=120)
     ap.add_argument("--aralik", type=int, default=1800, help="snapshot tarama aralığı (sn)")
+    ap.add_argument("--onceki-url", default=PAGES_URL,
+                    help="önceki hafızanın indirileceği canlı Pages tabanı "
+                         "(boş verilirse hafıza taşınmaz, sıfırdan başlar)")
     args = ap.parse_args()
 
     semboller = GENIS_EVREN if args.genis else CEKIRDEK_EVREN
     intervallar = TERMINALMIRAZ_TF if args.mtf else args.tf
     uret(Path(args.cikti), semboller, intervallar, args.taraf,
-         args.max_bar, args.aralik, args.gun)
+         args.max_bar, args.aralik, args.gun, onceki_url=args.onceki_url or None)
 
 
 if __name__ == "__main__":
