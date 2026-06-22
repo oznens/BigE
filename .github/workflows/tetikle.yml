@@ -1,0 +1,25 @@
+name: Tarama Tetikleyici (Heartbeat)
+
+# Hafif heartbeat: sadece repository_dispatch gönderir, taramayı tetikler.
+# Cron atlarsa tarama.yml'nin kendi cron'u devreye girer (çift güvence).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # her 15 dk — GitHub best-effort ama tarama.yml çift güvence
+
+permissions:
+  contents: none
+
+jobs:
+  tetikle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tarama workflow'unu tetikle
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.PAT_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/oznens/BigE/dispatches \
+            -d '{"event_type":"tarama"}'
