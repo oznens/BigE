@@ -9,22 +9,32 @@ veriler).
 
 | Dosya | Açıklama |
 |-------|----------|
-| `tweetler.json` | Tüm tweet objeleri: metin, tarih, etkileşim (like/RT/view), medya URL'leri, yanıt/alıntı bilgisi |
+| `tweetler.json` | Tüm tweet objeleri (tarihe göre yeni→eski): metin, tarih, etkileşim, medya URL'leri, yanıt/alıntı bilgisi |
 | `tweet_gorsel.json` | tweetId → indirilen görsel dosya adları eşlemesi |
 | `gorseller/` | Chart görselleri (pbs.twimg.com CDN'den, orijinal kalite) |
 
-## Mevcut kapsam (1. parti)
+## Kapsam
 
-- **833 tweet** · **753 medyalı** · **1437 benzersiz chart**
-- Tarih aralığı: **2025-12-07 → 2026-06-22** (en güncel ~6.5 ay)
+- **5.054 tweet** · **4.045 medyalı** · **7.731 chart görseli**
+- Tarih aralığı: **2021-06-19 → 2026-06-22** (~5 yıl)
 
-> Not: X kullanıcı-zaman-tüneli endpoint'i ~833 tweette pencereleniyor. Daha eski
-> geçmiş (2019'a kadar, toplam ~7.849 tweet / ~4.989 medya) tarih-pencereli
-> arama extraction'ı ile ayrıca eklenecek.
+> Not: X arama indeksi bu hesap için ~2021-06'dan eskisini döndürmüyor; hesabın
+> 2019-2021 arası en eski tweetleri X tarafında erişime kapalı. Elde edilebilir
+> tüm geçmiş çekildi.
+
+İki kaynaktan birleştirildi (id'ye göre tekilleştirildi):
+- En güncel ~6.5 ay: kullanıcı zaman-tüneli endpoint'i (metin+medya tek geçişte)
+- 2021-06 → 2025-12: tarih-pencereli arama extraction'ı + batch tweet lookup ile medya
 
 ## tweetler.json şeması (tweet başına ana alanlar)
 
 - `id`, `text`, `createdAt`, `lang`, `url`
 - `media[]`: `{ media_url_https, type: photo|video, url }`
 - `likeCount`, `retweetCount`, `replyCount`, `quoteCount`, `viewCount`, `bookmarkCount`
-- `isReply`, `isQuoteStatus`, `conversationId`, `quoted_tweet`
+- `isReply`, `inReplyToUsername`, `isQuoteStatus`, `conversationId`, `quoted_tweet`
+
+## Kullanım fikri
+
+`tweetler.json` + `gorseller/` ile @tradermiraz'ın setup mantığı (harmonik PRZ,
+PA konseptleri, çift tepe/OBO, golden pocket vb.) örnek chart'lar üzerinden
+incelenebilir; terminalMiraz panelimizin kararlarıyla karşılaştırılabilir.
