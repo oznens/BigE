@@ -6,6 +6,7 @@ name: Tarama Tetikleyici (Heartbeat)
 on:
   schedule:
     - cron: "*/15 * * * *"   # her 15 dk — GitHub best-effort ama tarama.yml çift güvence
+  workflow_dispatch:         # elle test/tetikleme (Actions → Run workflow)
 
 permissions:
   contents: none
