@@ -33,6 +33,7 @@ from .portfoy import Portfoy
 from . import veri
 from . import indikator
 from . import konsept as kons
+from . import yorum
 
 WEB_DIZIN = Path(__file__).resolve().parent / "web"
 
@@ -46,14 +47,24 @@ def _simdi_iso() -> str:
 # ---------------------------------------------------------------------------
 
 def _satir_json(s) -> dict:
-    return {
+    konseptler = getattr(s, "konseptler", None) or []
+    d = {
         "symbol": s.symbol, "interval": s.interval, "fiyat": s.fiyat,
         "kategori": s.kategori, "kalite": s.kalite, "guven": s.guven,
         "taraf": s.taraf, "kaynak": getattr(s, "kaynak", "Price Action"),
         "pattern": getattr(s, "pattern", None), "giris": s.giris,
         "stop": s.stop, "hedef": s.hedef, "rr": s.rr, "not_": s.not_,
-        "konseptler": getattr(s, "konseptler", None) or [],
+        "konseptler": konseptler,
     }
+    # @tradermiraz tarzı plan yorumu (her setup kartında gösterilir)
+    try:
+        d["miraz_yorum"] = yorum.miraz_yorum(
+            s.symbol, s.interval, s.taraf, giris=s.giris, stop=s.stop,
+            hedef=s.hedef, rr=s.rr, pattern=getattr(s, "pattern", None),
+            konseptler=konseptler, kategori=s.kategori, guven=s.guven)
+    except Exception:
+        d["miraz_yorum"] = None
+    return d
 
 
 def _kiraz_status(rapor) -> tuple[str, str]:
@@ -299,6 +310,19 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
     except Exception:
         pass
 
+    # @tradermiraz tarzı plan yorumu (seçili setup için)
+    m_yorum = None
+    if seviye.get("taraf"):
+        try:
+            m_yorum = yorum.miraz_yorum(
+                symbol, interval, seviye.get("taraf"),
+                giris=seviye.get("giris"), stop=seviye.get("stop"),
+                hedef=seviye.get("hedef"), rr=seviye.get("rr"),
+                pattern=seviye.get("pattern"), konseptler=konseptler,
+                kategori=seviye.get("kategori", "Watch"))
+        except Exception:
+            m_yorum = None
+
     return {
         "symbol": symbol, "interval": interval,
         "mumlar": mumlar,
@@ -307,6 +331,7 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
         "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust},
         "harmonik": harmonik,
         "konseptler": konseptler,
+        "miraz_yorum": m_yorum,
     }
 
 

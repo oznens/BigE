@@ -104,6 +104,16 @@
   .grafikwrap{display:flex;gap:12px}
   .konseptray{flex:0 0 128px;display:flex;flex-direction:column;gap:4px}
   .grafikalan{flex:1;min-width:0}
+  .mirazyorum{margin-top:12px;padding:12px 14px;border-radius:10px;
+    background:rgba(155,123,212,.08);border:1px solid rgba(155,123,212,.28);
+    font-size:13px;line-height:1.5}
+  .mirazyorum .my-bas{font-weight:700;font-size:14px;margin-bottom:6px;color:var(--mor)}
+  .mirazyorum .my-rozet{font-size:10px;font-weight:600;color:var(--mor);
+    border:1px solid var(--mor);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .mirazyorum .my-ozet{margin-bottom:8px}
+  .mirazyorum .my-satir{margin:3px 0;color:var(--ana,#e6e6e6)}
+  .mirazyorum .my-mantra{margin-top:8px;font-style:italic;color:var(--soluk)}
+  .mirazyorum b{color:#fff}
   .konseptbtn{display:flex;justify-content:space-between;align-items:center;
     background:var(--panel2);border:1px solid var(--kenar);border-radius:6px;
     padding:6px 9px;font-size:12px;color:var(--soluk);cursor:pointer;
@@ -166,6 +176,7 @@
           <div id="grafikbos" class="bos">bir aday kartına tıkla → grafiği yüklensin</div>
         </div>
       </div>
+      <div id="mirazyorum" class="mirazyorum gizli"></div>
     </div>
     <div class="grid g2">
       <div class="panel">
@@ -626,8 +637,23 @@ async function grafikYukle(sym, ivl){
     const pat=[sv.kaynak,sv.pattern,sv.taraf].filter(Boolean).join(" · ");
     $("#grafikbaslik").textContent = `· ${sym} ${ivl}${pat?"  ("+pat+")":""}`;
     cizGrafik(d);
+    mirazYorumGoster(d.miraz_yorum);
   }catch(e){ $("#grafikbaslik").textContent = "· grafik yüklenemedi"; }
 }
+
+// @tradermiraz tarzı plan yorumu kutusu
+function mirazYorumGoster(y){
+  const el = $("#mirazyorum");
+  if(!y || !y.metin){ el.classList.add("gizli"); return; }
+  const govde = (y.govde||[]).map(p=>`<div class="my-satir">${md(p)}</div>`).join("");
+  el.innerHTML =
+    `<div class="my-bas">📋 ${md(y.baslik)} <span class="my-rozet">Miraz yorumu</span></div>`+
+    `<div class="my-ozet">${md(y.ozet)}</div>`+govde+
+    `<div class="my-mantra">🧠 ${md(y.mantra||"")}</div>`;
+  el.classList.remove("gizli");
+}
+// **kalın** → <b>
+function md(s){ return (s||"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>"); }
 
 document.addEventListener("click", e=>{
   const k = e.target.closest(".kart.tik");
