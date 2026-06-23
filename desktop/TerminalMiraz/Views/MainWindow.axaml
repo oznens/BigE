@@ -155,24 +155,37 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TradeMemoryVM">
-                                        <Border Classes="metrik" Margin="3" Width="160" BorderThickness="0,2,0,0"
-                                                BorderBrush="{Binding DurumRenk}">
-                                            <StackPanel>
-                                                <Grid>
-                                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"/>
-                                                        <TextBlock Text="{Binding Interval}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                        <Button Background="Transparent" Padding="0" Margin="3"
+                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).HafizaTiklaCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="Tıkla → Playback'te grafiği gör">
+                                            <Border Classes="metrik" Width="160" BorderThickness="0,2,0,0"
+                                                    BorderBrush="{Binding DurumRenk}">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"/>
+                                                            <TextBlock Text="{Binding Interval}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                        </StackPanel>
+                                                        <Border Background="{Binding DurumRenk}" CornerRadius="3"
+                                                                Padding="4,1" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding Durum}" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="#07090d"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                                                        <TextBlock Text="{Binding YonOk}" FontSize="16" FontWeight="Bold"
+                                                                   Foreground="{Binding YonRenk}"/>
+                                                        <TextBlock Text="{Binding GuvenMetni}" FontSize="20" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Vurgu}"/>
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding Durum}" HorizontalAlignment="Right"
-                                                               FontSize="10" FontWeight="Bold" Foreground="{Binding DurumRenk}"/>
-                                                </Grid>
-                                                <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
-                                                <TextBlock Text="{Binding Guven}" FontSize="22" FontWeight="Bold"
-                                                           Foreground="{StaticResource Vurgu}"/>
-                                                <TextBlock Text="{Binding RSonuc}" FontSize="11" Foreground="{Binding DurumRenk}"/>
-                                                <TextBlock Text="{Binding Kapanis}" FontSize="9" Foreground="{StaticResource Soluk}"/>
-                                            </StackPanel>
-                                        </Border>
+                                                    <TextBlock Text="{Binding RSonuc}" FontSize="12" FontWeight="Bold"
+                                                               Foreground="{Binding RRenk}"/>
+                                                    <TextBlock Text="{Binding Kapanis}" FontSize="9" Foreground="{StaticResource Soluk}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

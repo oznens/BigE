@@ -79,6 +79,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private GrafikVeri? _grafik;
     [ObservableProperty] private string _grafikBaslik = "";
     [ObservableProperty] private MirazYorum? _seciliYorum;
+    // scanner'da aktif görüntülenen sembol — auto-refresh için takip
+    private string _aktifGrafikSembol = "";
+    private string _aktifGrafikTf = "";
 
     // yerel (native) tarama
     [ObservableProperty] private bool _yerelMod;
@@ -156,10 +159,16 @@ public partial class MainWindowViewModel : ViewModelBase
         VeriKaynagi = _api.Taban;
         Uygula(d);
 
+        // İlk bağlantıda varsayılan grafik yükle
         if (!_ilkGrafikYuklendi && d.VarsayilanGrafik != null)
         {
             _ilkGrafikYuklendi = true;
             await GrafikYukle(d.VarsayilanGrafik.Symbol, d.VarsayilanGrafik.Interval);
+        }
+        // Canlı güncelleme: scanner'da grafik açıksa yenile (YerelMod'da değil — önbellek stale)
+        else if (!YerelMod && _aktifGrafikSembol != "" && AktifSekme == "scanner")
+        {
+            await GrafikYukle(_aktifGrafikSembol, _aktifGrafikTf);
         }
     }
 
@@ -212,7 +221,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AddEngine("CANCELLED", Lc("Cancelled"), 0, "#444444");
 
         TradeMemoryKartlar.Clear();
-        foreach (var t in d.TradeMemory.Take(16))
+        foreach (var t in d.TradeMemory)  // tümü — TP + STOP, limit yok
             TradeMemoryKartlar.Add(new TradeMemoryVM(t));
     }
 
@@ -354,9 +363,24 @@ public partial class MainWindowViewModel : ViewModelBase
     // ── PLAYBACK doldur ──
     private void DoldurPlayback(Durum d)
     {
+        // Listeyi sadece yeni veri varsa güncelle — seçimi bozmamak için
+        var tumu = d.TradeMemory;  // tümü, filtre yok (TP + STOP)
+        if (tumu.Count == 0) return;
+        // Mevcut liste farklıysa yenile (ilk eleman kontrolü yeterli)
+        if (PlaybackListe.Count == tumu.Count &&
+            PlaybackListe.Count > 0 &&
+            PlaybackListe[0].Sembol == tumu[0].Sembol) return;
         PlaybackListe.Clear();
-        foreach (var t in d.TradeMemory.Take(20))
+        foreach (var t in tumu)
             PlaybackListe.Add(new TradeMemoryVM(t));
+    }
+
+    /// <summary>Performance Trade Memory kartına tıklandığında Playback'e yönlendir.</summary>
+    [RelayCommand]
+    private async Task HafizaTikla(TradeMemoryVM t)
+    {
+        AktifSekme = "playback";
+        await PlaybackSec(t);
     }
 
     [RelayCommand]
@@ -451,6 +475,8 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
         Grafik = g;
+        _aktifGrafikSembol = sembol;
+        _aktifGrafikTf = interval;
         var sv = g.Seviye;
         var pat = string.Join(" · ", new[] { sv?.Kaynak, sv?.Pattern, sv?.Taraf }
             .Where(s => !string.IsNullOrEmpty(s)));

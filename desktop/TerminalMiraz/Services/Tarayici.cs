@@ -294,6 +294,8 @@ public class Tarayici
             {
                 Giris = aday.Giris, Stop = aday.Stop, Hedef = aday.Hedef,
                 Taraf = aday.Taraf, Pattern = aday.Pattern, Kaynak = aday.Kaynak, Rr = aday.Rr,
+                // Setup son barda tespit edildi — çizgiler son %35'ten itibaren başlasın
+                SetupBar = Math.Max(0, son.Count - (int)(son.Count * 0.35)),
             };
         }
         return gv;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -118,22 +119,59 @@ public class MumGrafik : Control
             ctx.FillRectangle(renk, new Rect(Xc(i), top, cw, bh));
         }
 
-        // seviye çizgileri
-        void Cizgi(double? p, Color renk, string etk)
-        {
-            if (!p.HasValue) return;
-            double y = Yc(p.Value);
-            var pen = new Pen(new SolidColorBrush(renk), 1, new DashStyle(new double[] { 5, 4 }, 0));
-            ctx.DrawLine(pen, new Point(padL, y), new Point(w - padR, y));
-            CizMetin(ctx, etk, w - padR + 3, y - 6, renk, 10);
-        }
+        // seviye çizgileri — SetupBar'dan itibaren başla
         if (sv != null)
         {
-            Cizgi(sv.Giris, CMetin, "ENTRY " + Fmt(sv.Giris));
+            // Setup başlangıç X'i (varsa SetupBar, yoksa grafiğin %65'i)
+            int setupIdx = sv.SetupBar.HasValue
+                ? Math.Max(0, Math.Min(sv.SetupBar.Value, mumlar.Count - 1))
+                : (int)(mumlar.Count * 0.65);
+            double xSetup = Xc(setupIdx);
+
+            // Entry dokunuldu mu? — gorunen barlar içinde herhangi bir mumun wick'i entry'ye değdi mi
+            bool entryAktif = false;
+            if (sv.Giris.HasValue)
+            {
+                bool longSetup = sv.Taraf != "Short";
+                for (int i = setupIdx; i < mumlar.Count; i++)
+                {
+                    var c = mumlar[i];
+                    if (longSetup ? c[3] <= sv.Giris.Value : c[2] >= sv.Giris.Value)
+                    { entryAktif = true; break; }
+                }
+            }
+
+            void Cizgi(double? p, Color renk, string etk, bool kesikli = true)
+            {
+                if (!p.HasValue) return;
+                double y = Yc(p.Value);
+                var pen = kesikli
+                    ? new Pen(new SolidColorBrush(renk), 1, new DashStyle(new double[] { 5, 4 }, 0))
+                    : new Pen(new SolidColorBrush(renk), 1.5);
+                ctx.DrawLine(pen, new Point(xSetup, y), new Point(w - padR, y));
+                // dikey setup başlangıç çizgisi (ince)
+                ctx.DrawLine(new Pen(new SolidColorBrush(renk, 0.3), 1),
+                    new Point(xSetup, y - 3), new Point(xSetup, y + 3));
+                CizMetin(ctx, etk, w - padR + 3, y - 6, renk, 10);
+            }
+
+            // Setup başlangıç dikey marker
+            double svTop = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
+                .Where(x => x > 0).DefaultIfEmpty(hi).Max());
+            double svBot = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
+                .Where(x => x > 0).DefaultIfEmpty(lo).Min());
+            ctx.DrawLine(new Pen(new SolidColorBrush(CVurgu, 0.25), 1,
+                new DashStyle(new double[] { 3, 3 }, 0)),
+                new Point(xSetup, svTop), new Point(xSetup, svBot));
+
+            Color entryRenk = entryAktif ? CVurgu : CMetin;  // aktif → cyan, pasif → beyaz
+            Cizgi(sv.Giris, entryRenk,
+                (entryAktif ? "● AKTIF ENTRY " : "ENTRY ") + Fmt(sv.Giris), !entryAktif);
             Cizgi(sv.Stop, CKirmizi, "SL " + Fmt(sv.Stop));
             Cizgi(sv.Hedef, CYesil, "TP " + Fmt(sv.Hedef));
-            if (sv.Giris.HasValue)
-                CizMetin(ctx, "SQL Memory", padL + 4, Yc(sv.Giris.Value) - 14, CMavi, 10);
+
+            if (sv.Giris.HasValue && !entryAktif)
+                CizMetin(ctx, "SETUP", xSetup + 4, Yc(sv.Giris.Value) - 14, CVurgu, 9);
         }
 
         // MACD paneli

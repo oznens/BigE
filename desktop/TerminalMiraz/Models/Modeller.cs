@@ -222,6 +222,8 @@ public class Seviye
     [JsonPropertyName("pattern")] public string? Pattern { get; set; }
     [JsonPropertyName("kaynak")] public string? Kaynak { get; set; }
     [JsonPropertyName("rr")] public double? Rr { get; set; }
+    /// <summary>Setup'ın tespit edildiği bar indeksi — bu bardan itibaren çizgiler görünür.</summary>
+    [JsonPropertyName("setup_bar")] public int? SetupBar { get; set; }
 }
 
 public class Macd
