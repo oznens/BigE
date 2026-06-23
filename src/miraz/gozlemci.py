@@ -208,6 +208,87 @@ class Defter:
             "konsept": o_buckets if (o_buckets := self.ozet()["buckets"]) else {},
         }
 
+    def takvim_veri(self) -> dict:
+        """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.
+
+        Döndürür: {"YYYY-MM-DD": {tp, stop, expired, r, pa:{tp,stop,r},
+                                   harmonik:{tp,stop,r}, satirlar:[{...}]}}
+        """
+        from datetime import datetime, timezone, timedelta
+        gunler: dict[str, dict] = {}
+        for k in self.kayitlar:
+            if k.aktif or not k.kapanis_zaman:
+                continue
+            gun = k.kapanis_zaman[:10]
+            e = gunler.setdefault(gun, {
+                "tp": 0, "stop": 0, "expired": 0, "r": 0.0,
+                "pa":      {"tp": 0, "stop": 0, "r": 0.0},
+                "harmonik": {"tp": 0, "stop": 0, "r": 0.0},
+                "satirlar": [],
+            })
+            if k.durum == "TP":
+                e["tp"] += 1
+            elif k.durum == "STOP":
+                e["stop"] += 1
+            else:
+                e["expired"] += 1
+            e["r"] += k.r_sonuc
+            kaynak = getattr(k, "kaynak", "Price Action")
+            if kaynak in ("Price Action", "Harmonik"):
+                alt = e["pa"] if kaynak == "Price Action" else e["harmonik"]
+                if k.durum == "TP":
+                    alt["tp"] += 1
+                elif k.durum == "STOP":
+                    alt["stop"] += 1
+                alt["r"] += k.r_sonuc
+            e["satirlar"].append({
+                "id": k.id, "sembol": k.sembol, "interval": k.interval,
+                "taraf": k.taraf, "durum": k.durum, "r_sonuc": k.r_sonuc,
+                "kaynak": kaynak, "giris": k.giris, "stop": k.stop,
+                "hedef": k.hedef, "kapanis": k.kapanis_zaman,
+            })
+        for g in gunler.values():
+            g["r"] = round(g["r"], 2)
+            for alt in ("pa", "harmonik"):
+                g[alt]["r"] = round(g[alt]["r"], 2)
+        return gunler
+
+    def perf_curve(self) -> dict:
+        """Performance Intelligence bugün/dün/tüm eğrisi."""
+        from datetime import datetime, timezone, timedelta
+        simdi = datetime.now(timezone.utc)
+        bugun_str = simdi.strftime("%Y-%m-%d")
+        dun_str = (simdi - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        kapali = [k for k in self.kayitlar if k.durum in ("TP", "STOP") and k.kapanis_zaman]
+
+        def _stats(liste):
+            tp = sum(1 for k in liste if k.durum == "TP")
+            stop = sum(1 for k in liste if k.durum == "STOP")
+            total = tp + stop
+            return {"sonuc": total, "tp": tp, "sl": stop,
+                    "wr": round(100 * tp / total, 1) if total else 0.0}
+
+        return {
+            "bugun": _stats([k for k in kapali if k.kapanis_zaman.startswith(bugun_str)]),
+            "dun":   _stats([k for k in kapali if k.kapanis_zaman.startswith(dun_str)]),
+            "tum":   _stats(kapali),
+        }
+
+    def trade_memory(self, n: int = 24) -> list:
+        """Son n kapanan trade — terminalMiraz TUMU TRADE MEMORY kartları."""
+        kapali = sorted(
+            [k for k in self.kayitlar if not k.aktif and k.kapanis_zaman],
+            key=lambda k: k.kapanis_zaman, reverse=True,
+        )[:n]
+        return [{
+            "sembol": k.sembol, "interval": k.interval, "durum": k.durum,
+            "taraf": k.taraf, "kaynak": getattr(k, "kaynak", "Price Action"),
+            "r_sonuc": round(k.r_sonuc, 2), "guven": round(k.guven, 0),
+            "kalite": k.kalite, "giris": k.giris,
+            "kapanis": (k.kapanis_zaman or "")[:16],
+        } for k in kapali]
+
     # --- kalıcılık ---
 
     def kaydet(self, dosya: str | Path = DEFTER_DOSYA) -> None:

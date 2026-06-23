@@ -169,6 +169,19 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "pnl": pnl,
         "memory": {"parite": pnl["parite"], "tf": pnl["tf"],
                    "konsept": pnl["konsept"]},
+        # Performance Intelligence + Journal + Aylık R ek verileri
+        "perf_curve": defter.perf_curve(),
+        "trade_memory": defter.trade_memory(24),
+        "takvim": defter.takvim_veri(),
+        "lifecycle_ozet": {
+            "Aday": d_ozet.get("Aday", 0),
+            "Açık": d_ozet.get("Açık", 0),
+            "TP": d_ozet.get("TP", 0),
+            "STOP": d_ozet.get("STOP", 0),
+            "Expired": d_ozet.get("Expired", 0),
+            "No-Entry": d_ozet.get("No-Entry", 0),
+            "Cancelled": d_ozet.get("Cancelled", 0),
+        },
     }
 
 
