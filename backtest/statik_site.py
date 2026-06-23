@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sys
 import urllib.request
@@ -133,7 +134,14 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
 
     # 3) Paneli statik moda ayarlayıp kopyala
     html = (WEB_DIZIN / "index.html").read_text(encoding="utf-8")
-    html = html.replace("window.STATIK=false", "window.STATIK=true")
+    # STATIK bayrağını true yap — boşluklara dayanıklı (yeniden formatlama
+    # `window.STATIK = false` yapsa da eşleşsin; yoksa panel canlı /api/* arar
+    # ve Pages'te o endpoint olmadığı için "bağlantı hatası" gösterir).
+    html, n = re.subn(r"window\.STATIK\s*=\s*false",
+                      "window.STATIK = true", html)
+    if n == 0:
+        raise SystemExit("HATA: index.html'de 'window.STATIK = false' bulunamadı "
+                         "— statik mod ayarlanamadı, panel canlı API arar.")
     (cikti / "index.html").write_text(html, encoding="utf-8")
     # Pages Jekyll'i atlasın (alt dizinler/altçizgi korunsun)
     (cikti / ".nojekyll").write_text("", encoding="utf-8")
