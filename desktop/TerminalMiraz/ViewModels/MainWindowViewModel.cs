@@ -117,8 +117,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _playbackDurum = "";
     [ObservableProperty] private string _playbackInfo = "";
     [ObservableProperty] private bool _playbackOynuyor;
+    public string PlaybackOynatMetni => PlaybackOynuyor ? "⏹ DUR" : "▶ OYNAT";
+    partial void OnPlaybackOynuyorChanged(bool value) => OnPropertyChanged(nameof(PlaybackOynatMetni));
+    [ObservableProperty] private TradeMemoryVM? _secilenTrade;
+    public bool SecilenTradeMevcut => SecilenTrade != null;
+    partial void OnSecilenTradeChanged(TradeMemoryVM? value)
+        => OnPropertyChanged(nameof(SecilenTradeMevcut));
     private DispatcherTimer? _playbackTimer;
-    private TradeMemoryVM? _playbackSecili;
 
     public MainWindowViewModel()
     {
@@ -357,7 +362,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private async Task PlaybackSec(TradeMemoryVM t)
     {
-        _playbackSecili = t;
+        SecilenTrade = t;
         PlaybackOynatDurdur(true);
         PlaybackBaslik = $"TRADE PLAYBACK · {t.Sembol} {t.Interval}";
         PlaybackDurum = t.Durum;

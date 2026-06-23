@@ -626,29 +626,66 @@
             </ScrollViewer>
 
             <!-- PLAYBACK -->
-            <Grid IsVisible="{Binding PlaybackAktif}" ColumnDefinitions="280,*">
+            <Grid IsVisible="{Binding PlaybackAktif}" ColumnDefinitions="300,*">
+                <!-- Sol: görsel hafıza kart listesi -->
                 <Border Grid.Column="0" Classes="panel" Margin="0,0,10,0">
                     <StackPanel>
-                        <TextBlock Text="SETUP SEÇ" Classes="h2"/>
-                        <ScrollViewer MaxHeight="700">
+                        <TextBlock Text="GÖRSEL HAFIZA" Classes="h2"/>
+                        <TextBlock Text="kapatılan setup'ları seç · barda kadar sar" FontSize="10"
+                                   Foreground="{StaticResource Soluk}" Margin="0,0,0,8"/>
+                        <ScrollViewer MaxHeight="740">
                             <ItemsControl ItemsSource="{Binding PlaybackListe}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TradeMemoryVM">
-                                        <Button Background="Transparent" Padding="0" Margin="0,0,0,5" HorizontalAlignment="Stretch"
+                                        <Button Background="Transparent" Padding="0" Margin="0,0,0,6" HorizontalAlignment="Stretch"
                                                 Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).PlaybackSecCommand}"
                                                 CommandParameter="{Binding}">
-                                            <Border Classes="metrik" BorderThickness="3,1,1,1" BorderBrush="{Binding DurumRenk}"
-                                                    HorizontalAlignment="Stretch">
-                                                <StackPanel>
+                                            <Border Padding="10,8" CornerRadius="6" HorizontalAlignment="Stretch"
+                                                    Background="{StaticResource Panel2}"
+                                                    BorderThickness="0,0,0,3" BorderBrush="{Binding DurumRenk}">
+                                                <StackPanel Spacing="4">
+                                                    <!-- Üst satır: sembol + TF + sonuç -->
                                                     <Grid>
-                                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"/>
-                                                            <TextBlock Text="{Binding Interval}" FontSize="11" Foreground="{StaticResource Mavi}"/>
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{Binding YonOk}" FontSize="14" FontWeight="Bold"
+                                                                       Foreground="{Binding YonRenk}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"
+                                                                       Foreground="{StaticResource Metin}"/>
+                                                            <Border Background="{StaticResource Panel}" CornerRadius="3" Padding="4,1">
+                                                                <TextBlock Text="{Binding Interval}" FontSize="10" Foreground="{StaticResource Mavi}"/>
+                                                            </Border>
                                                         </StackPanel>
-                                                        <TextBlock Text="{Binding Durum}" HorizontalAlignment="Right"
-                                                                   FontSize="11" FontWeight="Bold" Foreground="{Binding DurumRenk}"/>
+                                                        <StackPanel HorizontalAlignment="Right" Spacing="1">
+                                                            <Border Background="{Binding DurumRenk}" CornerRadius="3" Padding="5,1"
+                                                                    HorizontalAlignment="Right">
+                                                                <TextBlock Text="{Binding DurumEtiket}" FontSize="10"
+                                                                           FontWeight="Bold" Foreground="#07090d"/>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding RSonuc}" HorizontalAlignment="Right"
+                                                                       FontSize="12" FontWeight="Bold" Foreground="{Binding RRenk}"/>
+                                                        </StackPanel>
                                                     </Grid>
-                                                    <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                    <!-- Kaynak + tarih -->
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                        <TextBlock Text="{Binding Kapanis}" HorizontalAlignment="Right"
+                                                                   FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                    </Grid>
+                                                    <!-- Giriş fiyatı + güven barı -->
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <TextBlock Grid.Column="0" Text="GİRİŞ" FontSize="9"
+                                                                   Foreground="{StaticResource Soluk}" VerticalAlignment="Center"/>
+                                                        <Border Grid.Column="1" Height="4" Background="{StaticResource Kenar}"
+                                                                CornerRadius="2" Margin="6,0">
+                                                            <Border Width="{Binding GuvenBar}" HorizontalAlignment="Left"
+                                                                    Background="{Binding YonRenk}" CornerRadius="2" Opacity="0.7"/>
+                                                        </Border>
+                                                        <TextBlock Grid.Column="2" Text="{Binding GuvenMetni}"
+                                                                   FontSize="9" Foreground="{Binding YonRenk}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Giris}" FontSize="11"
+                                                               Foreground="{StaticResource Metin}" FontFamily="Consolas,Menlo,monospace"/>
                                                 </StackPanel>
                                             </Border>
                                         </Button>
@@ -658,27 +695,97 @@
                         </ScrollViewer>
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="1" Classes="panel">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,8">
-                            <TextBlock Text="{Binding PlaybackBaslik}" Classes="h2" Margin="0"/>
+
+                <!-- Sağ: grafik + playback kontrolleri + seçili trade hafıza kartı -->
+                <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*">
+                    <Border Grid.Row="0" Classes="panel" Margin="0,0,0,6">
+                        <Grid>
+                            <TextBlock Text="{Binding PlaybackBaslik}" Classes="h2" Margin="0" VerticalAlignment="Center"/>
                             <Border Background="#22000000" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
                                 <TextBlock Text="{Binding PlaybackDurum}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Vurgu}"/>
                             </Border>
                         </Grid>
-                        <ctrl:MumGrafik Veri="{Binding PlaybackGrafik}" GorunenBar="{Binding PlaybackBar}"
-                                        Height="420" Margin="0,4"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,8">
-                            <Button Content="‹‹ 10" Classes="aksiyon" Command="{Binding PlaybackGeri10Command}"/>
-                            <Button Content="‹ GERİ" Classes="aksiyon" Command="{Binding PlaybackGeriCommand}"/>
-                            <Button Content="▶ OYNAT" Classes="aksiyon" Command="{Binding PlaybackOynatCommand}"/>
-                            <Button Content="İLERİ ›" Classes="aksiyon" Command="{Binding PlaybackIleriCommand}"/>
-                            <Button Content="10 ››" Classes="aksiyon" Command="{Binding PlaybackIleri10Command}"/>
+                    </Border>
+
+                    <Border Grid.Row="1" Classes="panel" Margin="0,0,0,6">
+                        <StackPanel>
+                            <ctrl:MumGrafik Veri="{Binding PlaybackGrafik}" GorunenBar="{Binding PlaybackBar}"
+                                            Height="380" Margin="0,0,0,6"/>
+                            <Grid ColumnDefinitions="*,Auto,*">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                                    <Button Content="‹‹ 10" Classes="aksiyon" Command="{Binding PlaybackGeri10Command}"/>
+                                    <Button Content="‹ GERİ" Classes="aksiyon" Command="{Binding PlaybackGeriCommand}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="aksiyon" Command="{Binding PlaybackOynatCommand}"
+                                        MinWidth="100" Content="{Binding PlaybackOynatMetni}"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                    <Button Content="İLERİ ›" Classes="aksiyon" Command="{Binding PlaybackIleriCommand}"/>
+                                    <Button Content="10 ››" Classes="aksiyon" Command="{Binding PlaybackIleri10Command}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="{Binding PlaybackInfo}" HorizontalAlignment="Center" FontSize="11"
+                                       Foreground="{StaticResource Soluk}" Margin="0,4,0,0"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding PlaybackInfo}" HorizontalAlignment="Center" FontSize="11"
-                                   Foreground="{StaticResource Soluk}"/>
-                    </StackPanel>
-                </Border>
+                    </Border>
+
+                    <!-- Görsel Hafıza detay kartı — seçili trade -->
+                    <Border Grid.Row="2" Classes="panel" IsVisible="{Binding SecilenTradeMevcut}" Margin="0,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="SETUP HAFIZASI" Classes="h2" Margin="0,0,0,8"/>
+                            <Grid ColumnDefinitions="*,*,*,*" IsVisible="{Binding SecilenTrade, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <!-- Yön + Kaynak -->
+                                <Border Grid.Column="0" Classes="metrik" Margin="0,0,4,0">
+                                    <StackPanel>
+                                        <TextBlock Text="YÖN" Classes="label"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="{Binding SecilenTrade.YonOk}" FontSize="18" FontWeight="Bold"
+                                                       Foreground="{Binding SecilenTrade.YonRenk}"/>
+                                            <TextBlock Text="{Binding SecilenTrade.Taraf}" Classes="deger"
+                                                       Foreground="{Binding SecilenTrade.YonRenk}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding SecilenTrade.Kaynak}" FontSize="10"
+                                                   Foreground="{StaticResource Soluk}"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Güven -->
+                                <Border Grid.Column="1" Classes="metrik" Margin="0,0,4,0">
+                                    <StackPanel>
+                                        <TextBlock Text="GÜVEN" Classes="label"/>
+                                        <TextBlock Text="{Binding SecilenTrade.GuvenMetni}" Classes="deger"
+                                                   Foreground="{Binding SecilenTrade.YonRenk}"/>
+                                        <Border Height="6" Background="{StaticResource Kenar}" CornerRadius="3" Margin="0,4,0,0">
+                                            <Border Width="{Binding SecilenTrade.GuvenBar}" HorizontalAlignment="Left"
+                                                    Background="{Binding SecilenTrade.YonRenk}" CornerRadius="3"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Giriş -->
+                                <Border Grid.Column="2" Classes="metrik" Margin="0,0,4,0">
+                                    <StackPanel>
+                                        <TextBlock Text="GİRİŞ" Classes="label"/>
+                                        <TextBlock Text="{Binding SecilenTrade.Giris}" Classes="deger"
+                                                   FontFamily="Consolas,Menlo,monospace"/>
+                                        <TextBlock Text="{Binding SecilenTrade.Kapanis}" FontSize="10"
+                                                   Foreground="{StaticResource Soluk}"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Sonuç -->
+                                <Border Grid.Column="3" Classes="metrik">
+                                    <StackPanel>
+                                        <TextBlock Text="SONUÇ" Classes="label"/>
+                                        <Border Background="{Binding SecilenTrade.DurumRenk}" CornerRadius="4"
+                                                Padding="8,2" HorizontalAlignment="Left" Margin="0,2,0,4">
+                                            <TextBlock Text="{Binding SecilenTrade.DurumEtiket}" FontSize="12"
+                                                       FontWeight="Bold" Foreground="#07090d"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding SecilenTrade.RSonuc}" Classes="deger"
+                                                   Foreground="{Binding SecilenTrade.RRenk}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
     </DockPanel>

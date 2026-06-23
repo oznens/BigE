@@ -28,9 +28,16 @@ public class TradeMemoryVM
     public string Giris { get; }
     public string Kapanis { get; }
     public string RSonuc { get; }
+    public double RSonucSayi { get; }
     public string SembolInterval => $"{Sembol}|{Interval}";
     public bool Tp => Durum == "TP";
     public string DurumRenk => Durum == "TP" ? "#26d07c" : Durum == "STOP" ? "#ef4d56" : "#5a7a96";
+    public string YonOk => Taraf == "Short" ? "▼" : "▲";
+    public string YonRenk => Taraf == "Short" ? "#ef4d56" : "#26d07c";
+    public double GuvenBar => Guven * 1.2;  // 0–120px görsel genişlik
+    public string GuvenMetni => $"%{Guven}";
+    public string RRenk => RSonucSayi >= 0 ? "#26d07c" : "#ef4d56";
+    public string DurumEtiket => Durum switch { "TP" => "TP ✓", "STOP" => "SL ✗", _ => Durum };
 
     public TradeMemoryVM(TradeMemory t)
     {
@@ -38,6 +45,7 @@ public class TradeMemoryVM
         Kaynak = t.Kaynak; Taraf = t.Taraf; Guven = (int)t.Guven;
         Giris = Bicim.Fmt(t.Giris);
         Kapanis = t.Kapanis.Length >= 10 ? t.Kapanis.Substring(0, 10) : t.Kapanis;
+        RSonucSayi = t.RSonuc;
         RSonuc = MainWindowViewModel.SgnR(t.RSonuc);
     }
 }

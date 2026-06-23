@@ -61,6 +61,126 @@ public class Tarayici
         return alt;
     }
 
+    // ── Harmonik XABCD oranları (her pattern için toleranslı aralıklar) ──
+    // AB/XA, BC/AB, CD/BC, XD/XA — %12 tolerans
+    private static readonly (string Ad, double AB_Min, double AB_Max,
+        double BC_Min, double BC_Max, double CD_Min, double CD_Max,
+        double XD_Min, double XD_Max)[] _harmonikler =
+    {
+        ("Gartley",  0.541, 0.695,  0.344, 0.964,  1.144, 1.800,  0.748, 0.824),
+        ("Bat",      0.344, 0.560,  0.344, 0.964,  1.456, 2.970,  0.840, 0.932),
+        ("Butterfly",0.716, 0.856,  0.344, 0.964,  1.456, 2.970,  1.144, 1.456),
+        ("Crab",     0.344, 0.674,  0.344, 0.964,  2.350, 4.100,  1.456, 1.800),
+    };
+
+    // Oran kontrolü — toleranslı karşılaştırma
+    private static bool OranUyar(double oran, double min, double max, double tol = 0.12)
+        => oran >= min * (1 - tol) && oran <= max * (1 + tol);
+
+    /// <summary>
+    /// Harmonik XABCD tespiti — son pivotlardan 5'li gruplar denenir.
+    /// Bullish: X(L)→A(H)→B(L)→C(H)→D(L) veya Bearish: X(H)→A(L)→B(H)→C(L)→D(H).
+    /// D noktasına yakın fiyat → PRZ (Potential Reversal Zone) sinyali.
+    /// </summary>
+    public static Aday? HarmonikTara(string sembol, string interval,
+        IReadOnlyList<Mum> m, IReadOnlyList<Pivot> pivotlar)
+    {
+        double fiyat = m[^1].Kapanis;
+        if (pivotlar.Count < 5) return null;
+
+        // Son 14 pivotu tara — içten dışa her 5'li grup
+        var son = pivotlar.TakeLast(14).ToList();
+        Aday? enIyi = null;
+        double enIyiGuven = 0;
+
+        for (int i = son.Count - 5; i >= 0; i--)
+        {
+            var grup = son.Skip(i).Take(5).ToList();
+            // Alternating kontrol: H-L-H-L-H veya L-H-L-H-L
+            bool alternan = true;
+            for (int j = 1; j < grup.Count; j++)
+                if (grup[j].Tip == grup[j-1].Tip) { alternan = false; break; }
+            if (!alternan) continue;
+
+            double X = grup[0].Fiyat, A = grup[1].Fiyat,
+                   B = grup[2].Fiyat, C = grup[3].Fiyat, D = grup[4].Fiyat;
+
+            bool bullish = grup[0].Tip == 'L';  // X=dip → Bullish setup
+            // Oranlar (mutlak hareket büyüklükleri)
+            double XA = Math.Abs(A - X);
+            double AB = Math.Abs(B - A);
+            double BC = Math.Abs(C - B);
+            double CD = Math.Abs(D - C);
+            double XD = Math.Abs(D - X);
+            if (XA < 1e-9 || AB < 1e-9 || BC < 1e-9 || CD < 1e-9) continue;
+
+            double ratioAB = AB / XA;
+            double ratioBC = BC / AB;
+            double ratioCD = CD / BC;
+            double ratioXD = XD / XA;
+
+            // Yön tutarlılığı (bullish: X<A>B<C>D↓ son noktada dip)
+            bool yonTutarli = bullish
+                ? X < A && B < A && B < C && D < C   // L-H-L-H-L
+                : X > A && B > A && B > C && D > C;  // H-L-H-L-H
+
+            if (!yonTutarli) continue;
+
+            foreach (var (ad, ab_min, ab_max, bc_min, bc_max, cd_min, cd_max, xd_min, xd_max) in _harmonikler)
+            {
+                if (!OranUyar(ratioAB, ab_min, ab_max)) continue;
+                if (!OranUyar(ratioBC, bc_min, bc_max)) continue;
+                if (!OranUyar(ratioCD, cd_min, cd_max)) continue;
+                if (!OranUyar(ratioXD, xd_min, xd_max)) continue;
+
+                // D noktasına yakınlık — fiyat PRZ içinde mi?
+                double pRZ_tol = D * 0.04;  // D'nin %4 yakınında
+                double yakinlik = 1 - Math.Min(1, Math.Abs(fiyat - D) / pRZ_tol);
+                if (yakinlik < 0.1) continue;  // çok uzakta
+
+                string taraf = bullish ? "Long" : "Short";
+                double giris = D;
+                double stop = bullish ? X * 0.992 : X * 1.008;  // X'in altı/üstü
+                double hedef = bullish ? C : C;  // C noktası ilk hedef
+
+                double risk = Math.Abs(giris - stop);
+                double odul = Math.Abs(hedef - giris);
+                if (risk <= 1e-9) continue;
+                double rr = Math.Round(odul / risk, 2);
+                if (rr < 1.0) continue;
+
+                // Oran mükemmelliği skoru (her oran ne kadar ideal?)
+                double oranScore = (
+                    (1 - Math.Abs(ratioAB - (ab_min + ab_max) / 2) / ab_max) +
+                    (1 - Math.Abs(ratioBC - (bc_min + bc_max) / 2) / bc_max) +
+                    (1 - Math.Abs(ratioCD - (cd_min + cd_max) / 2) / cd_max) +
+                    (1 - Math.Abs(ratioXD - (xd_min + xd_max) / 2) / xd_max)
+                ) / 4;
+
+                double guven = 45 + oranScore * 30 + yakinlik * 20 + Math.Min(5, rr * 2);
+                guven = Math.Round(Math.Min(93, guven), 0);
+
+                if (guven > enIyiGuven)
+                {
+                    enIyiGuven = guven;
+                    string kategori = (yakinlik > 0.5 && rr >= 1.5 && guven >= 60) ? "Trade" : "Watch";
+                    string kalite = guven >= 75 ? "A" : guven >= 62 ? "B" : "C";
+                    enIyi = new Aday
+                    {
+                        Symbol = sembol, Interval = interval, Fiyat = fiyat,
+                        Kategori = kategori, Kalite = kalite, Guven = guven,
+                        Taraf = taraf, Kaynak = "Harmonik", Pattern = ad,
+                        Giris = Math.Round(giris, 6),
+                        Stop  = Math.Round(stop, 6),
+                        Hedef = Math.Round(hedef, 6),
+                        Rr = rr, Konseptler = new List<string> { "Harmonik", ad },
+                    };
+                }
+            }
+        }
+        return enIyi;
+    }
+
     private static Aday? DegerlendirIc(string sembol, string interval, List<Mum> m)
     {
         double fiyat = m[^1].Kapanis;
@@ -116,7 +236,8 @@ public class Tarayici
         }
         else
         {
-            return null;  // net yapı yok → setup yok
+            // Price Action setup bulunamadı → harmonik dene
+            return HarmonikTara(sembol, interval, m, piv);
         }
 
         // R/R
