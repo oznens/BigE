@@ -1,0 +1,55 @@
+name: Release — terminalMiraz
+
+on:
+  workflow_dispatch:   # elle tetikle (Actions → Run workflow)
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/walter-vanelli-fx-c8rtd2
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Windows build
+        run: |
+          dotnet publish desktop/TerminalMiraz/TerminalMiraz.csproj \
+            -c Release -r win-x64 --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o out/win-x64
+
+      - name: Linux build
+        run: |
+          dotnet publish desktop/TerminalMiraz/TerminalMiraz.csproj \
+            -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o out/linux-x64
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-latest
+          name: "terminalMiraz — desktop"
+          body: |
+            **terminalMiraz** masaüstü uygulaması — .NET 8 self-contained (kurulum gerekmez).
+
+            | Dosya | Platform |
+            |-------|----------|
+            | `TerminalMiraz.exe` | Windows 10/11 x64 |
+            | `TerminalMiraz` | Linux x64 |
+
+            **İlk açılışta:** Windows "Protected your PC" uyarısı → More info → Run anyway.
+          files: |
+            out/win-x64/TerminalMiraz.exe
+            out/linux-x64/TerminalMiraz
+</content>
+</invoke>
