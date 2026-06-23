@@ -327,25 +327,39 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
             "rr": t.get("rr"),
         }
 
-    # setup_bar: setup'ın tamamlandığı bar (grafik çizgileri buradan başlar)
-    # Harmonik: D noktası barı; yoksa son pivotun barı
+    # setup_bar: setup'ın oluştuğu bar (grafik çizgileri buradan sağa uzanır).
+    # Öncelik: (1) tamamlanan harmonik D barı, (2) giriş fiyatına en yakın
+    # pivot (= harmonik D / tepki noktası), (3) son pivot. Son pivot her zaman
+    # en sağda olduğundan tek başına çizgiyi 9-barlık stub'a düşürür → önce
+    # giriş seviyesinin oluştuğu swing noktasını ararız (asıl setup anı).
+    giris_p = seviye.get("giris")
+    taraf = (seviye.get("taraf") or "Long")
     setup_bar: int | None = None
     if t and t.get("noktalar") and len(t["noktalar"]) >= 5:
         d_nokta = t["noktalar"][4]
         setup_bar = d_nokta[0] if isinstance(d_nokta, list) else int(d_nokta)
-    if setup_bar is None:
+    if setup_bar is None and giris_p:
         try:
             from . import pivotlar as pv
             pivs = pv.pivot_listesi(df, n=5)
-            if pivs:
-                last_idx = pivs[-1][0] if isinstance(pivs[-1], (list, tuple)) \
-                    else getattr(pivs[-1], "idx", None)
-                if last_idx is not None:
-                    setup_bar = int(last_idx)
+            # Long → giriş bir dip (L) pivotunda; Short → tepe (H) pivotunda.
+            tip = "L" if taraf != "Short" else "H"
+            uygun = [p for p in pivs if p[2] == tip] or pivs
+            # Setup taze → D noktası yakın geçmişte. Girişe ±%2 yakın pivotlar
+            # içinden EN GÜNCEL olanı seç (eski, fiyatı tesadüfen yakın bir
+            # pivotu seçip çizgiyi grafiğin en soluna atmasın). Yoksa en yakın.
+            yakin = [p for p in uygun if abs(p[1] - giris_p) <= giris_p * 0.02]
+            if yakin:
+                setup_bar = int(max(yakin, key=lambda p: p[0])[0])
+            elif uygun:
+                setup_bar = int(min(uygun, key=lambda p: abs(p[1] - giris_p))[0])
         except Exception:
             pass
     if setup_bar is None:
-        setup_bar = max(0, len(mumlar) - 30)
+        setup_bar = max(0, len(mumlar) - 40)
+    # Çizgi çok kısa kalmasın (en az ~25 bar uzasın) ama mumların solunu da
+    # aşmasın — aşırı sağdaki pivotu makul bir başlangıca çek.
+    setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 25)))
 
     # PA konsept bölgeleri (Cavity/Root/Shade/Buffer zone kutuları + seviyeler)
     konseptler = []
