@@ -27,14 +27,17 @@ internal static class Capture
         sdk.SetupWithoutStarting();
 
         WriteableBitmap? frame = null;
-        var pencere = new MainWindow
-        {
-            DataContext = new MainWindowViewModel { AktifSekme = sekme },
-        };
+        bool yerel = sekme == "yerel";
+        var vm = new MainWindowViewModel { AktifSekme = yerel ? "scanner" : sekme };
+        var pencere = new MainWindow { DataContext = vm };
         pencere.Show();
 
-        // veri yüklensin + layout otursun diye birkaç frame işle
-        for (int i = 0; i < 60; i++)
+        if (yerel)
+            vm.YerelTaraCommand.Execute(null);  // native tarama tetikle
+
+        // veri yüklensin + layout otursun diye frame işle (yerel tarama ağ ister → uzun)
+        int dongu = yerel ? 400 : 60;
+        for (int i = 0; i < dongu; i++)
         {
             Dispatcher.UIThread.RunJobs();
             Thread.Sleep(50);

@@ -370,6 +370,19 @@
             <!-- SCANNER -->
             <ScrollViewer IsVisible="{Binding ScannerAktif}">
                 <StackPanel Spacing="10">
+                    <!-- yerel tarama çubuğu -->
+                    <Border Classes="panel">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Button Grid.Column="0" Content="⚡ YEREL TARA" Classes="aksiyon"
+                                    Command="{Binding YerelTaraCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding YerelDurum}" VerticalAlignment="Center"
+                                       Margin="12,0" FontSize="11" Foreground="{StaticResource Vurgu}"/>
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="10"
+                                       Foreground="{StaticResource Soluk}"
+                                       Text="kendi başına OHLCV çekip tarar (Python'a bağımsız)"/>
+                        </Grid>
+                    </Border>
+
                     <!-- execution -->
                     <Border Classes="panel">
                         <StackPanel>

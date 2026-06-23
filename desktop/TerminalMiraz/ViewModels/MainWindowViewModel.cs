@@ -77,6 +77,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _grafikBaslik = "";
     [ObservableProperty] private MirazYorum? _seciliYorum;
 
+    // yerel (native) tarama
+    [ObservableProperty] private bool _yerelMod;
+    [ObservableProperty] private string _yerelDurum = "";
+    private readonly Dictionary<string, List<Mum>> _mumOnbellek = new();
+    private readonly Dictionary<string, Aday> _yerelAdayHaritasi = new();
+
+    private static readonly string[] YerelEvren =
+        { "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT",
+          "AVAXUSDT", "LINKUSDT", "ADAUSDT", "TRXUSDT" };
+    private static readonly string[] YerelTfler = { "1h", "4h" };
+
     // ── JOURNAL / AYLIK R ──
     public ObservableCollection<TakvimGunVM> TakvimGunler { get; } = new();
     [ObservableProperty] private string _aylikBaslik = "";
@@ -363,7 +374,25 @@ public partial class MainWindowViewModel : ViewModelBase
     public async Task GrafikYukle(string sembol, string interval)
     {
         GrafikBaslik = $"· {sembol} {interval} yükleniyor…";
-        var g = await _api.GrafikGetir(sembol, interval);
+
+        GrafikVeri? g;
+        if (YerelMod)
+        {
+            // native: OHLCV önbellekten / borsadan → grafik üret
+            string anahtar = $"{sembol}|{interval}";
+            if (!_mumOnbellek.TryGetValue(anahtar, out var mumlar))
+            {
+                mumlar = await Veri.Indir(sembol, interval, 120);
+                _mumOnbellek[anahtar] = mumlar;
+            }
+            _yerelAdayHaritasi.TryGetValue(anahtar, out var aday);
+            g = Tarayici.GrafikUret(mumlar, aday);
+        }
+        else
+        {
+            g = await _api.GrafikGetir(sembol, interval);
+        }
+
         if (g == null || g.Hata != null)
         {
             GrafikBaslik = $"· {sembol} {interval} — grafik yok";
@@ -375,6 +404,55 @@ public partial class MainWindowViewModel : ViewModelBase
             .Where(s => !string.IsNullOrEmpty(s)));
         GrafikBaslik = $"· {sembol} {interval}{(pat != "" ? $"  ({pat})" : "")}";
         SeciliYorum = g.MirazYorum;
+    }
+
+    /// <summary>Native tarama — evreni kendi başına OHLCV çekip tarar (Python'a bağımsız).</summary>
+    [RelayCommand]
+    private async Task YerelTara()
+    {
+        YerelMod = true;
+        AktifSekme = "scanner";
+        _yerelAdayHaritasi.Clear();
+        var bulunanlar = new List<AdayVM>();
+        int toplam = YerelEvren.Length * YerelTfler.Length, yapilan = 0;
+
+        foreach (var sem in YerelEvren)
+        {
+            foreach (var tf in YerelTfler)
+            {
+                yapilan++;
+                YerelDurum = $"Yerel tarama… {yapilan}/{toplam} · {sem} {tf}";
+                try
+                {
+                    var mumlar = await Veri.Indir(sem, tf, 120);
+                    _mumOnbellek[$"{sem}|{tf}"] = mumlar;
+                    var aday = Tarayici.Degerlendir(sem, tf, mumlar);
+                    if (aday != null)
+                    {
+                        _yerelAdayHaritasi[$"{sem}|{tf}"] = aday;
+                        bulunanlar.Add(new AdayVM(aday));
+                    }
+                }
+                catch { /* sembol patlasa diğerleri sürsün */ }
+            }
+        }
+
+        bulunanlar = bulunanlar
+            .OrderBy(a => a.Kategori == "Trade" ? 0 : 1)
+            .ThenByDescending(a => a.Guven).ToList();
+        Adaylar.Clear();
+        foreach (var a in bulunanlar) Adaylar.Add(a);
+
+        // bucket özetini güncelle
+        int trade = bulunanlar.Count(a => a.Kategori == "Trade");
+        int watch = bulunanlar.Count(a => a.Kategori == "Watch");
+        OzetSatir = $"YEREL TARAMA · {bulunanlar.Count} setup ({trade} Trade · {watch} Watch) · {toplam} tarama";
+        KirazDurum = trade > 0 ? "EXECUTION MODE" : "WATCHLIST MODE";
+        KirazMesaj = trade > 0 ? $"{trade} aday işleme uygun" : "uygun aday yok — izlemede";
+        YerelDurum = $"Yerel tarama tamam · {bulunanlar.Count} setup";
+
+        if (Adaylar.Count > 0)
+            await GrafikYukle(Adaylar[0].Symbol, Adaylar[0].Interval);
     }
 
     // ── yardımcı ──
