@@ -290,12 +290,17 @@ public class Tarayici
 
         if (aday != null)
         {
+            // Setup gerçekten nerede oluştu? Son swing pivotunun barı (yapının tamamlandığı an).
+            // %35 gibi keyfi bir geçmiş değil — böylece zamansal sonuç dürüst hesaplanır.
+            var piv = PivotListesi(son, 5);
+            int setupBar = piv.Count > 0
+                ? piv[^1].Idx
+                : Math.Max(0, son.Count - 30);
             gv.Seviye = new Seviye
             {
                 Giris = aday.Giris, Stop = aday.Stop, Hedef = aday.Hedef,
                 Taraf = aday.Taraf, Pattern = aday.Pattern, Kaynak = aday.Kaynak, Rr = aday.Rr,
-                // Setup son barda tespit edildi — çizgiler son %35'ten itibaren başlasın
-                SetupBar = Math.Max(0, son.Count - (int)(son.Count * 0.35)),
+                SetupBar = setupBar,
             };
         }
         return gv;

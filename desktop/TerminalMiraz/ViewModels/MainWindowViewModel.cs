@@ -392,6 +392,10 @@ public partial class MainWindowViewModel : ViewModelBase
         PlaybackDurum = t.Durum;
         var g = await _api.GrafikGetir(t.Sembol, t.Interval);
         if (g == null) { PlaybackInfo = "grafik yüklenemedi"; return; }
+        // Playback = geçmiş kapanmış trade → zamansal yürüme çalışsın diye
+        // setup_bar enjekte et (yoksa). Scrub ilerledikçe entry→STOP/TP oynar.
+        if (g.Seviye != null && !g.Seviye.SetupBar.HasValue)
+            g.Seviye.SetupBar = Math.Max(0, (int)(g.Mumlar.Count * 0.4));
         PlaybackGrafik = g;
         PlaybackMaxBar = g.Mumlar.Count;
         PlaybackBar = Math.Max(10, (int)(g.Mumlar.Count * 0.5));

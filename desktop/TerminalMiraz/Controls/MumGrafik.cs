@@ -119,59 +119,101 @@ public class MumGrafik : Control
             ctx.FillRectangle(renk, new Rect(Xc(i), top, cw, bh));
         }
 
-        // seviye çizgileri — SetupBar'dan itibaren başla
+        // seviye çizgileri — SetupBar'dan itibaren başla + zamansal sonuç
         if (sv != null)
         {
-            // Setup başlangıç X'i (varsa SetupBar, yoksa grafiğin %65'i)
-            int setupIdx = sv.SetupBar.HasValue
-                ? Math.Max(0, Math.Min(sv.SetupBar.Value, mumlar.Count - 1))
-                : (int)(mumlar.Count * 0.65);
-            double xSetup = Xc(setupIdx);
-
-            // Entry dokunuldu mu? — gorunen barlar içinde herhangi bir mumun wick'i entry'ye değdi mi
-            bool entryAktif = false;
-            if (sv.Giris.HasValue)
+            // SetupBar kesin biliniyorsa → gerçek zamansal sonuç hesapla.
+            // Bilinmiyorsa (Pages bekleyen plan) → sahte sonuç üretme, sadece PLAN çiz.
+            bool gercekSetup = sv.SetupBar.HasValue;
+            int setupIdx = sv.SetupBar ?? (int)(tumMum.Count * 0.6);
+            bool setupGorunur = setupIdx >= 0 && setupIdx < mumlar.Count;
+            if (setupGorunur)
             {
+                double xSetup = Xc(setupIdx);
                 bool longSetup = sv.Taraf != "Short";
-                for (int i = setupIdx; i < mumlar.Count; i++)
+
+                // ── Zamansal durum makinesi (sagla.py mantığı) — yalnız gerçek setup'ta ──
+                // BEKLIYOR → entry dolar → AÇIK → önce SL mi TP mi vurdu?
+                string durum = "PLAN";
+                int cozumIdx = -1;            // STOP/TP barı
+                if (gercekSetup && sv.Giris.HasValue)
                 {
-                    var c = mumlar[i];
-                    if (longSetup ? c[3] <= sv.Giris.Value : c[2] >= sv.Giris.Value)
-                    { entryAktif = true; break; }
+                    durum = "BEKLIYOR";
+                    bool acik = false;
+                    for (int i = setupIdx; i < mumlar.Count; i++)
+                    {
+                        var c = mumlar[i];
+                        double hiC = c[2], loC = c[3];
+                        if (!acik)
+                        {
+                            if (longSetup ? loC <= sv.Giris.Value : hiC >= sv.Giris.Value)
+                            { acik = true; durum = "ACIK"; }
+                        }
+                        if (acik)
+                        {
+                            bool stopVur = sv.Stop.HasValue &&
+                                (longSetup ? loC <= sv.Stop.Value : hiC >= sv.Stop.Value);
+                            bool tpVur = sv.Hedef.HasValue &&
+                                (longSetup ? hiC >= sv.Hedef.Value : loC <= sv.Hedef.Value);
+                            // aynı bar ikisi de → muhafazakâr STOP (sagla.py ile aynı)
+                            if (stopVur) { durum = "STOP"; cozumIdx = i; break; }
+                            if (tpVur)   { durum = "TP";   cozumIdx = i; break; }
+                        }
+                    }
                 }
+
+                void Cizgi(double? p, Color renk, string etk, bool kesikli = true)
+                {
+                    if (!p.HasValue) return;
+                    double y = Yc(p.Value);
+                    var pen = kesikli
+                        ? new Pen(new SolidColorBrush(renk), 1, new DashStyle(new double[] { 5, 4 }, 0))
+                        : new Pen(new SolidColorBrush(renk), 1.5);
+                    ctx.DrawLine(pen, new Point(xSetup, y), new Point(w - padR, y));
+                    CizMetin(ctx, etk, w - padR + 3, y - 6, renk, 10);
+                }
+
+                // Setup başlangıç dikey marker
+                double svTop = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
+                    .Where(x => x > 0).DefaultIfEmpty(hi).Max());
+                double svBot = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
+                    .Where(x => x > 0).DefaultIfEmpty(lo).Min());
+                ctx.DrawLine(new Pen(new SolidColorBrush(CVurgu, 0.25), 1,
+                    new DashStyle(new double[] { 3, 3 }, 0)),
+                    new Point(xSetup, svTop), new Point(xSetup, svBot));
+
+                // Entry rengi/etiketi duruma göre
+                (Color erenk, string emetin, bool ekesik) = durum switch
+                {
+                    "ACIK" => (CVurgu,   "● AKTIF ENTRY ", false),
+                    "STOP" => (CKirmizi, "✗ STOP · ENTRY ", true),
+                    "TP"   => (CYesil,   "✓ TP · ENTRY ",   true),
+                    "BEKLIYOR" => (CSari, "ENTRY bekliyor ", true),
+                    _      => (CMetin,   "ENTRY ",          true),  // PLAN
+                };
+                Cizgi(sv.Giris, erenk, emetin + Fmt(sv.Giris), ekesik);
+                Cizgi(sv.Stop, CKirmizi, "SL " + Fmt(sv.Stop));
+                Cizgi(sv.Hedef, CYesil, "TP " + Fmt(sv.Hedef));
+
+                // STOP/TP çözüm noktası — dikey çizgi + nokta + etiket
+                if (cozumIdx >= 0)
+                {
+                    double? cp = durum == "STOP" ? sv.Stop : sv.Hedef;
+                    if (cp.HasValue)
+                    {
+                        Color cr = durum == "STOP" ? CKirmizi : CYesil;
+                        double cx = Xc(cozumIdx) + cw / 2, cy = Yc(cp.Value);
+                        ctx.DrawLine(new Pen(new SolidColorBrush(cr, 0.6), 1.5),
+                            new Point(cx, padT), new Point(cx, padT + mainH));
+                        ctx.DrawEllipse(new SolidColorBrush(cr), null, new Point(cx, cy), 4, 4);
+                        CizMetin(ctx, durum + " ✕", cx + 5, cy - 14, cr, 11);
+                    }
+                }
+
+                // PLAN/BEKLIYOR etiketi setup başlangıcında
+                if ((durum == "PLAN" || durum == "BEKLIYOR") && sv.Giris.HasValue)
+                    CizMetin(ctx, durum, xSetup + 4, Yc(sv.Giris.Value) - 14, CVurgu, 9);
             }
-
-            void Cizgi(double? p, Color renk, string etk, bool kesikli = true)
-            {
-                if (!p.HasValue) return;
-                double y = Yc(p.Value);
-                var pen = kesikli
-                    ? new Pen(new SolidColorBrush(renk), 1, new DashStyle(new double[] { 5, 4 }, 0))
-                    : new Pen(new SolidColorBrush(renk), 1.5);
-                ctx.DrawLine(pen, new Point(xSetup, y), new Point(w - padR, y));
-                // dikey setup başlangıç çizgisi (ince)
-                ctx.DrawLine(new Pen(new SolidColorBrush(renk, 0.3), 1),
-                    new Point(xSetup, y - 3), new Point(xSetup, y + 3));
-                CizMetin(ctx, etk, w - padR + 3, y - 6, renk, 10);
-            }
-
-            // Setup başlangıç dikey marker
-            double svTop = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
-                .Where(x => x > 0).DefaultIfEmpty(hi).Max());
-            double svBot = Yc(new[] { sv.Giris ?? 0, sv.Stop ?? 0, sv.Hedef ?? 0 }
-                .Where(x => x > 0).DefaultIfEmpty(lo).Min());
-            ctx.DrawLine(new Pen(new SolidColorBrush(CVurgu, 0.25), 1,
-                new DashStyle(new double[] { 3, 3 }, 0)),
-                new Point(xSetup, svTop), new Point(xSetup, svBot));
-
-            Color entryRenk = entryAktif ? CVurgu : CMetin;  // aktif → cyan, pasif → beyaz
-            Cizgi(sv.Giris, entryRenk,
-                (entryAktif ? "● AKTIF ENTRY " : "ENTRY ") + Fmt(sv.Giris), !entryAktif);
-            Cizgi(sv.Stop, CKirmizi, "SL " + Fmt(sv.Stop));
-            Cizgi(sv.Hedef, CYesil, "TP " + Fmt(sv.Hedef));
-
-            if (sv.Giris.HasValue && !entryAktif)
-                CizMetin(ctx, "SETUP", xSetup + 4, Yc(sv.Giris.Value) - 14, CVurgu, 9);
         }
 
         // MACD paneli
