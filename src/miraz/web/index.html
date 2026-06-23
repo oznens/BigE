@@ -1170,17 +1170,26 @@ function cizGrafik(d, canvasId="grafik"){
     const yo=Y(c[1]),yc=Y(c[4]);
     ctx.fillRect(X(i),Math.min(yo,yc),cw,Math.max(1,Math.abs(yc-yo)));
   });
+  // Setup başlangıç X'i: setup_bar varsa o bardan, yoksa grafik solundan
+  const setupX=(sv.setup_bar!=null&&sv.setup_bar<m.length)?X(sv.setup_bar):padL;
+  // Dikey setup marker — setup'ın tamamlandığı anı işaret eder
+  if(sv.setup_bar!=null&&sv.giris!=null){
+    ctx.strokeStyle="rgba(0,229,200,.25)";ctx.setLineDash([3,3]);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(setupX,padT);ctx.lineTo(setupX,padT+mainH);ctx.stroke();
+    ctx.setLineDash([]);ctx.lineWidth=1;
+    ctx.fillStyle=CSS("--vurgu");ctx.font="9px sans-serif";
+    ctx.fillText("SETUP",setupX+3,padT+10);
+  }
   const cizgi=(p,renk,etk)=>{
     if(p==null) return;
     ctx.strokeStyle=renk;ctx.setLineDash([5,4]);ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(padL,Y(p));ctx.lineTo(W-padR,Y(p));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(setupX,Y(p));ctx.lineTo(W-padR,Y(p));ctx.stroke();
     ctx.setLineDash([]);ctx.fillStyle=renk;ctx.font="10px sans-serif";
     ctx.fillText(etk,W-padR+3,Y(p)+3);
   };
   cizgi(sv.giris,CSS("--metin"),"ENTRY "+fmt(sv.giris));
   cizgi(sv.stop,CSS("--kirmizi"),"SL "+fmt(sv.stop));
   cizgi(sv.hedef,CSS("--yesil"),"TP "+fmt(sv.hedef));
-  if(sv.giris!=null){ctx.fillStyle=CSS("--mavi");ctx.fillText("SQL Memory",padL+4,Y(sv.giris)-3);}
   const px=i=>X(i)+cw/2;
   cizHarmonik(ctx,hm,px,Y,padL,padR,W);
   cizKonseptler(ctx,kons,px,Y,padL,padR,W);

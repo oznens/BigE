@@ -113,7 +113,10 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
     kiraz_durum, kiraz_mesaj = _kiraz_status(rapor)
 
     # canlı aday akışı (Trade + Watch, güvene göre)
-    adaylar = [s for s in rapor.satirlar if s.kategori in ("Trade", "Watch")]
+    # giris=None olanlar grafik seviyesi olmadığından scanner'da işe yaramaz → filtrele
+    adaylar = [s for s in rapor.satirlar
+               if s.kategori in ("Trade", "Watch")
+               and s.giris is not None and s.giris > 0]
     adaylar.sort(key=lambda s: (0 if s.kategori == "Trade" else 1, -s.guven))
 
     # grafiğin varsayılan açacağı sembol (aday yoksa bile boş kalmasın)
@@ -312,6 +315,38 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
     except Exception:
         harmonik = {}
 
+    # Harmonik fallback: seviyede giris yoksa tamamlanan harmonik'in kendi
+    # entry/sl/tp1'ini kullan (destek_kutu olmadığında rp=None → giris=None olur)
+    t = harmonik.get("tamamlanan")
+    if t and not seviye.get("giris"):
+        seviye = {
+            **seviye,
+            "giris": t.get("entry"),
+            "stop": t.get("sl"),
+            "hedef": t.get("tp1"),
+            "rr": t.get("rr"),
+        }
+
+    # setup_bar: setup'ın tamamlandığı bar (grafik çizgileri buradan başlar)
+    # Harmonik: D noktası barı; yoksa son pivotun barı
+    setup_bar: int | None = None
+    if t and t.get("noktalar") and len(t["noktalar"]) >= 5:
+        d_nokta = t["noktalar"][4]
+        setup_bar = d_nokta[0] if isinstance(d_nokta, list) else int(d_nokta)
+    if setup_bar is None:
+        try:
+            from . import pivotlar as pv
+            pivs = pv.pivot_listesi(df, n=5)
+            if pivs:
+                last_idx = pivs[-1][0] if isinstance(pivs[-1], (list, tuple)) \
+                    else getattr(pivs[-1], "idx", None)
+                if last_idx is not None:
+                    setup_bar = int(last_idx)
+        except Exception:
+            pass
+    if setup_bar is None:
+        setup_bar = max(0, len(mumlar) - 30)
+
     # PA konsept bölgeleri (Cavity/Root/Shade/Buffer zone kutuları + seviyeler)
     konseptler = []
     try:
@@ -341,7 +376,8 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
         "mumlar": mumlar,
         "macd": {"macd": _kolon(mac["macd"]), "sinyal": _kolon(mac["sinyal"]),
                  "hist": _kolon(mac["histogram"])},
-        "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust},
+        "seviye": {**seviye, "zone_alt": zone_alt, "zone_ust": zone_ust,
+                   "setup_bar": setup_bar},
         "harmonik": harmonik,
         "konseptler": konseptler,
         "miraz_yorum": m_yorum,
