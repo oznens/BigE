@@ -1,0 +1,114 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="TerminalMiraz.App"
+             xmlns:local="using:TerminalMiraz"
+             RequestedThemeVariant="Dark">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Resources>
+        <!-- terminalMiraz renk paleti (tweet ekran görüntülerinden) -->
+        <Color x:Key="BgColor">#07090d</Color>
+        <Color x:Key="PanelColor">#0d1117</Color>
+        <Color x:Key="Panel2Color">#111820</Color>
+        <Color x:Key="KenarColor">#1c2d3f</Color>
+        <Color x:Key="MetinColor">#d8e8f5</Color>
+        <Color x:Key="SolukColor">#5a7a96</Color>
+        <Color x:Key="VurguColor">#00e5c8</Color>
+        <Color x:Key="YesilColor">#26d07c</Color>
+        <Color x:Key="KirmiziColor">#ef4d56</Color>
+        <Color x:Key="SariColor">#f5b942</Color>
+        <Color x:Key="MaviColor">#3da5ff</Color>
+        <Color x:Key="MorColor">#9b7bd4</Color>
+        <Color x:Key="GoldColor">#c8a84b</Color>
+
+        <SolidColorBrush x:Key="Bg" Color="{StaticResource BgColor}"/>
+        <SolidColorBrush x:Key="Panel" Color="{StaticResource PanelColor}"/>
+        <SolidColorBrush x:Key="Panel2" Color="{StaticResource Panel2Color}"/>
+        <SolidColorBrush x:Key="Kenar" Color="{StaticResource KenarColor}"/>
+        <SolidColorBrush x:Key="Metin" Color="{StaticResource MetinColor}"/>
+        <SolidColorBrush x:Key="Soluk" Color="{StaticResource SolukColor}"/>
+        <SolidColorBrush x:Key="Vurgu" Color="{StaticResource VurguColor}"/>
+        <SolidColorBrush x:Key="Yesil" Color="{StaticResource YesilColor}"/>
+        <SolidColorBrush x:Key="Kirmizi" Color="{StaticResource KirmiziColor}"/>
+        <SolidColorBrush x:Key="Sari" Color="{StaticResource SariColor}"/>
+        <SolidColorBrush x:Key="Mavi" Color="{StaticResource MaviColor}"/>
+        <SolidColorBrush x:Key="Mor" Color="{StaticResource MorColor}"/>
+        <SolidColorBrush x:Key="Gold" Color="{StaticResource GoldColor}"/>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Kenar}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+
+        <Style Selector="Border.metrik">
+            <Setter Property="Background" Value="{StaticResource Panel2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Kenar}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+
+        <Style Selector="TextBlock.h2">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Vurgu}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{StaticResource Soluk}"/>
+        </Style>
+        <Style Selector="TextBlock.deger">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Metin}"/>
+        </Style>
+
+        <Style Selector="Button.sekme">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource Soluk}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.sekme:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="TextElement.Foreground" Value="{StaticResource Metin}"/>
+        </Style>
+        <Style Selector="Button.sekme.aktif">
+            <Setter Property="Foreground" Value="{StaticResource Vurgu}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Vurgu}"/>
+        </Style>
+
+        <Style Selector="Button.aksiyon">
+            <Setter Property="Background" Value="{StaticResource Panel2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Metin}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Kenar}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Button.aksiyon:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Vurgu}"/>
+            <Setter Property="TextElement.Foreground" Value="#030d0d"/>
+        </Style>
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{StaticResource Bg}"/>
+        </Style>
+    </Application.Styles>
+</Application>

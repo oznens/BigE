@@ -1,0 +1,585 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TerminalMiraz.ViewModels"
+        xmlns:ctrl="using:TerminalMiraz.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="850"
+        x:Class="TerminalMiraz.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1400" Height="850"
+        Title="terminalMiraz"
+        Background="{StaticResource Bg}">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <DockPanel Margin="14,10">
+        <!-- ── HEADER ── -->
+        <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                    <TextBlock Text="terminal" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Metin}"/>
+                    <TextBlock Text="Miraz" FontSize="22" FontWeight="Bold" Foreground="{StaticResource Vurgu}"/>
+                </StackPanel>
+                <TextBlock Text="DİSİPLİN · SİSTEM · İSTATİSTİK · BAŞARI"
+                           FontSize="10" Foreground="{StaticResource Soluk}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding SaatMetni}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                       FontSize="11" Foreground="{StaticResource Soluk}"/>
+        </Grid>
+
+        <!-- ── SEKME NAV ── -->
+        <Border DockPanel.Dock="Top" BorderBrush="{StaticResource Kenar}" BorderThickness="0,0,0,1" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Content="PERFORMANCE" Classes="sekme" Classes.aktif="{Binding PerformanceAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="performance"/>
+                <Button Content="JOURNAL" Classes="sekme" Classes.aktif="{Binding JournalAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="journal"/>
+                <Button Content="AYLIK R" Classes="sekme" Classes.aktif="{Binding AylikAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="aylik"/>
+                <Button Content="MEMORY" Classes="sekme" Classes.aktif="{Binding MemoryAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="memory"/>
+                <Button Content="SCANNER" Classes="sekme" Classes.aktif="{Binding ScannerAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="scanner"/>
+                <Button Content="PLAYBACK" Classes="sekme" Classes.aktif="{Binding PlaybackAktif}"
+                        Command="{Binding SekmeSecCommand}" CommandParameter="playback"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ── İÇERİK ── -->
+        <Grid>
+            <!-- PERFORMANCE -->
+            <ScrollViewer IsVisible="{Binding PerformanceAktif}">
+                <StackPanel Spacing="10">
+                    <!-- üst stat bar -->
+                    <Border Classes="panel">
+                        <StackPanel Spacing="10">
+                            <Grid>
+                                <TextBlock Text="PERFORMANCE INTELLIGENCE · LIVE SETUP RESULT MEMORY"
+                                           FontSize="10" FontWeight="Bold" Foreground="{StaticResource Vurgu}"/>
+                                <TextBlock Text="{Binding PiTarih}" HorizontalAlignment="Right"
+                                           FontSize="10" Foreground="{StaticResource Soluk}"/>
+                            </Grid>
+                            <UniformGrid Columns="4">
+                                <Border Classes="metrik" Margin="0,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="BUGÜN" Classes="label"/>
+                                        <TextBlock Text="{Binding PiBugunN}" Classes="deger" Foreground="{StaticResource Vurgu}"/>
+                                        <TextBlock Text="SONUÇ" Classes="label"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="WIN RATE" Classes="label"/>
+                                        <TextBlock Text="{Binding PiWr}" Classes="deger" Foreground="{StaticResource Yesil}"/>
+                                        <TextBlock Text="{Binding PiTpSl}" Classes="label"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="DÜN" Classes="label"/>
+                                        <TextBlock Text="{Binding PiDunN}" Classes="deger" Foreground="{StaticResource Sari}"/>
+                                        <TextBlock Text="{Binding PiDunWr}" Classes="label"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik">
+                                    <StackPanel>
+                                        <TextBlock Text="TÜM GEÇMİŞ" Classes="label"/>
+                                        <TextBlock Text="{Binding PiTumN}" Classes="deger" Foreground="{StaticResource Mavi}"/>
+                                        <TextBlock Text="{Binding PiTumWr}" Classes="label"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- RESULT ENGINES -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="RESULT ENGINES" Classes="h2"/>
+                            <ItemsControl ItemsSource="{Binding Engines}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="7"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EngineVM">
+                                        <Border Classes="metrik" Margin="3" BorderThickness="0,2,0,0"
+                                                BorderBrush="{Binding Renk}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Ad}" FontSize="9" FontWeight="Bold"
+                                                           Foreground="{Binding Renk}"/>
+                                                <TextBlock Text="{Binding Toplam}" FontSize="18" FontWeight="Bold"
+                                                           Foreground="{StaticResource Metin}"/>
+                                                <TextBlock Text="{Binding WrMetin}" FontSize="11" Foreground="{Binding Renk}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- TERMINAL READOUT -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="TERMINAL READOUT" Classes="h2"/>
+                            <TextBlock Text="{Binding PiReadoutBaslik}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{StaticResource Vurgu}" Margin="0,0,0,6"/>
+                            <TextBlock Text="{Binding PiReadoutMetin}" FontSize="11"
+                                       Foreground="{StaticResource Soluk}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- TRADE MEMORY -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="TUMU TRADE MEMORY" Classes="h2"/>
+                            <ItemsControl ItemsSource="{Binding TradeMemoryKartlar}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TradeMemoryVM">
+                                        <Border Classes="metrik" Margin="3" Width="160" BorderThickness="0,2,0,0"
+                                                BorderBrush="{Binding DurumRenk}">
+                                            <StackPanel>
+                                                <Grid>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"/>
+                                                        <TextBlock Text="{Binding Interval}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Durum}" HorizontalAlignment="Right"
+                                                               FontSize="10" FontWeight="Bold" Foreground="{Binding DurumRenk}"/>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                <TextBlock Text="{Binding Guven}" FontSize="22" FontWeight="Bold"
+                                                           Foreground="{StaticResource Vurgu}"/>
+                                                <TextBlock Text="{Binding RSonuc}" FontSize="11" Foreground="{Binding DurumRenk}"/>
+                                                <TextBlock Text="{Binding Kapanis}" FontSize="9" Foreground="{StaticResource Soluk}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- JOURNAL -->
+            <ScrollViewer IsVisible="{Binding JournalAktif}">
+                <Border Classes="panel">
+                    <StackPanel>
+                        <TextBlock Text="SCANNER JOURNAL · GÜNLÜK KAYIT DEFTERİ" Classes="h2"/>
+                        <ItemsControl ItemsSource="{Binding JournalGunler}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:JournalGunVM">
+                                    <Border Classes="metrik" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Baslik}" FontSize="12" FontWeight="Bold"
+                                                       Foreground="{StaticResource Vurgu}" Margin="0,0,0,6"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                                                <Border Background="#1426d07c" CornerRadius="10" Padding="8,2">
+                                                    <TextBlock Foreground="{StaticResource Yesil}" FontSize="11" FontWeight="Bold">
+                                                        <Run Text="TP"/><Run Text="{Binding Tp}"/>
+                                                    </TextBlock>
+                                                </Border>
+                                                <Border Background="#14ef4d56" CornerRadius="10" Padding="8,2">
+                                                    <TextBlock Foreground="{StaticResource Kirmizi}" FontSize="11" FontWeight="Bold">
+                                                        <Run Text="STOP "/><Run Text="{Binding Stop}"/>
+                                                    </TextBlock>
+                                                </Border>
+                                                <TextBlock Text="{Binding NetR}" Foreground="{StaticResource Gold}"
+                                                           FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <ItemsControl ItemsSource="{Binding Satirlar}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:JournalSatirVM">
+                                                        <Grid ColumnDefinitions="50,90,50,Auto,*" Margin="0,2">
+                                                            <Border Grid.Column="0" Background="#22000000" CornerRadius="4" Padding="4,1">
+                                                                <TextBlock Text="{Binding Durum}" FontSize="10" FontWeight="Bold"
+                                                                           Foreground="{Binding DurumRenk}"/>
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Sembol}" FontWeight="Bold"
+                                                                       FontSize="11" Margin="6,0,0,0"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Interval}" FontSize="11"
+                                                                       Foreground="{StaticResource Mavi}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding RSonuc}" FontSize="11"
+                                                                       Foreground="{Binding DurumRenk}" Margin="8,0"/>
+                                                            <TextBlock Grid.Column="4" Text="{Binding Saat}" FontSize="10"
+                                                                       Foreground="{StaticResource Soluk}" HorizontalAlignment="Right"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </ScrollViewer>
+
+            <!-- AYLIK R -->
+            <ScrollViewer IsVisible="{Binding AylikAktif}">
+                <StackPanel Spacing="10">
+                    <Border CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="#4a3c15"
+                            Background="#0a0d06">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="TM terminalMiraz · AYLIK R KAZANÇ HESABI" FontSize="16"
+                                       FontWeight="Bold" Foreground="{StaticResource Gold}"/>
+                            <UniformGrid Columns="4">
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderBrush="#4a3c15">
+                                    <StackPanel>
+                                        <TextBlock Text="TOPLAM R" Classes="label"/>
+                                        <TextBlock Text="{Binding AylikToplamR}" Classes="deger" Foreground="{StaticResource Gold}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderBrush="#4a3c15">
+                                    <StackPanel>
+                                        <TextBlock Text="KAZANAN GÜN" Classes="label"/>
+                                        <TextBlock Text="{Binding AylikKazancGun}" Classes="deger" Foreground="{StaticResource Yesil}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderBrush="#4a3c15">
+                                    <StackPanel>
+                                        <TextBlock Text="ZARAR EDEN GÜN" Classes="label"/>
+                                        <TextBlock Text="{Binding AylikZararGun}" Classes="deger" Foreground="{StaticResource Kirmizi}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="metrik" BorderBrush="#4a3c15">
+                                    <StackPanel>
+                                        <TextBlock Text="GÜNLÜK ORT" Classes="label"/>
+                                        <TextBlock Text="{Binding AylikOrtR}" Classes="deger" Foreground="{StaticResource Gold}"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="{Binding AylikBaslik}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{StaticResource Gold}" Margin="0,0,0,8"/>
+                            <Grid ColumnDefinitions="*,*,Auto,Auto,Auto,Auto" Margin="0,0,0,4">
+                                <TextBlock Grid.Column="0" Text="Tarih" Classes="label"/>
+                                <TextBlock Grid.Column="1" Text="Gün" Classes="label"/>
+                                <TextBlock Grid.Column="2" Text="İşlem" Classes="label" Width="50" TextAlignment="Right"/>
+                                <TextBlock Grid.Column="3" Text="PA/Hrm" Classes="label" Width="90" TextAlignment="Right"/>
+                                <TextBlock Grid.Column="4" Text="Net" Classes="label" Width="60" TextAlignment="Right"/>
+                                <TextBlock Grid.Column="5" Text="Küm." Classes="label" Width="60" TextAlignment="Right"/>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding AylikTablo}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AylikSatirVM">
+                                        <Grid ColumnDefinitions="*,*,Auto,Auto,Auto,Auto" Margin="0,2"
+                                              ShowGridLines="False">
+                                            <TextBlock Grid.Column="0" Text="{Binding Tarih}" FontSize="11"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Gun}" FontSize="11" Foreground="{StaticResource Soluk}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Islem}" FontSize="11" Width="50" TextAlignment="Right"/>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" Width="90" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding PaR}" FontSize="10" Foreground="{StaticResource Yesil}"/>
+                                                <TextBlock Text=" / " FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                <TextBlock Text="{Binding HrmR}" FontSize="10" Foreground="{StaticResource Mor}"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="4" Text="{Binding NetR}" FontSize="11" FontWeight="Bold"
+                                                       Foreground="{Binding NetRenk}" Width="60" TextAlignment="Right"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding Kumulatif}" FontSize="11"
+                                                       Foreground="{StaticResource Gold}" Width="60" TextAlignment="Right"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- MEMORY -->
+            <ScrollViewer IsVisible="{Binding MemoryAktif}">
+                <StackPanel Spacing="10">
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="SCANNER MARKET HAFIZASI" Classes="h2"/>
+                            <TextBlock Text="{Binding MemoryWrHeader}" FontSize="28" FontWeight="Bold"
+                                       Foreground="{StaticResource Vurgu}" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding MemoryKonsept}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BucketVM">
+                                        <Border Classes="metrik" Margin="3" BorderThickness="3,1,1,1" BorderBrush="{Binding Renk}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Ad}" FontSize="10" FontWeight="Bold" Foreground="{Binding Renk}"/>
+                                                <TextBlock Text="{Binding Toplam}" Classes="deger"/>
+                                                <TextBlock Text="{Binding Alt}" Classes="label"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <UniformGrid Columns="2">
+                        <Border Classes="panel" Margin="0,0,5,0">
+                            <StackPanel>
+                                <TextBlock Text="PARİTE HAFIZA ŞERİDİ" Classes="h2"/>
+                                <ItemsControl ItemsSource="{Binding MemoryParite}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PerfSatirVM">
+                                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,3">
+                                                <TextBlock Grid.Column="0" Text="{Binding Ad}" FontSize="11"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding WrMetni}" FontSize="11" Width="50" TextAlignment="Right"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding TpStop}" FontSize="11" Width="50" TextAlignment="Right" Foreground="{StaticResource Soluk}"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding RMetni}" FontSize="11" Width="50" TextAlignment="Right" Foreground="{Binding RRenk}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <TextBlock Text="ZAMAN DİLİMİ KARAKTERİ" Classes="h2"/>
+                                <ItemsControl ItemsSource="{Binding MemoryTf}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:PerfSatirVM">
+                                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,3">
+                                                <TextBlock Grid.Column="0" Text="{Binding Ad}" FontSize="11"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding WrMetni}" FontSize="11" Width="50" TextAlignment="Right"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding TpStop}" FontSize="11" Width="50" TextAlignment="Right" Foreground="{StaticResource Soluk}"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding RMetni}" FontSize="11" Width="50" TextAlignment="Right" Foreground="{Binding RRenk}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- SCANNER -->
+            <ScrollViewer IsVisible="{Binding ScannerAktif}">
+                <StackPanel Spacing="10">
+                    <!-- execution -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="BINANCE EXECUTION (TESTNET)" Classes="h2"/>
+                            <UniformGrid Columns="5">
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderThickness="3,1,1,1" BorderBrush="{StaticResource Mavi}">
+                                    <StackPanel><TextBlock Text="WALLET" Classes="label"/>
+                                        <TextBlock Text="{Binding ExecWallet}" Classes="deger" Foreground="{StaticResource Mavi}"/>
+                                        <TextBlock Text="Test USDT" Classes="label"/></StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderThickness="3,1,1,1" BorderBrush="{StaticResource Yesil}">
+                                    <StackPanel><TextBlock Text="AÇIK" Classes="label"/>
+                                        <TextBlock Text="{Binding ExecAktif}" Classes="deger" Foreground="{StaticResource Yesil}"/>
+                                        <TextBlock Text="pozisyon" Classes="label"/></StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderThickness="3,1,1,1" BorderBrush="{StaticResource Sari}">
+                                    <StackPanel><TextBlock Text="BEKLEYEN" Classes="label"/>
+                                        <TextBlock Text="{Binding ExecBekleyen}" Classes="deger" Foreground="{StaticResource Sari}"/>
+                                        <TextBlock Text="emir" Classes="label"/></StackPanel>
+                                </Border>
+                                <Border Classes="metrik" Margin="0,0,6,0" BorderThickness="3,1,1,1" BorderBrush="{StaticResource Vurgu}">
+                                    <StackPanel><TextBlock Text="DAILY PNL" Classes="label"/>
+                                        <TextBlock Text="{Binding ExecDailyPnl}" Classes="deger" Foreground="{StaticResource Vurgu}"/>
+                                        <TextBlock Text="bugün" Classes="label"/></StackPanel>
+                                </Border>
+                                <Border Classes="metrik" BorderThickness="3,1,1,1" BorderBrush="{StaticResource Kirmizi}">
+                                    <StackPanel><TextBlock Text="RISK" Classes="label"/>
+                                        <TextBlock Text="{Binding ExecRisk}" Classes="deger" Foreground="{StaticResource Kirmizi}"/>
+                                        <TextBlock Text="açık risk" Classes="label"/></StackPanel>
+                                </Border>
+                            </UniformGrid>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                                <TextBlock Text="KIRAZ STATUS:" FontSize="12" Foreground="{StaticResource Soluk}"/>
+                                <TextBlock Text="{Binding KirazDurum}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Vurgu}"/>
+                                <TextBlock Text="{Binding KirazMesaj}" FontSize="12" Foreground="{StaticResource Soluk}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- result journal -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="RESULT JOURNAL — LIVE SETUP MEMORY" Classes="h2"/>
+                            <TextBlock Text="{Binding OzetSatir}" FontSize="12" Foreground="{StaticResource Soluk}" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding BucketKartlar}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BucketVM">
+                                        <Border Classes="metrik" Margin="3" BorderThickness="3,1,1,1" BorderBrush="{Binding Renk}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Ad}" FontSize="10" FontWeight="Bold" Foreground="{Binding Renk}"/>
+                                                <TextBlock Text="{Binding Toplam}" Classes="deger"/>
+                                                <TextBlock Text="{Binding Alt}" Classes="label"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- canlı grafik -->
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="CANLI GRAFİK" Classes="h2"/>
+                                <TextBlock Text="{Binding GrafikBaslik}" FontSize="11" Foreground="{StaticResource Soluk}"/>
+                            </StackPanel>
+                            <ctrl:MumGrafik Veri="{Binding Grafik}" Height="430" Margin="0,4"/>
+                            <Border Background="#129b7bd4" BorderBrush="#409b7bd4" BorderThickness="1"
+                                    CornerRadius="8" Padding="11" Margin="0,8,0,0"
+                                    IsVisible="{Binding SeciliYorum, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SeciliYorum.Baslik}" FontWeight="Bold" FontSize="13"
+                                               Foreground="{StaticResource Mor}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{Binding SeciliYorum.Ozet}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <ItemsControl ItemsSource="{Binding SeciliYorum.Govde}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" FontSize="12" TextWrapping="Wrap" Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding SeciliYorum.Mantra}" FontSize="11" FontStyle="Italic"
+                                               Foreground="{StaticResource Soluk}" Margin="0,7,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- aday akışı + bildirimler -->
+                    <UniformGrid Columns="2">
+                        <Border Classes="panel" Margin="0,0,5,0">
+                            <StackPanel>
+                                <TextBlock Text="CANLI ADAY AKIŞI" Classes="h2"/>
+                                <ItemsControl ItemsSource="{Binding Adaylar}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AdayVM">
+                                            <Button Background="Transparent" Padding="0" Margin="0,0,0,7" HorizontalAlignment="Stretch"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).GrafikYukleCommand}"
+                                                    CommandParameter="{Binding SembolInterval}">
+                                                <Border Classes="metrik" BorderThickness="3,1,1,1" BorderBrush="{Binding KategoriRenk}"
+                                                        HorizontalAlignment="Stretch">
+                                                    <StackPanel>
+                                                        <Grid>
+                                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                <TextBlock Text="{Binding YonOk}" Foreground="{Binding YonRenk}" FontWeight="Bold"/>
+                                                                <TextBlock Text="{Binding Symbol}" FontWeight="Bold" FontSize="14" Foreground="{Binding YonRenk}"/>
+                                                                <TextBlock Text="{Binding Interval}" FontSize="11" Foreground="{StaticResource Mavi}"/>
+                                                            </StackPanel>
+                                                            <Border Background="#22000000" CornerRadius="4" Padding="6,1" HorizontalAlignment="Right">
+                                                                <TextBlock Text="{Binding Kategori}" FontSize="10" FontWeight="Bold" Foreground="{Binding KategoriRenk}"/>
+                                                            </Border>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Kaynaklar}" FontSize="11" Foreground="{StaticResource Mor}" Margin="0,2"/>
+                                                        <TextBlock Text="{Binding Seviyeler}" FontSize="11" Foreground="{StaticResource Metin}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="panel">
+                            <StackPanel>
+                                <TextBlock Text="SONUÇ BİLDİRİMLERİ" Classes="h2"/>
+                                <ItemsControl ItemsSource="{Binding Bildirimler}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BildirimVM">
+                                            <Border Classes="metrik" Margin="0,0,0,7" BorderThickness="3,1,1,1" BorderBrush="{Binding DurumRenk}">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="14"/>
+                                                            <TextBlock Text="{Binding Interval}" FontSize="11" Foreground="{StaticResource Mavi}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding Durum}" FontSize="11" FontWeight="Bold" Foreground="{Binding DurumRenk}"/>
+                                                            <TextBlock Text="{Binding RMetni}" FontSize="11" Foreground="{Binding DurumRenk}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Kaynaklar}" FontSize="11" Foreground="{StaticResource Soluk}" Margin="0,2"/>
+                                                    <TextBlock Text="{Binding Seviyeler}" FontSize="11"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- PLAYBACK -->
+            <Grid IsVisible="{Binding PlaybackAktif}" ColumnDefinitions="280,*">
+                <Border Grid.Column="0" Classes="panel" Margin="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="SETUP SEÇ" Classes="h2"/>
+                        <ScrollViewer MaxHeight="700">
+                            <ItemsControl ItemsSource="{Binding PlaybackListe}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TradeMemoryVM">
+                                        <Button Background="Transparent" Padding="0" Margin="0,0,0,5" HorizontalAlignment="Stretch"
+                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).PlaybackSecCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Border Classes="metrik" BorderThickness="3,1,1,1" BorderBrush="{Binding DurumRenk}"
+                                                    HorizontalAlignment="Stretch">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                            <TextBlock Text="{Binding Sembol}" FontWeight="Bold" FontSize="13"/>
+                                                            <TextBlock Text="{Binding Interval}" FontSize="11" Foreground="{StaticResource Mavi}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Durum}" HorizontalAlignment="Right"
+                                                                   FontSize="11" FontWeight="Bold" Foreground="{Binding DurumRenk}"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding Kaynak}" FontSize="10" Foreground="{StaticResource Soluk}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Classes="panel">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="{Binding PlaybackBaslik}" Classes="h2" Margin="0"/>
+                            <Border Background="#22000000" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding PlaybackDurum}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Vurgu}"/>
+                            </Border>
+                        </Grid>
+                        <ctrl:MumGrafik Veri="{Binding PlaybackGrafik}" GorunenBar="{Binding PlaybackBar}"
+                                        Height="420" Margin="0,4"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,8">
+                            <Button Content="‹‹ 10" Classes="aksiyon" Command="{Binding PlaybackGeri10Command}"/>
+                            <Button Content="‹ GERİ" Classes="aksiyon" Command="{Binding PlaybackGeriCommand}"/>
+                            <Button Content="▶ OYNAT" Classes="aksiyon" Command="{Binding PlaybackOynatCommand}"/>
+                            <Button Content="İLERİ ›" Classes="aksiyon" Command="{Binding PlaybackIleriCommand}"/>
+                            <Button Content="10 ››" Classes="aksiyon" Command="{Binding PlaybackIleri10Command}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding PlaybackInfo}" HorizontalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource Soluk}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>
