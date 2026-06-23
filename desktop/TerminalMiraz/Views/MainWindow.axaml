@@ -547,10 +547,23 @@
                     <!-- canlı grafik -->
                     <Border Classes="panel">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="CANLI GRAFİK" Classes="h2"/>
-                                <TextBlock Text="{Binding GrafikBaslik}" FontSize="11" Foreground="{StaticResource Soluk}"/>
-                            </StackPanel>
+                            <Grid>
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="CANLI GRAFİK" Classes="h2"/>
+                                    <TextBlock Text="{Binding GrafikBaslik}" FontSize="11" Foreground="{StaticResource Soluk}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Border Background="#15ef4d56" CornerRadius="4" Padding="7,3"
+                                            IsVisible="{Binding CanliGrafik}">
+                                        <TextBlock Text="{Binding CanliFiyat}" FontSize="11" FontWeight="Bold"
+                                                   Foreground="{StaticResource Kirmizi}"
+                                                   FontFamily="Consolas,Menlo,monospace"/>
+                                    </Border>
+                                    <Button Content="{Binding CanliMetni}" Classes="aksiyon"
+                                            Command="{Binding CanliToggleCommand}"/>
+                                </StackPanel>
+                            </Grid>
                             <ctrl:MumGrafik Veri="{Binding Grafik}" Height="430" Margin="0,4"/>
                             <Border Background="#129b7bd4" BorderBrush="#409b7bd4" BorderThickness="1"
                                     CornerRadius="8" Padding="11" Margin="0,8,0,0"

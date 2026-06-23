@@ -42,7 +42,9 @@ jobs:
         run: pip install pandas numpy requests pyarrow
 
       - name: Tarama + statik site üret
-        run: python backtest/statik_site.py --cikti site --genis --mtf --taraf her
+        # SIFIRLA: bu tek run önceki defter/portföy hafızasını YOK SAYIP temiz başlar
+        # (yanlış/eski setupları temizler). Sonraki commit'te normale döner.
+        run: python backtest/statik_site.py --cikti site --genis --mtf --taraf her --onceki-url ""
 
       - name: Pages artefaktını yükle
         uses: actions/upload-pages-artifact@v3

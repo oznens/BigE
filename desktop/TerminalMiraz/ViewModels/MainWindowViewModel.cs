@@ -128,12 +128,61 @@ public partial class MainWindowViewModel : ViewModelBase
         => OnPropertyChanged(nameof(SecilenTradeMevcut));
     private DispatcherTimer? _playbackTimer;
 
+    // ── canlı grafik (MEXC anlık) ──
+    [ObservableProperty] private bool _canliGrafik;
+    public string CanliMetni => CanliGrafik ? "⏸ CANLI: AÇIK" : "▶ CANLI GRAFİK";
+    partial void OnCanliGrafikChanged(bool value) => OnPropertyChanged(nameof(CanliMetni));
+    [ObservableProperty] private string _canliFiyat = "";
+    private DispatcherTimer? _canliTimer;
+    private bool _canliMesgul;
+
     public MainWindowViewModel()
     {
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
         _timer.Tick += async (_, _) => await Yenile();
         _timer.Start();
         _ = Yenile();
+    }
+
+    /// <summary>Canlı grafik modunu aç/kapat — açıkken her 5sn MEXC'ten anlık mum çeker.</summary>
+    [RelayCommand]
+    private void CanliToggle()
+    {
+        CanliGrafik = !CanliGrafik;
+        if (CanliGrafik)
+        {
+            _canliTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _canliTimer.Tick += async (_, _) => await CanliGrafikGuncelle();
+            _canliTimer.Start();
+            _ = CanliGrafikGuncelle();   // hemen ilk çekiş
+        }
+        else
+        {
+            _canliTimer?.Stop();
+            _canliTimer = null;
+            CanliFiyat = "";
+        }
+    }
+
+    /// <summary>Aktif sembolü MEXC'ten anlık çekip grafiği günceller (native, Python'a bağımsız).</summary>
+    private async Task CanliGrafikGuncelle()
+    {
+        if (_canliMesgul || _aktifGrafikSembol == "" || AktifSekme != "scanner") return;
+        _canliMesgul = true;
+        try
+        {
+            var mumlar = await Veri.Indir(_aktifGrafikSembol, _aktifGrafikTf, 90);
+            if (mumlar.Count < 30) return;
+            // native değerlendir → setup + seviyeler (gerçek setup_bar ile zamansal durum)
+            var aday = Tarayici.Degerlendir(_aktifGrafikSembol, _aktifGrafikTf, mumlar);
+            var g = Tarayici.GrafikUret(mumlar, aday);
+            Grafik = g;
+            double sonFiyat = mumlar[^1].Kapanis;
+            CanliFiyat = $"● {_aktifGrafikSembol} {Bicim.Fmt(sonFiyat)} · {DateTime.Now:HH:mm:ss}";
+            GrafikBaslik = $"· {_aktifGrafikSembol} {_aktifGrafikTf} (CANLI)";
+        }
+        catch { /* ağ hatası → sessiz geç, sonraki tick dener */ }
+        finally { _canliMesgul = false; }
     }
 
     private bool _ilkGrafikYuklendi;
