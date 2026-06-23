@@ -2,8 +2,8 @@ name: Release — terminalMiraz
 
 on:
   workflow_dispatch:        # elle tetikle (Actions → Run workflow)
-  push:                     # bu branch'e desktop değişikliği push'lanınca otomatik
-    branches: ["claude/walter-vanelli-fx-c8rtd2"]
+  push:                     # default/geliştirme branch'ine desktop değişikliği → otomatik
+    branches: ["claude/inspiring-brown-FdsNk", "claude/walter-vanelli-fx-c8rtd2"]
     paths:
       - "desktop/TerminalMiraz/**"
       - ".github/workflows/release.yml"
@@ -15,9 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: claude/walter-vanelli-fx-c8rtd2
+      - uses: actions/checkout@v4   # tetikleyen ref'i çek
 
       - uses: actions/setup-dotnet@v4
         with:

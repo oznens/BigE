@@ -10,8 +10,8 @@ on:
   workflow_dispatch:            # elle de tetiklenebilir
   repository_dispatch:          # harici pinger (cron-job.org vb.) → GARANTİ tetik
     types: [tarama]
-  push:                         # geliştirme branch'ine her push → taze tarama + deploy
-    branches: ["claude/walter-vanelli-fx-c8rtd2"]
+  push:                         # default + geliştirme branch'ine her push → taze tarama + deploy
+    branches: ["claude/inspiring-brown-FdsNk", "claude/walter-vanelli-fx-c8rtd2"]
     paths-ignore: ["site/**", "data/**"]
 
 # Pages dağıtımı için gerekli izinler
@@ -29,9 +29,7 @@ jobs:
   tarama:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: claude/walter-vanelli-fx-c8rtd2
+      - uses: actions/checkout@v4   # tetikleyen ref'i çek (default veya geliştirme branch)
 
       - uses: actions/setup-python@v5
         with:
