@@ -92,6 +92,15 @@
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
+                            <!-- WR donutları -->
+                            <StackPanel Orientation="Horizontal" Spacing="24" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                <ctrl:Donut Yuzde="{Binding PiBugunWrNum}" Etiket="BUGÜN" Width="74" Height="74"
+                                            Renk="#00e5c8"/>
+                                <ctrl:Donut Yuzde="{Binding PiDunWrNum}" Etiket="DÜN" Width="74" Height="74"
+                                            Renk="#f5b942"/>
+                                <ctrl:Donut Yuzde="{Binding PiTumWrNum}" Etiket="GEÇMİŞ" Width="74" Height="74"
+                                            Renk="#3da5ff"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -173,7 +182,50 @@
             </ScrollViewer>
 
             <!-- JOURNAL -->
-            <ScrollViewer IsVisible="{Binding JournalAktif}">
+            <Grid IsVisible="{Binding JournalAktif}" ColumnDefinitions="240,*">
+              <!-- sol: mini takvim -->
+              <Border Grid.Column="0" Classes="panel" Margin="0,0,10,0" VerticalAlignment="Top">
+                <StackPanel>
+                  <TextBlock Text="TAKVİM HAFIZASI" Classes="h2"/>
+                  <TextBlock Text="{Binding AylikBaslik}" FontSize="12" FontWeight="Bold"
+                             Foreground="{StaticResource Metin}" Margin="0,0,0,6"/>
+                  <UniformGrid Columns="7" Margin="0,0,0,2">
+                    <TextBlock Text="P" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="S" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Ç" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="P" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="C" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="C" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="P" FontSize="9" Foreground="{StaticResource Soluk}" HorizontalAlignment="Center"/>
+                  </UniformGrid>
+                  <ItemsControl ItemsSource="{Binding JournalTakvim}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:TakvimHucreVM">
+                        <Border Margin="1" CornerRadius="4" MinHeight="26" Padding="2"
+                                Background="{Binding ArkaRenk}" BorderThickness="1" BorderBrush="{Binding KenarRenk}">
+                          <StackPanel IsVisible="{Binding Dolu}" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding GunNo}" FontSize="10" HorizontalAlignment="Center"
+                                       Foreground="{Binding GunRenk}"/>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                      <Border Width="10" Height="10" CornerRadius="2" Background="#0e1a06" BorderBrush="#3326d07c" BorderThickness="1"/>
+                      <TextBlock Text="TP gün" FontSize="9" Foreground="{StaticResource Soluk}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                      <Border Width="10" Height="10" CornerRadius="2" Background="#1a0606" BorderBrush="#33ef4d56" BorderThickness="1"/>
+                      <TextBlock Text="STOP gün" FontSize="9" Foreground="{StaticResource Soluk}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+              <!-- sağ: günlük kayıtlar -->
+              <ScrollViewer Grid.Column="1">
                 <Border Classes="panel">
                     <StackPanel>
                         <TextBlock Text="SCANNER JOURNAL · GÜNLÜK KAYIT DEFTERİ" Classes="h2"/>
@@ -225,7 +277,8 @@
                         </ItemsControl>
                     </StackPanel>
                 </Border>
-            </ScrollViewer>
+              </ScrollViewer>
+            </Grid>
 
             <!-- AYLIK R -->
             <ScrollViewer IsVisible="{Binding AylikAktif}">
@@ -264,9 +317,43 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="panel">
+                    <!-- AYLIK TAKVİM -->
+                    <Border CornerRadius="8" Padding="12" BorderThickness="1" BorderBrush="#4a3c15" Background="#0a0d06">
                         <StackPanel>
                             <TextBlock Text="{Binding AylikBaslik}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{StaticResource Gold}" Margin="0,0,0,8"/>
+                            <UniformGrid Columns="7" Margin="0,0,0,4">
+                                <TextBlock Text="Pzt" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Sal" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Çar" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Per" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Cum" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Cmt" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Paz" FontSize="9" Foreground="#6a5a20" HorizontalAlignment="Center"/>
+                            </UniformGrid>
+                            <ItemsControl ItemsSource="{Binding AylikTakvim}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:TakvimHucreVM">
+                                        <Border Margin="2" CornerRadius="5" MinHeight="46" Padding="4"
+                                                Background="{Binding ArkaRenk}" BorderThickness="1" BorderBrush="{Binding KenarRenk}">
+                                            <StackPanel IsVisible="{Binding Dolu}">
+                                                <TextBlock Text="{Binding GunNo}" FontSize="9" Foreground="#6a5a20"/>
+                                                <TextBlock Text="{Binding RMetni}" FontSize="12" FontWeight="Bold"
+                                                           Foreground="{Binding GunRenk}" IsVisible="{Binding IslemVar}"/>
+                                                <TextBlock Text="{Binding Yuzde}" FontSize="9" Foreground="{Binding GunRenk}"
+                                                           IsVisible="{Binding IslemVar}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="panel">
+                        <StackPanel>
+                            <TextBlock Text="GÜNLÜK DETAY TABLOSU" FontSize="11" FontWeight="Bold"
                                        Foreground="{StaticResource Gold}" Margin="0,0,0,8"/>
                             <Grid ColumnDefinitions="*,*,Auto,Auto,Auto,Auto" Margin="0,0,0,4">
                                 <TextBlock Grid.Column="0" Text="Tarih" Classes="label"/>

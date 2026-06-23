@@ -168,12 +168,38 @@ public class JournalSatirVM
     }
 }
 
-// Takvim hücresi (journal mini takvim için — şimdilik kullanılmıyor ama hazır)
-public class TakvimGunVM
+// Takvim hücresi — Journal mini takvim + Aylık R takvim
+public class TakvimHucreVM
 {
-    public int Gun { get; set; }
+    public string GunNo { get; set; } = "";
     public string RMetni { get; set; } = "";
+    public string Yuzde { get; set; } = "";
+    public bool Bos_ { get; set; }
+    public bool Dolu => !Bos_;
     public bool Kar { get; set; }
+    public bool Zarar { get; set; }
+    public bool IslemVar { get; set; }
+
+    // renkler
+    public string ArkaRenk => Bos_ ? "Transparent"
+        : Kar ? "#0e1a06" : Zarar ? "#1a0606" : "#0a0e14";
+    public string KenarRenk => Bos_ ? "Transparent"
+        : Kar ? "#3326d07c" : Zarar ? "#33ef4d56" : "#1c2d3f";
+    public string GunRenk => Kar ? "#26d07c" : Zarar ? "#ef4d56" : "#5a7a96";
+
+    public static TakvimHucreVM Bos() => new() { Bos_ = true };
+
+    public static TakvimHucreVM Olustur(int gun, TerminalMiraz.Models.TakvimGun? gv, bool aylik)
+    {
+        var h = new TakvimHucreVM { GunNo = gun.ToString() };
+        if (gv == null) return h;
+        h.IslemVar = true;
+        h.Kar = gv.R > 0; h.Zarar = gv.R < 0;
+        h.RMetni = (gv.R >= 0 ? "+" : "") + gv.R.ToString("0.0", CultureInfo.InvariantCulture) + "R";
+        int tot = gv.Tp + gv.Stop;
+        h.Yuzde = tot > 0 ? $"%{(int)System.Math.Round(100.0 * gv.Tp / tot)}" : "";
+        return h;
+    }
 }
 
 // ── biçimleyici ──

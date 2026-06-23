@@ -28,10 +28,18 @@ internal static class Capture
 
         WriteableBitmap? frame = null;
         bool yerel = sekme == "yerel";
-        var vm = new MainWindowViewModel { AktifSekme = yerel ? "scanner" : sekme };
+        // "demo:<sekme>" → örnek veriyle render (donut/takvim doğrulaması)
+        bool demo = sekme.StartsWith("demo:");
+        string gercekSekme = demo ? sekme.Substring(5) : (yerel ? "scanner" : sekme);
+        var vm = new MainWindowViewModel { AktifSekme = gercekSekme };
         var pencere = new MainWindow { DataContext = vm };
         pencere.Show();
 
+        if (demo)
+        {
+            vm.OtoYenileKapat();   // canlı veri demo'yu ezmesin
+            vm.Uygula(Services.DemoVeri.Olustur());
+        }
         if (yerel)
             vm.YerelTaraCommand.Execute(null);  // native tarama tetikle
 

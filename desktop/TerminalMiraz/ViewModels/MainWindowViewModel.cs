@@ -56,6 +56,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _piTumWr = "%0";
     [ObservableProperty] private string _piReadoutBaslik = "";
     [ObservableProperty] private string _piReadoutMetin = "";
+    [ObservableProperty] private double _piBugunWrNum;
+    [ObservableProperty] private double _piDunWrNum;
+    [ObservableProperty] private double _piTumWrNum;
     public ObservableCollection<EngineVM> Engines { get; } = new();
     public ObservableCollection<TradeMemoryVM> TradeMemoryKartlar { get; } = new();
 
@@ -89,7 +92,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private static readonly string[] YerelTfler = { "1h", "4h" };
 
     // ── JOURNAL / AYLIK R ──
-    public ObservableCollection<TakvimGunVM> TakvimGunler { get; } = new();
+    public ObservableCollection<TakvimHucreVM> JournalTakvim { get; } = new();
+    public ObservableCollection<TakvimHucreVM> AylikTakvim { get; } = new();
     [ObservableProperty] private string _aylikBaslik = "";
     [ObservableProperty] private string _aylikToplamR = "+0.0R";
     [ObservableProperty] private int _aylikKazancGun;
@@ -126,29 +130,44 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private bool _ilkGrafikYuklendi;
 
+    private bool _otoYenileKapali;
+
+    /// <summary>Ağ yoklamasını durdurur (demo/test render için).</summary>
+    public void OtoYenileKapat()
+    {
+        _otoYenileKapali = true;
+        _timer.Stop();
+    }
+
     public async Task Yenile()
     {
+        if (_otoYenileKapali) return;
         var d = await _api.DurumGetir();
-        if (d == null)
+        if (_otoYenileKapali || d == null)
         {
-            SaatMetni = "bağlantı yok — yeniden deneniyor…";
+            if (d == null) SaatMetni = "bağlantı yok — yeniden deneniyor…";
             return;
         }
         VeriKaynagi = _api.Taban;
-        SaatMetni = $"son güncelleme: {d.Zaman.Replace("T", " ")} UTC · " +
-                    $"tarama #{d.TaramaNo} · ∑{d.ToplamTarama}";
-
-        DoldurPerformance(d);
-        DoldurScanner(d);
-        DoldurTakvim(d);
-        DoldurMemory(d);
-        DoldurPlayback(d);
+        Uygula(d);
 
         if (!_ilkGrafikYuklendi && d.VarsayilanGrafik != null)
         {
             _ilkGrafikYuklendi = true;
             await GrafikYukle(d.VarsayilanGrafik.Symbol, d.VarsayilanGrafik.Interval);
         }
+    }
+
+    /// <summary>Bir durum anlık görüntüsünü tüm ekranlara dağıtır.</summary>
+    public void Uygula(Durum d)
+    {
+        SaatMetni = $"son güncelleme: {d.Zaman.Replace("T", " ")} UTC · " +
+                    $"tarama #{d.TaramaNo} · ∑{d.ToplamTarama}";
+        DoldurPerformance(d);
+        DoldurScanner(d);
+        DoldurTakvim(d);
+        DoldurMemory(d);
+        DoldurPlayback(d);
     }
 
     // ── PERFORMANCE doldur ──
@@ -163,6 +182,9 @@ public partial class MainWindowViewModel : ViewModelBase
         PiDunWr = $"%{pc.Dun.Wr:0.#} WR";
         PiTumN = pc.Tum.Sonuc;
         PiTumWr = $"%{pc.Tum.Wr:0.#}";
+        PiBugunWrNum = pc.Bugun.Wr;
+        PiDunWrNum = pc.Dun.Wr;
+        PiTumWrNum = pc.Tum.Wr;
 
         double diff = pc.Bugun.Wr - pc.Dun.Wr;
         PiReadoutBaslik = pc.Bugun.Wr > pc.Dun.Wr ? "BUGÜN DÜNDEN GÜÇLÜ"
@@ -264,6 +286,9 @@ public partial class MainWindowViewModel : ViewModelBase
         AylikZararGun = zararGun;
         AylikOrtR = SgnR(ayGunler.Count > 0 ? topR / ayGunler.Count : 0);
 
+        // takvim hücreleri (ayın 1'i hangi güne denk → boş hücre ofseti)
+        TakvimHucreleriUret(d, simdi.Year, simdi.Month);
+
         // Journal: günlük kartlar (son 5 kayıtlı gün)
         JournalGunler.Clear();
         foreach (var (gun, gv) in d.Takvim.OrderByDescending(kv => kv.Key).Take(5))
@@ -276,6 +301,28 @@ public partial class MainWindowViewModel : ViewModelBase
             foreach (var s in gv.Satirlar.Take(12))
                 jg.Satirlar.Add(new JournalSatirVM(s));
             JournalGunler.Add(jg);
+        }
+    }
+
+    private void TakvimHucreleriUret(Durum d, int yil, int ay)
+    {
+        JournalTakvim.Clear();
+        AylikTakvim.Clear();
+        int ilkGun = (int)new DateTime(yil, ay, 1).DayOfWeek; // 0=Paz
+        int ofset = (ilkGun + 6) % 7;                          // Pazartesi başı
+        int ayGunSay = DateTime.DaysInMonth(yil, ay);
+
+        for (int i = 0; i < ofset; i++)
+        {
+            JournalTakvim.Add(TakvimHucreVM.Bos());
+            AylikTakvim.Add(TakvimHucreVM.Bos());
+        }
+        for (int g = 1; g <= ayGunSay; g++)
+        {
+            string ds = $"{yil:0000}-{ay:00}-{g:00}";
+            d.Takvim.TryGetValue(ds, out var gv);
+            JournalTakvim.Add(TakvimHucreVM.Olustur(g, gv, false));
+            AylikTakvim.Add(TakvimHucreVM.Olustur(g, gv, true));
         }
     }
 
