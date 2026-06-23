@@ -1,7 +1,12 @@
 name: Release — terminalMiraz
 
 on:
-  workflow_dispatch:   # elle tetikle (Actions → Run workflow)
+  workflow_dispatch:        # elle tetikle (Actions → Run workflow)
+  push:                     # bu branch'e desktop değişikliği push'lanınca otomatik
+    branches: ["claude/walter-vanelli-fx-c8rtd2"]
+    paths:
+      - "desktop/TerminalMiraz/**"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: write
@@ -51,5 +56,3 @@ jobs:
           files: |
             out/win-x64/TerminalMiraz.exe
             out/linux-x64/TerminalMiraz
-</content>
-</invoke>
