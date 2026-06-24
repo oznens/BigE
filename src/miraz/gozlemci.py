@@ -65,6 +65,10 @@ class Kayit:
     r_sonuc: float = 0.0
     # Result Journal motoru: Price Action / Harmonik / Late
     kaynak: str = "Price Action"
+    # Bağlı portföy pozisyonunun id'si — senkronize() bununla eşler.
+    # -1 = bağ yok (legacy / pozisyon bulunamadı). Duplikat setuplarda
+    # sembol+TF+yön eşlemesi yanlış pozisyonu seçtiği için id şart.
+    poz_id: int = -1
 
     @property
     def aktif(self) -> bool:
@@ -88,8 +92,12 @@ class Defter:
                 return k
         return None
 
-    def setup_ekle(self, satir) -> Kayit | None:
-        """Bir Trade radar satırını deftere işler (zaten aktifse tekrar etmez)."""
+    def setup_ekle(self, satir, portfoy=None) -> Kayit | None:
+        """Bir Trade radar satırını deftere işler (zaten aktifse tekrar etmez).
+
+        portfoy verilirse, bu setup'a karşılık gelen AKTİF (Bekliyor/Açık)
+        pozisyon bulunup id'si bağlanır; senkronize() sonucu bu id ile alır.
+        """
         taraf = getattr(satir, "taraf", "Long")
         if self._aktif_kayit(satir.symbol, satir.interval, taraf) is not None:
             return None
@@ -97,6 +105,19 @@ class Defter:
             return None
         stop = (satir.stop if getattr(satir, "stop", None) is not None
                 else satir.giris - (satir.hedef - satir.giris) / max(satir.rr, 0.1))
+        # Bu setup'ın aktif portföy pozisyonunu bul (duplikatlarda kapanmışları
+        # atla — yalnız Bekliyor/Açık olan bu yeni setup'a aittir).
+        poz_id = -1
+        if portfoy is not None:
+            for p in portfoy.pozisyonlar:
+                if (p.sembol == satir.symbol and p.interval == satir.interval
+                        and p.yon == taraf and p.durum in ("Bekliyor", "Açık")):
+                    poz_id = p.id
+                    break
+            # Portföy aktif pozisyon açmadıysa (dedup/cooldown) → kayıt da açma.
+            # Aksi halde poz_id=-1 dangling kayıt birikir (duplikat defter).
+            if poz_id < 0:
+                return None
         self.id_sayac += 1
         k = Kayit(
             id=self.id_sayac, acilis_zaman=_simdi(), sembol=satir.symbol,
@@ -104,7 +125,7 @@ class Defter:
             guven=satir.guven, giris=round(float(satir.giris), 6),
             stop=round(float(stop), 6), hedef=round(float(satir.hedef), 6),
             rr=round(float(satir.rr), 2), pattern=getattr(satir, "pattern", None),
-            kaynak=getattr(satir, "kaynak", "Price Action"))
+            kaynak=getattr(satir, "kaynak", "Price Action"), poz_id=poz_id)
         self.kayitlar.append(k)
         return k
 
@@ -112,20 +133,41 @@ class Defter:
         """Defter kayıtlarının durumunu portföy pozisyonlarından günceller.
 
         Portföy durumu (Bekliyor/Açık/TP/STOP/Expired/Manuel) → Kayıt durumu.
+
+        Eşleme poz_id ile yapılır (benzersiz). poz_id yoksa (legacy kayıt) yalnız
+        AKTİF pozisyonlara sembol+TF+yön ile düşülür — böylece kapanmış eski bir
+        pozisyonun sonucu yanlışlıkla yeni kayda kopyalanmaz (eski bug buydu).
         """
         durum_map = {"Bekliyor": "Aday", "Açık": "Açık", "TP": "TP",
                      "STOP": "STOP", "Expired": "Expired", "Manuel": "Manuel"}
+        poz_idx = {p.id: p for p in portfoy.pozisyonlar}
+        # poz_id ile bağlı kayıtların sahip olduğu pozisyonlar — legacy eşleme
+        # bunları "claimed" sayıp atlar (iki kayıt aynı pozisyonu kapamasın).
+        claimed = {k.poz_id for k in self.kayitlar if k.poz_id >= 0}
         for k in self.kayitlar:
             if not k.aktif:
                 continue
-            for p in portfoy.pozisyonlar:
-                if (p.sembol == k.sembol and p.interval == k.interval
-                        and p.yon == k.taraf):
-                    k.durum = durum_map.get(p.durum, k.durum)
-                    if not k.aktif:
-                        k.kapanis_zaman = p.kapanis_zaman or _simdi()
-                        k.r_sonuc = p.r_sonuc
-                    break
+            p = None
+            if k.poz_id >= 0:
+                p = poz_idx.get(k.poz_id)
+            else:
+                # Legacy (poz_id yok): sembol+TF+yön + giriş seviyesi eşle.
+                # Başka kaydın sahiplendiği pozisyonu atla; giriş eşleşmesi
+                # duplikatları ayırır (eski "ilk eşleşen" bug'ını önler).
+                for q in portfoy.pozisyonlar:
+                    if (q.sembol == k.sembol and q.interval == k.interval
+                            and q.yon == k.taraf and q.id not in claimed
+                            and (k.giris <= 0
+                                 or abs(q.giris - k.giris) <= k.giris * 0.005)):
+                        p = q
+                        claimed.add(q.id)
+                        break
+            if p is None:
+                continue
+            k.durum = durum_map.get(p.durum, k.durum)
+            if not k.aktif:
+                k.kapanis_zaman = p.kapanis_zaman or _simdi()
+                k.r_sonuc = p.r_sonuc
 
     # --- istatistik ---
 
@@ -362,10 +404,11 @@ class Gozlemci:
             max_bar=self.max_bar, ilerleme=ilerleme)
 
         # 2. Trade sinyallerini portföye + deftere ekle
+        #    (önce portföy → pozisyon id'leri oluşsun, sonra defter onları bağlasın)
         eklenen = radar_sinyallerini_ekle(self.portfoy, rapor)
         for satir in rapor.satirlar:
             if satir.kategori == "Trade":
-                self.defter.setup_ekle(satir)
+                self.defter.setup_ekle(satir, self.portfoy)
 
         # 3. Açık/bekleyen pozisyonları taze veriyle güncelle
         aktif_sem = {(p.sembol, p.interval) for p in self.portfoy.aktif}

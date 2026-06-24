@@ -77,6 +77,12 @@ def _mtf_yapi(df_ust, n: int = 20) -> str:
     """Üst zaman dilimi yapısını değerlendirir (long açısından).
 
     Döndürür: "sağlıklı" / "problemli" / "nötr".
+
+    İki sinyalin BİRLEŞİMİ (Miraz: "düşüş yapısında dipten alınmaz"):
+      1. HTF market yapısı (HH/HL vs LH/LL) — yön okuması (asıl sinyal).
+      2. % değişim — eğim teyidi (gevşek eşik %1.5; eski %4 yavaş erimeyi
+         kaçırıyordu, Long WR %11'in sebebi buydu).
+    Yapı düşüş VEYA belirgin negatif eğim → problemli (Long riskli).
     """
     kapanis = df_ust["close"]
     if len(kapanis) < n + 1:
@@ -86,8 +92,24 @@ def _mtf_yapi(df_ust, n: int = 20) -> str:
     if onceki <= 0:
         return "nötr"
     degisim = (son - onceki) / onceki
-    if degisim < -0.04:
-        return "problemli"     # üst zaman aşağı yapıda → long riskli
+
+    # HTF kendi market yapısı (asıl trend okuması)
+    yapi_durum = None
+    try:
+        from .yapi import market_yapisi as _my
+        my = _my(df_ust, n=5)
+        yapi_durum = my.durum if my is not None else None
+    except Exception:
+        yapi_durum = None
+
+    # Problemli: (yapı düşüşte VE eğim hafif de olsa negatif) VEYA belirgin erime.
+    # Yapı+eğim birlikte → düz/gürültülü piyasayı problemli saymaz; ama yavaş
+    # erimeyi (yapı düşüş + %0.5 negatif) eski %4 eşiğinden çok önce yakalar.
+    if (yapi_durum == "düşüş" and degisim < -0.005) or degisim < -0.015:
+        return "problemli"
+    # Sağlıklı: yapı yükselişte VE pozitif eğim (her ikisi de gerekli — temkinli)
+    if yapi_durum == "yükseliş" and degisim > 0.005:
+        return "sağlıklı"
     if degisim > 0.04:
         return "sağlıklı"
     return "nötr"

@@ -61,13 +61,24 @@ class Portfoy:
     # Pozisyon ekleme
     # -----------------------------------------------------------------------
 
+    # interval → saniye (cooldown hesabı için)
+    _IV_SN = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
+              "1h": 3600, "2h": 7200, "4h": 14400, "6h": 21600,
+              "12h": 43200, "1d": 86400}
+
     def ekle(self, sembol: str, interval: str, giris: float, stop: float,
              hedef: float, rr: float, kalite: str, guven: float,
-             yon: str = "Long", zaman: str | None = None) -> Pozisyon | None:
+             yon: str = "Long", zaman: str | None = None,
+             cooldown_bar: int = 24) -> Pozisyon | None:
         """Yeni bir pozisyon (Bekliyor) ekler.
 
         Aynı sembol+interval için zaten Bekliyor veya Açık işlem varsa
         ekleme yapılmaz (None döner).
+
+        Duplikat birikimini önlemek için: aynı sembol+TF+yön + AYNI giriş
+        seviyesinde (≈%0.5) yakın zamanda (cooldown_bar × TF) kapanmış bir
+        pozisyon varsa, aynı setup tekrar açılmaz (None döner). Böylece expire
+        olan bir setup her taramada yeniden eklenip defteri şişirmez.
         """
         for p in self.pozisyonlar:
             if (p.sembol == sembol and p.interval == interval
@@ -76,6 +87,29 @@ class Portfoy:
 
         if zaman is None:
             zaman = _simdi()
+
+        # Cooldown: yakın zamanda kapanmış aynı setup'ı tekrar açma
+        sn = self._IV_SN.get(interval, 900)
+        cooldown_sn = cooldown_bar * sn
+        try:
+            simdi_ts = pd.Timestamp(zaman)
+        except Exception:
+            simdi_ts = None
+        if simdi_ts is not None:
+            for p in self.pozisyonlar:
+                if (p.sembol == sembol and p.interval == interval
+                        and p.yon == yon
+                        and p.durum in ("Expired", "STOP", "TP", "Manuel")
+                        and giris > 0 and abs(p.giris - giris) <= giris * 0.005):
+                    ref = p.kapanis_zaman or p.acilis_zaman
+                    if not ref:
+                        continue
+                    try:
+                        gecen = (simdi_ts - pd.Timestamp(ref)).total_seconds()
+                    except Exception:
+                        continue
+                    if 0 <= gecen < cooldown_sn:
+                        return None  # cooldown — aynı setup'ı tekrarlama
         poz = Pozisyon(
             id=self.id_sayac,
             sembol=sembol, interval=interval, yon=yon,
@@ -137,9 +171,25 @@ class Portfoy:
             idx = alt_df.index
             short = poz.yon == "Short"
 
+            # Her bar için açılıştan beri geçen bar sayısı (expiry kontrolü).
+            # Geç gelen entry'nin dolup TP/STOP olmasını engeller — açılıştan
+            # max_bekleme bar sonra giriş gelirse setup Expired'dır (girilmez).
+            acilis_ts = (pd.Timestamp(poz.acilis_zaman).tz_convert("UTC")
+                         if poz.acilis_zaman else None)
+
             kapanis_oldu = False
             for j in range(len(alt_df)):
                 if poz.durum == "Bekliyor":
+                    # Bu bara kadar açılıştan beri kaç bar geçti?
+                    if acilis_ts is not None:
+                        gecen_j = int(((df.index > acilis_ts)
+                                       & (df.index <= idx[j])).sum())
+                        if gecen_j > max_bekleme:
+                            poz.durum = "Expired"
+                            poz.kapanis_zaman = _simdi()
+                            degisenler.append(poz)
+                            kapanis_oldu = True
+                            break
                     # Long: fiyat girişe iner (low ≤ giriş) → limit alış dolar.
                     # Short: fiyat girişe çıkar (high ≥ giriş) → limit satış dolar.
                     doldu = (high[j] >= poz.giris) if short else (low[j] <= poz.giris)

@@ -148,6 +148,14 @@ def _kategori_belirle(s) -> tuple[str, str]:
     # terminalMiraz kuralı: üst zaman dilimi problemli → Elenen Setup
     if s.mtf_yapi == "problemli" and karar in ("Trade", "Watch"):
         return "Elenen", "HTF aşağı — Elenen Setup (HTF-LTF filtresi)"
+    # Miraz: "düşüş yapısında dipten alınmaz, kırılım onayı beklenir."
+    # Kendi TF yapısı düşüşte ise Long karşı-trend → en fazla Watch (Trade değil).
+    # Trade'e ancak yapısal dönüş (CHoCH-yukarı) onayı varsa izin ver.
+    my = getattr(s, "market_yapisi", None)
+    if my is not None and getattr(my, "durum", None) == "düşüş" and karar == "Trade":
+        kirilim = getattr(my, "kirilim", None)
+        if kirilim != "CHoCH-yukarı":
+            karar = "Watch"   # karşı-trend long → teyit bekle
     notlar = []
     if getattr(s, "pamonic", False):
         notlar.append(f"🔷 PaMonic ({s.mavi_daire_isim} D)" if s.mavi_daire_isim
