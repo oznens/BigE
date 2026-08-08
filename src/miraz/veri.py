@@ -1,4 +1,10 @@
-"""OHLCV veri çekme — MEXC Futures (birincil) + Spot (yedek), parquet cache."""
+"""OHLCV veri çekme — MEXC Futures (birincil) + Spot (yedek), parquet cache.
+
+Canlı scanner varsayılan olarak yalnızca KAPANMIŞ mumları döndürür. Parquet
+cache, son kapanmış muma göre tazelik kontrolünden geçer; bayatsa API'den
+yenilenir. Böylece uzun yaşayan scanner süreçleri eski cache ile çalışmaz ve
+açık mum değiştikçe sinyalin repaint etmesi önlenir.
+"""
 
 from __future__ import annotations
 
@@ -21,7 +27,7 @@ _MEXC_FUT_IV = {
 }
 _IV_SANIYE = {
     "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600,
-    "4h": 14400, "8h": 28800, "1d": 86400, "1w": 604800,
+    "2h": 7200, "4h": 14400, "8h": 28800, "1d": 86400, "1w": 604800,
 }
 
 # --- MEXC Spot (yedek) — saatlik "60m" ister ---
@@ -151,14 +157,58 @@ def _cache_yaz(df: pd.DataFrame, yol: Path) -> None:
         pass
 
 
+def _kapanmis_mumlar(df: pd.DataFrame, interval: str,
+                     now_ms: int | None = None) -> pd.DataFrame:
+    """Henüz kapanmamış son mumu çıkarır.
+
+    DataFrame indeksi mumun AÇILIŞ zamanıdır. Bir bar ancak
+    ``open_time + interval <= şimdi`` olduğunda tamamlanmış sayılır.
+    """
+    if df is None or df.empty:
+        return df
+    sec = _IV_SANIYE.get(interval)
+    if not sec:
+        return df
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    sinir = pd.to_datetime(now_ms - sec * 1000, unit="ms", utc=True)
+    return df[df.index <= sinir]
+
+
+def _cache_guncel(df: pd.DataFrame, interval: str,
+                  now_ms: int | None = None) -> bool:
+    """Cache'in son tamamlanmış barı kapsayıp kapsamadığını kontrol eder.
+
+    Son kapalı barın açılışı bir sonraki bar kapanana kadar en fazla yaklaşık
+    iki interval geride olabilir. Bu eşiğin aşılması yeni tamamlanmış barın
+    cache'de olmadığı anlamına gelir ve yeniden indirme tetiklenir.
+    """
+    if df is None or df.empty:
+        return False
+    sec = _IV_SANIYE.get(interval)
+    if not sec:
+        return True
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    kapali = _kapanmis_mumlar(df, interval, now_ms=now_ms)
+    if kapali is None or kapali.empty:
+        return False
+    son_open_ms = int(kapali.index[-1].timestamp() * 1000)
+    return son_open_ms + 2 * sec * 1000 > now_ms
+
+
 def indir(symbol: str = "BTCUSDT", interval: str = "4h",
           gun: int = 500, force: bool = False,
-          borsa: str | None = None, max_bar: int | None = None) -> pd.DataFrame:
+          borsa: str | None = None, max_bar: int | None = None,
+          sadece_kapanmis: bool = True) -> pd.DataFrame:
     """OHLCV veriyi indirir, parquet cache kullanır.
 
     Kaynaklar sırayla denenir: **MEXC Futures → MEXC Spot**; biri başarısız olur
     veya sembolü sunmazsa diğerine geçilir. borsa verilirse ("mexc-futures" /
     "mexc-spot") yalnızca o kaynak kullanılır.
+
+    Cache yalnız güncelse kullanılır; yeni kapanmış bar varsa API'den yenilenir.
+    ``sadece_kapanmis=True`` varsayılandır ve canlı sinyallerin açık mum nedeniyle
+    değişmesini/repaint etmesini önler. Gelişmekte olan mumu özellikle isteyen
+    çağıranlar ``sadece_kapanmis=False`` verebilir.
 
     max_bar verilirse pencere en çok o kadar mumla sınırlanır (intraday TF'lerde
     120 günlük 15m gibi devasa indirmeleri önler — canlı tarama hızlanır).
@@ -166,33 +216,40 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
     Döndürür: UTC indeksli, float kolonlu OHLCV DataFrame.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    now_ms = int(time.time() * 1000)
 
-    # Borsada natif olmayan TF (örn. 2h) → alt TF'i çekip resample et
+    # Borsada natif olmayan TF (örn. 2h) → alt TF'i çekip resample et.
+    # Türev TF'in kendi cache'ini körlemesine kullanmak yerine alt TF cache
+    # tazeliğine güvenip yeniden resample ederiz; böylece yarım 2h bar sızmaz.
     if interval in _TUREV:
         alt_iv, kural = _TUREV[interval]
         yol_t = DATA_DIR / f"{symbol}_{interval}.parquet"
         if yol_t.exists() and not force:
             onbellek = _cache_oku(yol_t)
             if onbellek is not None:
-                return onbellek
-        # 2h için yeterli alt-TF mumu (oran kadar fazlası) çek
+                aday = (_kapanmis_mumlar(onbellek, interval, now_ms)
+                        if sadece_kapanmis else onbellek)
+                if _cache_guncel(onbellek, interval, now_ms):
+                    return aday
         alt_bar = None
         if max_bar:
             oran = _IV_SANIYE[interval] // _IV_SANIYE[alt_iv]
             alt_bar = max_bar * max(oran, 1)
         alt = indir(symbol, alt_iv, gun=gun, force=force, borsa=borsa,
-                    max_bar=alt_bar)
+                    max_bar=alt_bar, sadece_kapanmis=False)
         df_t = _resample(alt, kural)
         _cache_yaz(df_t, yol_t)
-        return df_t
+        return (_kapanmis_mumlar(df_t, interval, now_ms)
+                if sadece_kapanmis else df_t)
 
     yol = DATA_DIR / f"{symbol}_{interval}.parquet"
     if yol.exists() and not force:
         onbellek = _cache_oku(yol)
-        if onbellek is not None:
-            return onbellek
+        if onbellek is not None and _cache_guncel(onbellek, interval, now_ms):
+            return (_kapanmis_mumlar(onbellek, interval, now_ms)
+                    if sadece_kapanmis else onbellek)
 
-    end_ms = int(time.time() * 1000)
+    end_ms = now_ms
     start_ms = end_ms - gun * 24 * 3600 * 1000
     # mum sayısı sınırı: pencereyi kısaltarak intraday indirmeyi bound'la
     if max_bar:
@@ -223,8 +280,12 @@ def indir(symbol: str = "BTCUSDT", interval: str = "4h",
     for k in ["open", "high", "low", "close", "volume"]:
         df[k] = df[k].astype(float)
     df = df[["open", "high", "low", "close", "volume"]].sort_index()
+
+    # Ham cache açık son mumu da tutabilir; bu sayede isteyen canlı geliştirme
+    # modunu kullanabilir. Varsayılan dönüş ise yalnız kapanmış mumlardır.
     _cache_yaz(df, yol)
-    return df
+    return (_kapanmis_mumlar(df, interval, now_ms)
+            if sadece_kapanmis else df)
 
 
 if __name__ == "__main__":
