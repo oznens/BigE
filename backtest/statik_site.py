@@ -21,6 +21,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import pandas as pd
+
 KOK = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(KOK / "src"))
 
@@ -29,8 +31,12 @@ from miraz.portfoy import Portfoy                       # noqa: E402
 from miraz.radar import (CEKIRDEK_EVREN, GENIS_EVREN,   # noqa: E402
                          TERMINALMIRAZ_TF)
 from miraz.sunucu import durum_json, grafik_veri, WEB_DIZIN  # noqa: E402
+from miraz import veri as miraz_veri                    # noqa: E402
 
 PAGES_URL = "https://oznens.github.io/BigE"
+FEE_BPS_TARAF = 4.0
+SLIPPAGE_BPS_TARAF = 2.0
+FUNDING_BPS_TOPLAM = 0.0
 
 
 def _yaz_json(yol: Path, veri: dict) -> None:
@@ -59,44 +65,186 @@ def _onceki_state(cikti: Path, onceki_url: str | None) -> tuple[Defter, Portfoy]
 
 
 def _playback_trade_memory(defter: Defter, n: int = 30) -> list[dict]:
-    """Playback'e yalnız gerçekleşmiş TP/STOP işlemlerini ver.
-
-    Expired/No-Entry/Cancelled/Manuel gibi lifecycle kayıtları playback değildir.
-    Ayrıca replay'in setup anına ve sonucuna hizalanabilmesi için giriş/stop/TP
-    seviyeleri ile açılış/kapanış zamanlarını eksiksiz yayınlarız.
-    """
+    """Playback'e yalnız gerçekleşmiş TP/STOP işlemlerini ver."""
     kapali = sorted(
         [k for k in defter.kayitlar
          if k.durum in ("TP", "STOP") and k.kapanis_zaman],
         key=lambda k: k.kapanis_zaman,
         reverse=True,
     )[:n]
-    return [{
-        "id": k.id,
-        "sembol": k.sembol,
-        "interval": k.interval,
-        "durum": k.durum,
-        "taraf": k.taraf,
-        "kaynak": getattr(k, "kaynak", "Price Action"),
-        "pattern": k.pattern,
-        "r_sonuc": round(k.r_sonuc, 2),
-        "guven": round(k.guven, 0),
-        "kalite": k.kalite,
-        "giris": k.giris,
-        "stop": k.stop,
-        "hedef": k.hedef,
-        "rr": k.rr,
-        "acilis": k.acilis_zaman or "",
-        "kapanis": k.kapanis_zaman or "",
-    } for k in kapali]
+    out = []
+    for k in kapali:
+        maliyet_r = _maliyet_r(k.giris, k.stop)
+        out.append({
+            "id": k.id,
+            "sembol": k.sembol,
+            "interval": k.interval,
+            "durum": k.durum,
+            "taraf": k.taraf,
+            "kaynak": getattr(k, "kaynak", "Price Action"),
+            "pattern": k.pattern,
+            "r_sonuc": round(k.r_sonuc, 2),
+            "maliyet_r": round(maliyet_r, 3),
+            "net_r": round(k.r_sonuc - maliyet_r, 3),
+            "guven": round(k.guven, 0),
+            "kalite": k.kalite,
+            "giris": k.giris,
+            "stop": k.stop,
+            "hedef": k.hedef,
+            "rr": k.rr,
+            "acilis": k.acilis_zaman or "",
+            "kapanis": k.kapanis_zaman or "",
+        })
+    return out
+
+
+def _maliyet_r(giris: float, stop: float,
+               fee_bps: float = FEE_BPS_TARAF,
+               slippage_bps: float = SLIPPAGE_BPS_TARAF,
+               funding_bps: float = FUNDING_BPS_TOPLAM) -> float:
+    """Round-trip işlem maliyetini stop mesafesine göre R cinsine çevirir."""
+    try:
+        giris = float(giris)
+        stop = float(stop)
+        if giris <= 0:
+            return 0.0
+        risk_frac = abs(giris - stop) / giris
+        if risk_frac <= 1e-9:
+            return 0.0
+        toplam_bps = 2.0 * (float(fee_bps) + float(slippage_bps)) + float(funding_bps)
+        return (toplam_bps / 10000.0) / risk_frac
+    except Exception:
+        return 0.0
+
+
+def _seviyeler_uyumlu(k, p) -> bool:
+    """Legacy yanlış journal↔pozisyon eşleşmelerini performanstan ayıkla."""
+    if p is None:
+        return False
+    for a, b in ((k.giris, p.giris), (k.stop, p.stop), (k.hedef, p.hedef)):
+        try:
+            a, b = float(a), float(b)
+            ref = max(abs(a), 1e-9)
+            if abs(a - b) / ref > 0.005:
+                return False
+        except Exception:
+            return False
+    return True
+
+
+def _maliyet_ozeti(defter: Defter, portfoy: Portfoy) -> dict:
+    """Yalnız doğrulanmış TP/STOP kayıtlarında Gross/Cost/Net R üretir."""
+    poz_idx = {p.id: p for p in portfoy.pozisyonlar}
+    gross = cost = 0.0
+    n = tp = stop_n = legacy = 0
+    for k in defter.kayitlar:
+        if k.durum not in ("TP", "STOP"):
+            continue
+        p = poz_idx.get(getattr(k, "poz_id", -1))
+        if not _seviyeler_uyumlu(k, p):
+            legacy += 1
+            continue
+        c = _maliyet_r(k.giris, k.stop)
+        gross += float(k.r_sonuc)
+        cost += c
+        n += 1
+        if k.durum == "TP":
+            tp += 1
+        else:
+            stop_n += 1
+    net = gross - cost
+    return {
+        "dogrulanmis_islem": n,
+        "legacy_haric": legacy,
+        "tp": tp,
+        "stop": stop_n,
+        "wr": round(100.0 * tp / n, 2) if n else 0.0,
+        "gross_r": round(gross, 2),
+        "maliyet_r": round(cost, 2),
+        "net_r": round(net, 2),
+        "net_expectancy_r": round(net / n, 4) if n else 0.0,
+        "fee_bps_taraf": FEE_BPS_TARAF,
+        "slippage_bps_taraf": SLIPPAGE_BPS_TARAF,
+        "funding_bps_toplam": FUNDING_BPS_TOPLAM,
+    }
+
+
+def _kapanis_barini_bul(poz, onceki_durum: str, onceki_kontrol: str,
+                        df: pd.DataFrame, max_bekleme: int = 24):
+    """Bu turda kapanan pozisyonun gerçek OHLCV bar zamanını yeniden bulur."""
+    if df is None or df.empty:
+        return None
+    try:
+        bas = pd.Timestamp(onceki_kontrol or poz.acilis_zaman)
+        if bas.tzinfo is None:
+            bas = bas.tz_localize("UTC")
+        else:
+            bas = bas.tz_convert("UTC")
+        alt = df[df.index > bas]
+        if alt.empty:
+            return None
+        acilis = pd.Timestamp(poz.acilis_zaman) if poz.acilis_zaman else None
+        if acilis is not None:
+            acilis = acilis.tz_localize("UTC") if acilis.tzinfo is None else acilis.tz_convert("UTC")
+        acik = onceki_durum == "Açık"
+        short = poz.yon == "Short"
+        for ts, row in alt.iterrows():
+            if not acik:
+                if acilis is not None:
+                    gecen = int(((df.index > acilis) & (df.index <= ts)).sum())
+                    if gecen > max_bekleme:
+                        return ts
+                doldu = float(row["high"]) >= poz.giris if short else float(row["low"]) <= poz.giris
+                if doldu:
+                    acik = True
+            if acik:
+                stop_vurdu = float(row["high"]) >= poz.stop if short else float(row["low"]) <= poz.stop
+                tp_vurdu = float(row["low"]) <= poz.hedef if short else float(row["high"]) >= poz.hedef
+                if stop_vurdu or tp_vurdu:
+                    return ts
+        if poz.durum == "Expired":
+            return alt.index[-1]
+    except Exception:
+        return None
+    return None
+
+
+def _duzelt_kapanis_zamanlari(goz: Gozlemci, degisenler: list,
+                               onceki: dict, gun: int, max_bar: int) -> int:
+    """Yeni TP/STOP/Expired sonuçlarını tarama saati yerine gerçek bar saatine bağlar."""
+    kapanan = {}
+    for p in degisenler or []:
+        if p.durum in ("TP", "STOP", "Expired"):
+            kapanan[p.id] = p
+    if not kapanan:
+        return 0
+
+    cache = {}
+    duzeltilen = 0
+    kayit_idx = {getattr(k, "poz_id", -1): k for k in goz.defter.kayitlar}
+    for pid, p in kapanan.items():
+        onceki_durum, onceki_kontrol = onceki.get(pid, ("Bekliyor", p.son_kontrol_zaman))
+        anahtar = (p.sembol, p.interval)
+        if anahtar not in cache:
+            try:
+                cache[anahtar] = miraz_veri.indir(
+                    p.sembol, p.interval, gun=gun, force=True, max_bar=max_bar)
+            except Exception:
+                cache[anahtar] = None
+        ts = _kapanis_barini_bul(p, onceki_durum, onceki_kontrol, cache[anahtar])
+        if ts is None:
+            continue
+        iso = ts.isoformat()
+        p.kapanis_zaman = iso
+        k = kayit_idx.get(pid)
+        if k is not None:
+            k.kapanis_zaman = iso
+        duzeltilen += 1
+    return duzeltilen
 
 
 def _grafik_hedefleri(durum: dict) -> list[tuple[str, str]]:
-    """Snapshot'ta grafik gereken tüm sembol/TF çiftleri.
-
-    Playback eski kapanmış işlemleri de açabildiği için trade_memory mutlaka
-    hedeflere dahil edilir; aksi halde Pages'te grafik JSON'u bulunmaz (404).
-    """
+    """Snapshot'ta grafik gereken tüm sembol/TF çiftleri."""
     cift = set()
     for a in durum.get("adaylar", []):
         if a.get("symbol") and a.get("interval"):
@@ -181,6 +329,27 @@ _PLAYBACK_PATCH = r"""
       pbBar=Math.min(max,pbBar+1); pbRender();
     },180);
   };
+
+  // Gross/Net ayrımı: kullanıcıya paper sonucu gerçek net kâr gibi gösterme.
+  const ozet=document.getElementById("ozetsatir");
+  if(ozet && !document.getElementById("net-r-ozet")){
+    const n=document.createElement("div");
+    n.id="net-r-ozet";
+    n.style.cssText="margin:6px 0 10px;padding:8px 10px;border:1px solid var(--kenar);border-radius:6px;background:var(--panel2);font-size:11px;color:var(--soluk)";
+    ozet.insertAdjacentElement("afterend",n);
+  }
+  setInterval(()=>{
+    const m=(typeof sonDurum!=="undefined" && sonDurum && sonDurum.maliyet)||null;
+    const el=document.getElementById("net-r-ozet");
+    if(!m||!el) return;
+    const sg=v=>(v>=0?"+":"")+(+v).toFixed(2)+"R";
+    el.innerHTML=`DOĞRULANMIŞ ${m.dogrulanmis_islem} işlem · WR %${m.wr} · `+
+      `Gross <b style="color:var(--metin)">${sg(m.gross_r)}</b> · `+
+      `Maliyet <b style="color:var(--kirmizi)">-${(+m.maliyet_r).toFixed(2)}R</b> · `+
+      `Net <b style="color:${m.net_r>=0?'var(--yesil)':'var(--kirmizi)'}">${sg(m.net_r)}</b> · `+
+      `Expectancy ${sg(m.net_expectancy_r)} · `+
+      `${m.legacy_haric} eski uyumsuz kayıt hariç · maliyet: ${m.fee_bps_taraf}+${m.slippage_bps_taraf} bps/side`;
+  },1000);
 })();
 </script>
 """
@@ -192,6 +361,7 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
     cikti.mkdir(parents=True, exist_ok=True)
 
     defter, portfoy = _onceki_state(cikti, onceki_url)
+    onceki_poz = {p.id: (p.durum, p.son_kontrol_zaman) for p in portfoy.pozisyonlar}
     print(f"📓 Önceki hafıza: {len(defter.kayitlar)} kayıt · "
           f"{len(portfoy.pozisyonlar)} pozisyon")
 
@@ -201,14 +371,21 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
     print(f"⏳ Tarama: {len(semboller)} parite × {len(intervallar)} TF "
           f"({' '.join(intervallar)}) · {taraf}")
     sonuc = goz.dongu()
+
+    duz_n = _duzelt_kapanis_zamanlari(
+        goz, sonuc.degisenler, onceki_poz, gun=gun, max_bar=max_bar)
+    if duz_n:
+        print(f"🕒 {duz_n} kapanış gerçek OHLCV bar zamanına düzeltildi")
+
     durum = durum_json(goz, sonuc.rapor, aralik)
     durum["tarama_durumu"] = "tamam"
     durum["statik"] = True
     durum["hazir"] = True
-
+    durum["maliyet"] = _maliyet_ozeti(goz.defter, goz.portfoy)
     durum["trade_memory"] = _playback_trade_memory(goz.defter)
     _yaz_json(cikti / "durum.json", durum)
-    print(f"✅ durum.json — {durum['ozet']} · playback {len(durum['trade_memory'])} TP/STOP")
+    print(f"✅ durum.json — {durum['ozet']} · playback {len(durum['trade_memory'])} TP/STOP · "
+          f"net {durum['maliyet']['net_r']:+.2f}R")
 
     goz.defter.kaydet(cikti / "defter.json")
     goz.portfoy.kaydet(cikti / "portfoy.json")
@@ -239,7 +416,7 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
     html = html.replace("</body>", _PLAYBACK_PATCH + "\n</body>", 1)
     (cikti / "index.html").write_text(html, encoding="utf-8")
     (cikti / ".nojekyll").write_text("", encoding="utf-8")
-    print(f"✅ index.html (statik + playback patch) → {cikti}")
+    print(f"✅ index.html (statik + playback/net patch) → {cikti}")
 
 
 def main() -> None:
