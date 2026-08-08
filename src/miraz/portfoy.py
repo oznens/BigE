@@ -1,18 +1,9 @@
 """Portföy yönetimi — paper-trading motoru (terminalMiraz tarzı aktif işlem takibi).
 
-terminalMiraz'da her Trade sinyali sanal portföyde izlenir:
-  • Bekliyor — limit emir girildi, fiyat henüz ulaşmadı.
-  • Açık     — giriş dolu, TP / STOP bekleniyor.
-  • TP / STOP / Manuel — işlem kapandı.
-
-Kullanım:
-    from miraz.portfoy import Portfoy
-    pf = Portfoy(r_dolar=25.0)
-    pf.ekle("BTCUSDT", "4h", giris=95000, stop=93000, hedef=102000,
-            rr=3.5, kalite="A", guven=78.0)
-    pf.guncelle("BTCUSDT", "4h", df)
-    print(pf.tablo())
-    pf.kaydet("portfoy.json")
+TP/STOP/Expired yaşam döngüsü zamanları, scanner'ın çalıştığı duvar saatinden
+ziyade olayı gerçekten oluşturan OHLCV barının zamanıyla kaydedilir. Böylece
+günlük P&L, cooldown ve journal zamanları geçmiş veri taramalarında da doğru
+zamana bağlanır.
 """
 
 from __future__ import annotations
@@ -27,10 +18,6 @@ import pandas as pd
 from .bicim import f as _f
 
 
-# ---------------------------------------------------------------------------
-# Veri yapıları
-# ---------------------------------------------------------------------------
-
 @dataclass
 class Pozisyon:
     id: int
@@ -43,25 +30,20 @@ class Pozisyon:
     rr: float = 0.0
     kalite: str = "C"
     guven: float = 0.0
-    durum: str = "Bekliyor"       # Bekliyor / Açık / TP / STOP / Manuel
-    acilis_zaman: str = ""        # ISO-8601 UTC
+    durum: str = "Bekliyor"
+    acilis_zaman: str = ""
     kapanis_zaman: str = ""
-    son_kontrol_zaman: str = ""   # güncelleme sırasında işlenen son barın zamanı
-    r_sonuc: float = 0.0          # +rr (TP) / -1.0 (STOP) / 0.0
+    son_kontrol_zaman: str = ""
+    r_sonuc: float = 0.0
     son_fiyat: float = 0.0
 
 
 @dataclass
 class Portfoy:
-    pozisyonlar: list = field(default_factory=list)   # list[Pozisyon]
+    pozisyonlar: list = field(default_factory=list)
     r_dolar: float = 25.0
     id_sayac: int = 0
 
-    # -----------------------------------------------------------------------
-    # Pozisyon ekleme
-    # -----------------------------------------------------------------------
-
-    # interval → saniye (cooldown hesabı için)
     _IV_SN = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
               "1h": 3600, "2h": 7200, "4h": 14400, "6h": 21600,
               "12h": 43200, "1d": 86400}
@@ -70,31 +52,20 @@ class Portfoy:
              hedef: float, rr: float, kalite: str, guven: float,
              yon: str = "Long", zaman: str | None = None,
              cooldown_bar: int = 24) -> Pozisyon | None:
-        """Yeni bir pozisyon (Bekliyor) ekler.
-
-        Aynı sembol+interval için zaten Bekliyor veya Açık işlem varsa
-        ekleme yapılmaz (None döner).
-
-        Duplikat birikimini önlemek için: aynı sembol+TF+yön + AYNI giriş
-        seviyesinde (≈%0.5) yakın zamanda (cooldown_bar × TF) kapanmış bir
-        pozisyon varsa, aynı setup tekrar açılmaz (None döner). Böylece expire
-        olan bir setup her taramada yeniden eklenip defteri şişirmez.
-        """
+        """Yeni bir bekleyen pozisyon ekler; aktif/çok yeni duplikatı engeller."""
         for p in self.pozisyonlar:
             if (p.sembol == sembol and p.interval == interval
                     and p.durum in ("Bekliyor", "Açık")):
                 return None
 
-        if zaman is None:
-            zaman = _simdi()
-
-        # Cooldown: yakın zamanda kapanmış aynı setup'ı tekrar açma
+        zaman = zaman or _simdi()
         sn = self._IV_SN.get(interval, 900)
         cooldown_sn = cooldown_bar * sn
         try:
-            simdi_ts = pd.Timestamp(zaman)
+            simdi_ts = _utc_ts(zaman)
         except Exception:
             simdi_ts = None
+
         if simdi_ts is not None:
             for p in self.pozisyonlar:
                 if (p.sembol == sembol and p.interval == interval
@@ -105,25 +76,23 @@ class Portfoy:
                     if not ref:
                         continue
                     try:
-                        gecen = (simdi_ts - pd.Timestamp(ref)).total_seconds()
+                        gecen = (simdi_ts - _utc_ts(ref)).total_seconds()
                     except Exception:
                         continue
                     if 0 <= gecen < cooldown_sn:
-                        return None  # cooldown — aynı setup'ı tekrarlama
+                        return None
+
         poz = Pozisyon(
-            id=self.id_sayac,
-            sembol=sembol, interval=interval, yon=yon,
+            id=self.id_sayac, sembol=sembol, interval=interval, yon=yon,
             giris=giris, stop=stop, hedef=hedef, rr=rr,
-            kalite=kalite, guven=guven,
-            durum="Bekliyor", acilis_zaman=zaman, son_kontrol_zaman=zaman,
-            son_fiyat=giris,
+            kalite=kalite, guven=guven, durum="Bekliyor",
+            acilis_zaman=zaman, son_kontrol_zaman=zaman, son_fiyat=giris,
         )
         self.pozisyonlar.append(poz)
         self.id_sayac += 1
         return poz
 
     def kapat_manuel(self, pozisyon_id: int) -> bool:
-        """Belirtilen pozisyonu manuel olarak kapatır."""
         for p in self.pozisyonlar:
             if p.id == pozisyon_id and p.durum in ("Bekliyor", "Açık"):
                 p.durum = "Manuel"
@@ -131,23 +100,13 @@ class Portfoy:
                 return True
         return False
 
-    # -----------------------------------------------------------------------
-    # Güncelleme — TP / STOP takibi
-    # -----------------------------------------------------------------------
-
     def guncelle(self, sembol: str, interval: str, df: pd.DataFrame,
                  max_bekleme: int = 24) -> list:
-        """Bir sembol için açık/bekleyen pozisyonları OHLCV veriyle günceller.
-
-        df: veri.indir()'den gelen UTC DatetimeIndex'li OHLCV DataFrame.
-        max_bekleme: Bekliyor bir emir bu kadar bar içinde dolmazsa → Expired
-                     (terminalMiraz Expired filtresi; giriş gelmeyen emir iptal).
-        Döndürür: durum değişen Pozisyon listesi.
-        """
+        """Pozisyonları bar bar yürütür; TP/STOP/Expired zamanını bar zamanından alır."""
         aktif = [p for p in self.pozisyonlar
                  if p.sembol == sembol and p.interval == interval
                  and p.durum in ("Bekliyor", "Açık")]
-        if not aktif:
+        if not aktif or df is None or df.empty:
             return []
 
         degisenler: list[Pozisyon] = []
@@ -155,93 +114,78 @@ class Portfoy:
 
         for poz in aktif:
             poz.son_fiyat = son_fiyat
-
-            # Son kontrol zamanından sonraki barları al
             if poz.son_kontrol_zaman:
-                baslangic = pd.Timestamp(poz.son_kontrol_zaman).tz_convert("UTC")
+                baslangic = _utc_ts(poz.son_kontrol_zaman)
                 alt_df = df[df.index > baslangic]
             else:
                 alt_df = df
-
             if alt_df.empty:
                 continue
 
-            low = alt_df["low"].to_numpy()
-            high = alt_df["high"].to_numpy()
+            low = alt_df["low"].to_numpy(dtype=float)
+            high = alt_df["high"].to_numpy(dtype=float)
             idx = alt_df.index
             short = poz.yon == "Short"
-
-            # Her bar için açılıştan beri geçen bar sayısı (expiry kontrolü).
-            # Geç gelen entry'nin dolup TP/STOP olmasını engeller — açılıştan
-            # max_bekleme bar sonra giriş gelirse setup Expired'dır (girilmez).
-            acilis_ts = (pd.Timestamp(poz.acilis_zaman).tz_convert("UTC")
-                         if poz.acilis_zaman else None)
-
+            acilis_ts = _utc_ts(poz.acilis_zaman) if poz.acilis_zaman else None
             kapanis_oldu = False
+
             for j in range(len(alt_df)):
+                bar_zamani = idx[j].isoformat()
+
                 if poz.durum == "Bekliyor":
-                    # Bu bara kadar açılıştan beri kaç bar geçti?
                     if acilis_ts is not None:
                         gecen_j = int(((df.index > acilis_ts)
                                        & (df.index <= idx[j])).sum())
                         if gecen_j > max_bekleme:
                             poz.durum = "Expired"
-                            poz.kapanis_zaman = _simdi()
+                            poz.r_sonuc = 0.0
+                            poz.kapanis_zaman = bar_zamani
                             degisenler.append(poz)
                             kapanis_oldu = True
                             break
-                    # Long: fiyat girişe iner (low ≤ giriş) → limit alış dolar.
-                    # Short: fiyat girişe çıkar (high ≥ giriş) → limit satış dolar.
+
                     doldu = (high[j] >= poz.giris) if short else (low[j] <= poz.giris)
                     if doldu:
                         poz.durum = "Açık"
                         degisenler.append(poz)
 
                 if poz.durum == "Açık":
-                    # Long: stop aşağıda (low ≤ stop), hedef yukarıda (high ≥ hedef).
-                    # Short: stop yukarıda (high ≥ stop), hedef aşağıda (low ≤ hedef).
                     stop_vurdu = (high[j] >= poz.stop) if short else (low[j] <= poz.stop)
                     tp_vurdu = (low[j] <= poz.hedef) if short else (high[j] >= poz.hedef)
-                    if stop_vurdu:        # aynı bar stop+tp → muhafazakâr STOP
+                    # Aynı bar hem TP hem STOP ise muhafazakâr biçimde STOP.
+                    if stop_vurdu:
                         poz.durum = "STOP"
                         poz.r_sonuc = -1.0
-                        poz.kapanis_zaman = _simdi()
+                        poz.kapanis_zaman = bar_zamani
                         degisenler.append(poz)
                         kapanis_oldu = True
                         break
                     if tp_vurdu:
                         poz.durum = "TP"
                         poz.r_sonuc = poz.rr
-                        poz.kapanis_zaman = _simdi()
+                        poz.kapanis_zaman = bar_zamani
                         degisenler.append(poz)
                         kapanis_oldu = True
                         break
 
             if not kapanis_oldu:
-                # Son incelenen barın zamanını kaydet
                 poz.son_kontrol_zaman = idx[-1].isoformat()
-                # Expired: hâlâ Bekliyor ve açılışından beri çok bar geçtiyse iptal
                 if poz.durum == "Bekliyor" and poz.acilis_zaman:
-                    acilis = pd.Timestamp(poz.acilis_zaman).tz_convert("UTC")
+                    acilis = _utc_ts(poz.acilis_zaman)
                     gecen = int((df.index > acilis).sum())
                     if gecen >= max_bekleme:
                         poz.durum = "Expired"
                         poz.r_sonuc = 0.0
-                        poz.kapanis_zaman = _simdi()
+                        poz.kapanis_zaman = idx[-1].isoformat()
                         degisenler.append(poz)
 
         return degisenler
 
     def guncelle_hepsi(self, df_sozluk: dict, max_bekleme: int = 24) -> list:
-        """Tüm sembolleri günceller. df_sozluk: {(sembol, interval): df}"""
         tum: list[Pozisyon] = []
         for (sem, ivl), df in df_sozluk.items():
             tum.extend(self.guncelle(sem, ivl, df, max_bekleme=max_bekleme))
         return tum
-
-    # -----------------------------------------------------------------------
-    # Istatistikler
-    # -----------------------------------------------------------------------
 
     @property
     def aktif(self) -> list:
@@ -265,43 +209,30 @@ class Portfoy:
         return round(100 * tp / len(bitti), 1)
 
     def gunluk_r(self, tarih: str | None = None) -> float:
-        """Belirtilen gündeki R kazancı (YYYY-MM-DD). None → bugün."""
         if tarih is None:
             tarih = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return round(sum(p.r_sonuc for p in self.kapali
                          if p.kapanis_zaman.startswith(tarih)), 2)
 
     def r_gecmisi(self) -> list[dict]:
-        """Kapalı işlemleri zaman sırasıyla döndürür."""
         return sorted(
             [{"zaman": p.kapanis_zaman, "sembol": p.sembol, "durum": p.durum,
               "r": p.r_sonuc, "kalite": p.kalite}
              for p in self.kapali if p.kapanis_zaman],
             key=lambda x: x["zaman"])
 
-    # -----------------------------------------------------------------------
-    # Tablo / görsel çıktı
-    # -----------------------------------------------------------------------
-
     def tablo(self, sadece_aktif: bool = False) -> str:
-        """terminalMiraz tarzı konsol tablosu."""
         sat: list[str] = []
         W = 66
-
-        def cizgi(char="═"):
-            return char * W
-
+        cizgi = lambda char="═": char * W
         aktif = self.aktif
         kapali = self.kapali
         tp_n = sum(1 for p in kapali if p.durum == "TP")
         stop_n = sum(1 for p in kapali if p.durum == "STOP")
 
         sat.append(cizgi())
-        sat.append(f"📊  PORTFÖY — Aktif İşlem Yönetimi  "
-                   f"(paper-trading, 1R = {self.r_dolar:.0f}$)")
+        sat.append(f"📊  PORTFÖY — Aktif İşlem Yönetimi  (paper-trading, 1R = {self.r_dolar:.0f}$)")
         sat.append(cizgi())
-
-        # Aktif pozisyonlar
         baslik = (f"{'Sembol':<10} {'TF':<4} {'Yön':<5} {'Durum':<10} "
                   f"{'Giriş':>10} {'Stop':>10} {'Hedef':>10} "
                   f"{'R/R':>4} {'Kal':>3} {'Fiyat':>10}")
@@ -312,22 +243,19 @@ class Portfoy:
             for p in sorted(aktif, key=lambda x: (-x.guven, x.sembol)):
                 ikon = "🟢 Açık   " if p.durum == "Açık" else "⏳ Bekliyor"
                 yon_e = "🔻S" if p.yon == "Short" else "🔼L"
-                # anlık kâr/zarar (açık pozisyonlar için) — yöne göre
-                if p.durum == "Açık" and p.son_fiyat and p.giris > 0 \
-                        and p.giris != p.stop:
+                pnl = ""
+                if (p.durum == "Açık" and p.son_fiyat and p.giris > 0
+                        and p.giris != p.stop):
                     if p.yon == "Short":
                         fark_r = (p.giris - p.son_fiyat) / (p.stop - p.giris)
                     else:
                         fark_r = (p.son_fiyat - p.giris) / (p.giris - p.stop)
                     pnl = f"{fark_r:+.2f}R"
-                else:
-                    pnl = ""
                 sat.append(
                     f"{p.sembol:<10} {p.interval:<4} {yon_e:<5} {ikon:<10} "
                     f"{_f(p.giris):>10} {_f(p.stop):>10} {_f(p.hedef):>10} "
-                    f"{p.rr:>4.1f} {p.kalite:>3}  "
-                    f"{_f(p.son_fiyat):>9}{f'  {pnl}' if pnl else ''}"
-                )
+                    f"{p.rr:>4.1f} {p.kalite:>3}  {_f(p.son_fiyat):>9}"
+                    f"{f'  {pnl}' if pnl else ''}")
         else:
             sat.append("   (açık/bekleyen işlem yok)")
 
@@ -335,10 +263,9 @@ class Portfoy:
             sat.append(cizgi("─"))
             sat.append(f"GEÇMİŞ  ({len(kapali)} işlem · son 10):")
             if kapali:
-                for p in sorted(kapali,
-                                 key=lambda x: x.kapanis_zaman, reverse=True)[:10]:
-                    ikon = "✅" if p.durum == "TP" else ("🔴" if p.durum == "STOP"
-                                                          else "⬜")
+                for p in sorted(kapali, key=lambda x: x.kapanis_zaman,
+                                reverse=True)[:10]:
+                    ikon = "✅" if p.durum == "TP" else ("🔴" if p.durum == "STOP" else "⬜")
                     tarih = p.kapanis_zaman[:10] if p.kapanis_zaman else "—"
                     sat.append(
                         f"  {ikon} {p.sembol:<10} {p.interval:<4} "
@@ -350,28 +277,21 @@ class Portfoy:
         sat.append(cizgi())
         bugun = self.gunluk_r()
         sat.append(
-            f"ÖZET  Açık: {len(aktif)}  |  "
-            f"Kapalı: {len(kapali)} (TP {tp_n} · STOP {stop_n})  |  "
-            f"WR %{self.win_rate}  |  Toplam {self.toplam_r:+.1f}R")
+            f"ÖZET  Açık: {len(aktif)}  |  Kapalı: {len(kapali)} "
+            f"(TP {tp_n} · STOP {stop_n})  |  WR %{self.win_rate}  |  "
+            f"Toplam {self.toplam_r:+.1f}R")
         sat.append(
-            f"      Bugün: {bugun:+.1f}R  |  "
-            f"1R = {self.r_dolar:.0f}$  → bugün $ "
-            f"{bugun * self.r_dolar:+.1f}")
+            f"      Bugün: {bugun:+.1f}R  |  1R = {self.r_dolar:.0f}$  "
+            f"→ bugün $ {bugun * self.r_dolar:+.1f}")
         sat.append(cizgi())
         return "\n".join(sat)
 
     def ozet_metin(self) -> str:
-        """Kısa özet (tek satır)."""
         bugun = self.gunluk_r()
         return (
-            f"Portföy: {len(self.aktif)} açık | "
-            f"{len(self.kapali)} kapalı (WR %{self.win_rate}) | "
-            f"Toplam {self.toplam_r:+.1f}R | Bugün {bugun:+.1f}R"
-        )
-
-    # -----------------------------------------------------------------------
-    # Kalıcılık (JSON serialize / deserialize)
-    # -----------------------------------------------------------------------
+            f"Portföy: {len(self.aktif)} açık | {len(self.kapali)} kapalı "
+            f"(WR %{self.win_rate}) | Toplam {self.toplam_r:+.1f}R | "
+            f"Bugün {bugun:+.1f}R")
 
     def kaydet(self, dosya: str | Path = "portfoy.json") -> None:
         data = {
@@ -392,9 +312,13 @@ class Portfoy:
         return pf
 
 
-# ---------------------------------------------------------------------------
-# Yardımcılar
-# ---------------------------------------------------------------------------
+def _utc_ts(zaman: str | pd.Timestamp) -> pd.Timestamp:
+    """Naive/aware zamanı güvenli biçimde UTC Timestamp'e çevirir."""
+    ts = pd.Timestamp(zaman)
+    if ts.tzinfo is None:
+        return ts.tz_localize("UTC")
+    return ts.tz_convert("UTC")
+
 
 def _simdi() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -402,12 +326,7 @@ def _simdi() -> str:
 
 def radar_sinyallerini_ekle(portfoy: Portfoy, radar_raporu,
                              interval: str = "4h") -> int:
-    """RadarRapor'daki Trade sinyallerini portföye ekler (long + short).
-
-    Stop, giriş↔hedef mesafesinden R/R ile türetilir; formül her iki yön için
-    de doğrudur (long: hedef>giriş → stop<giriş; short: hedef<giriş → stop>giriş).
-    Döndürür: eklenen yeni pozisyon sayısı.
-    """
+    """RadarRapor'daki Trade sinyallerini portföye ekler (long + short)."""
     eklendi = 0
     for satir in radar_raporu.satirlar:
         if satir.kategori != "Trade":
