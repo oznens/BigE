@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""GitHub Pages canlı taramasına doğrulanmış edge + Miraz tetik/yönetim filtresi uygular.
+"""GitHub Pages canlı taramasına doğrulanmış PA + Harmonik Miraz filtresi uygular.
 
 Katman sırası:
   1) Çekirdek radarın HTF/Late/stop-çiğnenmiş güvenlik kuralları aynen kalır.
-  2) Geçmiş doğrulanmış işlem verisi: 15m + Price Action + stop %2..%3.
-  3) @tradermiraz arşivinden damıtılan operasyonel kural: trend kırılımı/onay
-     (Shear/MSB) gelmeden setup gerçek Trade sayılmaz; Watch'ta bekler.
+  2) Price Action yolu: 15m + stop %2..%3 + Miraz trend kırılımı/onayı.
+  3) Harmonik yolu: gerçek harmonik pattern/PRZ + geçerli stop + Miraz
+     trend kırılımı/onayı; TF bağımsızdır (15m/30m/1h/2h/4h).
   4) Canlı paper yönetimi: TP1=1R'de %65 kar al, kalan %35'i BE stop ile
      TP2=2R'ye taşı.
   5) İstatistik baseline: yeni Miraz yönetiminin devreye girdiği andan önceki
      kayıtlar canlı performans/state hesabından çıkarılır.
 
-Baseline öncesi veri Git geçmişinde/önceki Pages deploylarında kaybolmuş sayılmaz;
-yalnız yeni sistem performansını temiz ölçmek için canlı state'e taşınmaz.
+Harmonik ve PA birbirinden bağımsız ana setup yollarıdır. Çekirdek radarın
+Elenen/Skip/Late/HTF/çiğnenmiş-bölge kararları bu katmanda asla Trade'e
+yükseltilmez.
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ STOP_MIN_PCT = 2.0
 STOP_MAX_PCT = 3.0
 EDGE_TF = "15m"
 EDGE_KAYNAK = "Price Action"
+HARMONIK_KAYNAK = "Harmonik"
 MIRAZ_TETIK = "Shear"  # trend kırılımı / MSB
 
 # Yeni TP1→BE→TP2 canlı yönetiminin devreye alındığı commit zamanı.
@@ -113,7 +115,7 @@ statik_site._onceki_state = _onceki_state_temiz
 
 
 # ---------------------------------------------------------------------------
-# Edge + Miraz tetik filtresi
+# PA + Harmonik + Miraz tetik filtresi
 # ---------------------------------------------------------------------------
 def _stop_pct(satir) -> float | None:
     giris = getattr(satir, "giris", None)
@@ -121,6 +123,22 @@ def _stop_pct(satir) -> float | None:
     if giris is None or stop is None or giris <= 0:
         return None
     return 100.0 * abs(float(giris) - float(stop)) / float(giris)
+
+
+def _stop_gecerli(satir) -> bool:
+    """Stop girişin doğru tarafında ve sıfırdan farklı olmalı."""
+    giris = getattr(satir, "giris", None)
+    stop = getattr(satir, "stop", None)
+    if giris is None or stop is None:
+        return False
+    try:
+        giris, stop = float(giris), float(stop)
+    except Exception:
+        return False
+    if giris <= 0 or stop <= 0 or abs(giris - stop) <= 1e-12:
+        return False
+    short = getattr(satir, "taraf", "Long") == "Short"
+    return stop > giris if short else stop < giris
 
 
 def _hedef_2r(satir) -> float | None:
@@ -141,48 +159,87 @@ def _miraz_tetik_var(satir) -> bool:
     return MIRAZ_TETIK in set(getattr(satir, "konseptler", None) or [])
 
 
+def _harmonik_uygun(satir) -> bool:
+    """Gerçek harmonik motor satırı: kaynak Harmonik + pattern/PRZ + valid stop."""
+    return (
+        getattr(satir, "kaynak", "") == HARMONIK_KAYNAK
+        and bool(getattr(satir, "pattern", None))
+        and _stop_gecerli(satir)
+    )
+
+
 def _edge_uygula(rapor):
-    """Yalnız mevcut Trade satırlarını veri + Miraz tetik filtresiyle daralt."""
+    """Çekirdek Trade'leri PA veya Harmonik ana yoluyla doğrula.
+
+    PA: 15m + Price Action + %2..%3 stop + MSB/Shear.
+    Harmonik: herhangi bir terminalMiraz TF + harmonik pattern/PRZ + valid stop
+              + MSB/Shear. Harmoniğe PA'nın %2..%3 stop filtresi uygulanmaz.
+    """
     for s in rapor.satirlar:
+        # Çekirdeğin Watch/Skip/Elenen kararını asla yükseltme.
         if s.kategori != "Trade":
             continue
 
         sp = _stop_pct(s)
-        veri_uygun = (
+        tetik = _miraz_tetik_var(s)
+        pa_uygun = (
             s.interval == EDGE_TF
             and s.kaynak == EDGE_KAYNAK
             and sp is not None
             and STOP_MIN_PCT <= sp <= STOP_MAX_PCT
+            and _stop_gecerli(s)
         )
-        tetik = _miraz_tetik_var(s)
+        harmonik_uygun = _harmonik_uygun(s)
 
-        if veri_uygun and tetik:
+        if tetik and (pa_uygun or harmonik_uygun):
             premium = str(getattr(s, "kalite", "")).strip() == "A+"
-            etiket = "⭐ PREMIUM · edge + Miraz tetik" if premium else "✅ edge + Miraz tetik"
             h2 = _hedef_2r(s)
             proj = f" · TP2 {h2:.6g}" if h2 is not None else ""
-            detay = (
-                f"15m PA · stop %{sp:.2f} · MSB/Shear onaylı · "
-                f"yönetim: 1R'de %{TP1_PAY*100:.0f} al → BE → 2R{proj}"
+
+            if harmonik_uygun:
+                pat = str(getattr(s, "pattern", "Harmonik"))
+                etiket = "⭐ PREMIUM HARMONİK" if premium else "🔷 HARMONİK TRADE"
+                detay = (
+                    f"{pat} PRZ · {s.interval} · MSB/Shear onaylı · "
+                    f"stop %{sp:.2f}" if sp is not None else
+                    f"{pat} PRZ · {s.interval} · MSB/Shear onaylı"
+                )
+            else:
+                etiket = "⭐ PREMIUM PA" if premium else "✅ PA TRADE"
+                detay = f"15m PA · stop %{sp:.2f} · MSB/Shear onaylı"
+
+            detay += (
+                f" · yönetim: 1R'de %{TP1_PAY*100:.0f} al → BE → 2R{proj}"
             )
             s.not_ = f"{etiket} · {detay}" + (f" · {s.not_}" if s.not_ else "")
             continue
 
         neden = []
-        if s.interval != EDGE_TF:
-            neden.append(f"TF {s.interval}≠15m")
-        if s.kaynak != EDGE_KAYNAK:
-            neden.append(f"kaynak {s.kaynak}≠PA")
-        if sp is None:
-            neden.append("stop mesafesi yok")
-        elif not (STOP_MIN_PCT <= sp <= STOP_MAX_PCT):
-            neden.append(f"stop %{sp:.2f} ∉ [%2,%3]")
-        if veri_uygun and not tetik:
-            neden.append("Miraz tetik/MSB henüz yok")
+        if harmonik_uygun:
+            if not tetik:
+                neden.append("Harmonik PRZ var, Miraz tetik/MSB henüz yok")
+        elif s.kaynak == HARMONIK_KAYNAK:
+            if not getattr(s, "pattern", None):
+                neden.append("harmonik pattern/PRZ eksik")
+            if not _stop_gecerli(s):
+                neden.append("harmonik stop geçersiz")
+        else:
+            if s.interval != EDGE_TF:
+                neden.append(f"TF {s.interval}≠15m")
+            if s.kaynak != EDGE_KAYNAK:
+                neden.append(f"kaynak {s.kaynak}≠PA/Harmonik")
+            if sp is None:
+                neden.append("stop mesafesi yok")
+            elif not (STOP_MIN_PCT <= sp <= STOP_MAX_PCT):
+                neden.append(f"stop %{sp:.2f} ∉ [%2,%3]")
+            if pa_uygun and not tetik:
+                neden.append("Miraz tetik/MSB henüz yok")
 
         s.kategori = "Watch"
-        s.kaynak = "Filtered"
-        ek = ", ".join(neden) or "edge/Miraz filtresi"
+        # Harmonik kaynağını kaybetme: journal/analytics Harmonik olarak ayırabilsin.
+        if s.kaynak != HARMONIK_KAYNAK:
+            s.kaynak = "Filtered"
+        ek = ", ".join(neden) or "PA/Harmonik Miraz filtresi"
         s.not_ = f"Onay bekle → Watch ({ek})" + (f" · {s.not_}" if s.not_ else "")
     return rapor
 
@@ -202,9 +259,7 @@ def _r_fiyat(poz, r: float) -> float:
 
 
 def _tp1_alindi(poz) -> bool:
-    # Eski JSON şemasını değiştirmeden marker'ı son_kontrol_zaman alanında değil,
-    # pozisyon nesnesine runtime attribute olarak taşıyoruz; hedefin 2R'ye
-    # çevrilmiş olması kalıcı marker görevi görür.
+    # Eski JSON şemasını değiştirmeden hedef=2R + stop=entry kalıcı marker olur.
     try:
         return abs(float(poz.hedef) - _r_fiyat(poz, TP2_R)) <= max(abs(float(poz.giris)) * 1e-8, 1e-12) \
             and abs(float(poz.stop) - float(poz.giris)) <= max(abs(float(poz.giris)) * 1e-8, 1e-12)
@@ -215,10 +270,9 @@ def _tp1_alindi(poz) -> bool:
 def _miraz_guncelle(orj_guncelle, self, sembol, interval, df, max_bekleme=24):
     """Aktif işlemleri Miraz TP1→BE→TP2 mantığıyla güncelle.
 
-    Yeni sistem pozisyonlarında ilk hedef başlangıçta 1R'dir. 1R görüldüğünde
-    işlem kapanmaz: +0.65R realize edilir, stop entry'ye çekilir, hedef 2R olur.
-    Runner 2R görürse toplam +1.35R; BE'ye dönerse +0.65R ile kapanır.
-    TP1 öncesi hard stop -1R'dir.
+    İlk hedef 1R. 1R görüldüğünde işlem kapanmaz: +0.65R realize edilir,
+    stop entry'ye çekilir ve hedef 2R olur. Runner 2R görürse toplam +1.35R;
+    BE'ye dönerse +0.65R ile kapanır. TP1 öncesi hard stop -1R'dir.
     """
     aktif = [p for p in self.pozisyonlar
              if p.sembol == sembol and p.interval == interval
@@ -226,7 +280,6 @@ def _miraz_guncelle(orj_guncelle, self, sembol, interval, df, max_bekleme=24):
     if not aktif or df is None or df.empty:
         return []
 
-    # Baseline öncesi pozisyon wrapper'da zaten ayıklanır. Burada yalnız yeni sistem.
     degisenler = []
     son_fiyat = float(df["close"].iloc[-1])
 
@@ -290,8 +343,7 @@ def _miraz_guncelle(orj_guncelle, self, sembol, interval, df, max_bekleme=24):
                     poz.hedef = round(_r_fiyat(poz, TP2_R), 10)
                     poz.rr = TP2_R
                     degisenler.append(poz)
-                    # Aynı mum içinde TP2'yi saymıyoruz: mum içi sıra bilinmiyor.
-                    # Runner değerlendirmesi bir sonraki mumdan başlar.
+                    # Mum içi sıra bilinmediği için TP2 bir sonraki mumdan değerlendirilir.
                     continue
             else:
                 be_hit = hi >= poz.stop if short else lo <= poz.stop
@@ -299,12 +351,12 @@ def _miraz_guncelle(orj_guncelle, self, sembol, interval, df, max_bekleme=24):
                 # Aynı mumda BE ve TP2 varsa muhafazakâr BE.
                 if be_hit:
                     poz.durum = "TP"
-                    poz.r_sonuc = round(TP1_PAY * TP1_R, 4)  # +0.65R
+                    poz.r_sonuc = round(TP1_PAY * TP1_R, 4)
                     poz.kapanis_zaman = ts.isoformat(); degisenler.append(poz)
                     kapandi = True; break
                 if tp2_hit:
                     poz.durum = "TP"
-                    poz.r_sonuc = round(TP1_PAY * TP1_R + RUNNER_PAY * TP2_R, 4)  # +1.35R
+                    poz.r_sonuc = round(TP1_PAY * TP1_R + RUNNER_PAY * TP2_R, 4)
                     poz.kapanis_zaman = ts.isoformat(); degisenler.append(poz)
                     kapandi = True; break
 
