@@ -13,14 +13,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Archive tweet corpus
+      - name: Archive and split tweet corpus
         run: |
           tar -czf tweet-archive-audit.tar.gz tweetler
-          ls -lh tweet-archive-audit.tar.gz
-      - name: Upload audit archive
+          split -b 240M -d -a 2 tweet-archive-audit.tar.gz tweet-archive-part-
+          ls -lh tweet-archive-part-*
+      - name: Upload part 00
         uses: actions/upload-artifact@v4
         with:
-          name: tweet-archive-audit
-          path: tweet-archive-audit.tar.gz
+          name: tweet-archive-part-00
+          path: tweet-archive-part-00
+          retention-days: 1
+          compression-level: 0
+      - name: Upload part 01
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweet-archive-part-01
+          path: tweet-archive-part-01
+          retention-days: 1
+          compression-level: 0
+      - name: Upload part 02
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweet-archive-part-02
+          path: tweet-archive-part-02
           retention-days: 1
           compression-level: 0
