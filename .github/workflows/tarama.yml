@@ -40,10 +40,10 @@ jobs:
         run: pip install pandas numpy requests pyarrow
 
       - name: Tarama + statik site üret
-        # terminalMiraz clone filtresi: PA ve Harmonik 15m/30m/1h/2h/4h,
-        # geçerli invalidasyon + MSB/Shear tetik. Harmonik ayrıca pattern/PRZ ister.
-        # Stop yüzdesi bilgi amaçlıdır; Trade kapısı değildir.
-        run: python backtest/live_edge_filter.py --cikti site --genis --mtf --taraf her
+        # Kanıtlı terminalMiraz clone kapısı: PA/Harmonik 15m/30m/1h/2h/4h,
+        # geçerli invalidasyon + MSB/Shear; Harmonik ayrıca pattern/PRZ ister.
+        # Ana canlı benchmark 1:1'dir. Kanıtlanmamış sabit partial yüzdesi PNL'ye katılmaz.
+        run: python backtest/terminalmiraz_live.py --cikti site --genis --mtf --taraf her
 
       - name: Pages artefaktını yükle
         uses: actions/upload-pages-artifact@v3
