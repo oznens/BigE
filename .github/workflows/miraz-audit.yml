@@ -1,0 +1,39 @@
+name: terminalMiraz Evidence Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/inspiring-brown-FdsNk"]
+    paths:
+      - "backtest/miraz_archive_audit.py"
+      - ".github/workflows/miraz-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Arşiv kanıt raporunu üret
+        run: python backtest/miraz_archive_audit.py
+
+      - name: Raporu repoya kaydet
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tweetler/TERMINALMIRAZ_EVIDENCE.md tweetler/terminalmiraz_evidence.json
+          if git diff --cached --quiet; then
+            echo "Rapor değişmedi"
+          else
+            git commit -m "Generate terminalMiraz evidence report [skip ci]"
+            git push
+          fi
