@@ -1,0 +1,26 @@
+name: Export Tweet Archive Audit
+
+on:
+  push:
+    branches: ["claude/inspiring-brown-FdsNk"]
+    paths: [".github/workflows/export-tweet-archive.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive tweet corpus
+        run: |
+          tar -czf tweet-archive-audit.tar.gz tweetler
+          ls -lh tweet-archive-audit.tar.gz
+      - name: Upload audit archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweet-archive-audit
+          path: tweet-archive-audit.tar.gz
+          retention-days: 1
+          compression-level: 0
