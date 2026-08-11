@@ -108,6 +108,9 @@ class Kayit:
     setup_tur_detaylari: dict = field(default_factory=dict)
     harmonik_detay: dict = field(default_factory=dict)
     harmonik_gecmisi: list = field(default_factory=list)
+    risk_modu: str = "legacy-unknown"
+    risk_rr_hedef: float | None = None
+    risk_r_dolar: float | None = None
 
     @property
     def aktif(self) -> bool:
@@ -184,6 +187,9 @@ class Defter:
                 "motor_kalite": (getattr(satir, "harmonik_detay", None) or {})
                                 .get("motor_kalite"),
             }] if getattr(satir, "pattern", None) else []),
+            risk_modu=getattr(satir, "risk_modu", "legacy-unknown"),
+            risk_rr_hedef=getattr(satir, "risk_rr_hedef", None),
+            risk_r_dolar=getattr(satir, "risk_r_dolar", None),
             kalite_gecmisi=[{
                 "zaman": acilis, "kalite": satir.kalite,
                 "guven": satir.guven, "kategori": satir.kategori,
@@ -771,6 +777,37 @@ class Defter:
             "minimum_sample": None,
             "recommendation_status": "locked-undisclosed-threshold",
             "causality_claim": "not-made",
+        }
+
+    def risk_modu_ozeti(self) -> dict:
+        """Risk modu snapshot'larını gerçek Journal sonuçlarıyla ayrı göster."""
+        gruplar: dict[str, list[Kayit]] = {}
+        for k in self.kayitlar:
+            gruplar.setdefault(k.risk_modu or "legacy-unknown", []).append(k)
+        rows = []
+        for mod, kayitlar in gruplar.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            tp = sum(k.durum == "TP" for k in journal)
+            stop = sum(k.durum == "STOP" for k in journal)
+            rrler = sorted({k.risk_rr_hedef for k in kayitlar
+                            if k.risk_rr_hedef is not None})
+            rows.append({
+                "risk_modu": mod, "setup_sayisi": len(kayitlar),
+                "journal_n": len(journal), "tp": tp, "stop": stop,
+                "wr": round(100 * tp / len(journal), 1) if journal else None,
+                "toplam_r": round(sum(k.r_sonuc for k in journal), 2),
+                "rr_hedefleri": rrler,
+                "r_dolar_snapshot_n": sum(k.risk_r_dolar is not None
+                                             for k in kayitlar),
+            })
+        rows.sort(key=lambda x: (-x["setup_sayisi"], x["risk_modu"]))
+        return {
+            "modlar": rows,
+            "kanitli_modlar": {"guvenli": 1.0, "dengeli": 2.0,
+                                "riskli": 3.5},
+            "kanit_tweet_id": "2062336764656677002",
+            "legacy_backfill": False,
+            "custom_mode_origin": "BigE-not-terminalMiraz",
         }
 
     def pa_alt_tur_ozeti(self) -> dict:

@@ -12,6 +12,7 @@ from miraz.radar import (RadarRapor, RadarSatiri, _kategori_belirle,
                          _gec_kalmis, _lifecycle_belirle,
                          CEKIRDEK_EVREN, GENIS_EVREN,
                          VARSAYILAN_EVREN, TERMINALMIRAZ_TF, RISK_MODLARI,
+                         risk_modu_adi,
                          KANITLI_KALITE_YAPISI, _UST_TF, _ALT_TF,
                          _ltf_snapshot, HTF_POLICY, MTF_KALIBRASYON_POLICY,
                          mtf_kalibrasyon_kapisi, _pa_setup_turleri)
@@ -25,6 +26,13 @@ def test_evren_genis_ve_tekil():
     # Çekirdek evren geniş evrenin alt kümesi
     assert set(CEKIRDEK_EVREN).issubset(set(GENIS_EVREN))
     assert VARSAYILAN_EVREN == CEKIRDEK_EVREN
+
+
+def test_risk_modu_adi_kanitli_ve_custom_ayrimi():
+    assert risk_modu_adi(1.0) == "guvenli"
+    assert risk_modu_adi(2.0) == "dengeli"
+    assert risk_modu_adi(3.5) == "riskli"
+    assert risk_modu_adi(1.75) == "custom-bige"
 
 
 def test_ltf_esleme_gozlenen_merdivende_bir_alt_tf_ve_15m_bos():

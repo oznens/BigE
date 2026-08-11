@@ -83,6 +83,13 @@ TERMINALMIRAZ_TF = ["15m", "30m", "1h", "2h", "4h"]
 # Güvenli +1R / Dengeli +2R / Riskli +3.5R.
 RISK_MODLARI = {"guvenli": 1.0, "dengeli": 2.0, "riskli": 3.5}
 
+
+def risk_modu_adi(rr_hedef: float) -> str:
+    for ad, rr in RISK_MODLARI.items():
+        if abs(float(rr_hedef) - rr) < 1e-9:
+            return ad
+    return "custom-bige"
+
 # Kanıtlar terminolojik olarak ayrıdır; içerikler açıklanmadığı için BigE
 # kontrolleriyle birebir eşleme yapılmaz.
 # - 2066320810545910019: PA 3 kademe, Harmonik 4 özel filtre detayı.
@@ -152,6 +159,9 @@ class RadarSatiri:
     taraf: str = "Long"   # "Long" / "Short"
     stop: float | None = None
     pattern: str | None = None   # harmonik pattern adı (Gartley/Deep Crab/...)
+    risk_modu: str = "guvenli"
+    risk_rr_hedef: float = 1.0
+    risk_r_dolar: float = 25.0
     # terminalMiraz Result Journal motoru: Price Action / Harmonik / Late
     # (+ lifecycle nedeni Filtered / HTF). TradeFi (hisse) bizde yok.
     kaynak: str = "Price Action"
@@ -626,6 +636,8 @@ def radar_tara(semboller: list[str] | None = None,
                         rr=rp.rr_orani if rp else None, not_=notu,
                         taraf="Long", stop=rp.stop if rp else None,
                         pattern=_pat, kaynak=_kaynak,
+                        risk_modu=risk_modu_adi(rr_hedef),
+                        risk_rr_hedef=rr_hedef, risk_r_dolar=r_dolar,
                         harmonik_detay=getattr(s, "harmonik_detay", None),
                         lifecycle=_lifecycle_belirle(kategori, notu, _pat),
                         ana_tf_yapi=getattr(
@@ -699,6 +711,8 @@ def radar_tara(semboller: list[str] | None = None,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
                         not_=notu, taraf="Short", stop=ks.fitil_seviye,
                         pattern=_s_pat, kaynak=_s_kaynak,
+                        risk_modu=risk_modu_adi(rr_hedef),
+                        risk_rr_hedef=rr_hedef, risk_r_dolar=r_dolar,
                         harmonik_detay=getattr(ks, "harmonik_detay", None),
                         lifecycle=_lifecycle_belirle(kategori, notu, _s_pat),
                         ana_tf_yapi=getattr(

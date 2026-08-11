@@ -360,6 +360,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   <div class="panel pi-bg blok">
     <h2>RESULT ENGINES</h2>
     <div id="pi-engines" class="grid" style="grid-template-columns:repeat(8,1fr);gap:6px"></div>
+    <div style="margin-top:9px">
+      <h2>RISK MODE AUDIT · SNAPSHOT</h2>
+      <div id="pi-risk-modes" class="grid g4" style="gap:6px"></div>
+      <div id="pi-risk-mode-note" style="font-size:9px;color:var(--soluk);margin-top:5px"></div>
+    </div>
   </div>
 
   <div class="panel pi-bg blok">
@@ -717,6 +722,18 @@ function piEkran(d){
       <div class="pbar"><div class="pbar-fill" style="width:${wr}%;background:${e.c}"></div></div>
     </div>`;
   }).join("");
+
+  const rm=d.risk_modlari||{modlar:[],kanitli_modlar:{}};
+  $("#pi-risk-modes").innerHTML=(rm.modlar||[]).map(x=>{
+    const sonuc=x.journal_n?`${x.tp}TP/${x.stop}STOP · WR %${x.wr} · ${x.toplam_r>=0?"+":""}${x.toplam_r}R`:`JOURNAL —`;
+    const rr=(x.rr_hedefleri||[]).length?`HEDEF ${(x.rr_hedefleri||[]).join("/")}R`:`HEDEF —`;
+    return `<div class="pi-engine" style="border-top-color:var(--mavi)">
+      <div class="k">${x.risk_modu}</div><div class="v">${x.setup_sayisi}</div>
+      <div class="wr pi-sub">${rr}<br>${sonuc}<br>R SNAPSHOT ${x.r_dolar_snapshot_n}</div>
+    </div>`;
+  }).join("") || `<div class="readout">RİSK MODU VERİSİ YOK</div>`;
+  $("#pi-risk-mode-note").textContent=
+    `Kanıt tweet ${rm.kanit_tweet_id||"2062336764656677002"} · Güvenli 1R / Dengeli 2R / Riskli 3.5R · legacy kayıtlar tahminle doldurulmaz`;
 
   const hp=d.harmonik_patternler||{patternler:[],harmonik_setup_sayisi:0,
     detayli_snapshot_sayisi:0,minimum_sample:null};

@@ -34,6 +34,9 @@ class _Satir:
     ltf_tf: str = ""
     ltf_yapi: str = "not-implemented"
     harmonik_detay: dict | None = None
+    risk_modu: str = "guvenli"
+    risk_rr_hedef: float = 1.0
+    risk_r_dolar: float = 25.0
 
 
 def test_setup_ekle_ve_dedup():
@@ -41,6 +44,8 @@ def test_setup_ekle_ve_dedup():
     k1 = d.setup_ekle(_Satir())
     assert k1 is not None and k1.durum == "Aday" and k1.pattern == "Gartley"
     assert k1.harmonik_gecmisi[0]["olay"] == "pattern-detected"
+    assert (k1.risk_modu, k1.risk_rr_hedef, k1.risk_r_dolar) == \
+        ("guvenli", 1.0, 25.0)
     assert k1.ana_tf_yapi == "yükseliş" and k1.htf_tf == "4h"
     assert k1.htf_yapi == "sağlıklı" and k1.ltf_yapi == "not-implemented"
     assert len(k1.kalite_gecmisi) == 1
@@ -109,6 +114,21 @@ def test_harmonik_capraz_ham_kalite_prz_ve_cd_ayri():
     assert any(x["boyut"] == "cd-status" and
                x["deger"] == "cancelled-pattern-changed-or-disappeared"
                for x in o["hucreler"])
+
+
+def test_risk_modu_ozeti_modlari_birlestirmez():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="TP", r_sonuc=1.0, risk_modu="guvenli",
+              risk_rr_hedef=1.0, risk_r_dolar=25.0),
+        Kayit(2, "", "ETHUSDT", "4h", "Long", "A", 80, 100, 95, 120, 2,
+              durum="STOP", r_sonuc=-1.0, risk_modu="dengeli",
+              risk_rr_hedef=2.0, risk_r_dolar=10.0),
+    ])
+    o = d.risk_modu_ozeti()
+    assert o["kanit_tweet_id"] == "2062336764656677002"
+    assert {x["risk_modu"] for x in o["modlar"]} == {"guvenli", "dengeli"}
+    assert all(x["journal_n"] == 1 for x in o["modlar"])
 
 
 def test_senkronize_portfoyden():

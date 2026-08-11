@@ -56,6 +56,9 @@ def _satir_json(s) -> dict:
         "taraf": s.taraf, "kaynak": getattr(s, "kaynak", "Price Action"),
         "pattern": getattr(s, "pattern", None),
         "harmonik_detay": getattr(s, "harmonik_detay", None) or {},
+        "risk_modu": getattr(s, "risk_modu", "legacy-unknown"),
+        "risk_rr_hedef": getattr(s, "risk_rr_hedef", None),
+        "risk_r_dolar": getattr(s, "risk_r_dolar", None),
         "giris": s.giris,
         "stop": s.stop, "hedef": s.hedef, "rr": s.rr, "not_": s.not_,
         "konseptler": konseptler,
@@ -211,6 +214,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "pa_capraz": defter.pa_capraz_ozeti(),
         "harmonik_patternler": defter.harmonik_pattern_ozeti(),
         "harmonik_capraz": defter.harmonik_capraz_ozeti(),
+        "risk_modlari": defter.risk_modu_ozeti(),
         "filtered_takip": [{
             "id": k.id, "sembol": k.sembol, "interval": k.interval,
             "taraf": k.taraf, "neden": k.durum_nedeni or "legacy-unknown",
