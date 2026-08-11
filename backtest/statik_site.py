@@ -34,6 +34,9 @@ from miraz.sunucu import durum_json, grafik_veri, WEB_DIZIN  # noqa: E402
 from miraz import veri as miraz_veri                    # noqa: E402
 
 PAGES_URL = "https://oznens.github.io/BigE"
+# Bu değer bilinçli değiştirildiğinde önceki canlı Journal/portföy taşınmaz.
+# Kanıt arşivi ve motor kuralları etkilenmez; yalnız çalışma state'i sıfırlanır.
+STATE_EPOCH = "2026-08-11-clean-start-v1"
 FEE_BPS_TARAF = 4.0
 SLIPPAGE_BPS_TARAF = 2.0
 FUNDING_BPS_TOPLAM = 0.0
@@ -48,14 +51,24 @@ def _onceki_state(cikti: Path, onceki_url: str | None) -> tuple[Defter, Portfoy]
     """Önceki tarama hafızasını (defter+portföy) yükler."""
     d_yol = cikti / "defter.json"
     p_yol = cikti / "portfoy.json"
+    e_yol = cikti / "state_epoch.json"
     if onceki_url:
         taban = onceki_url.rstrip("/")
-        for ad, yol in (("defter.json", d_yol), ("portfoy.json", p_yol)):
+        for ad, yol in (("defter.json", d_yol), ("portfoy.json", p_yol),
+                        ("state_epoch.json", e_yol)):
             try:
                 with urllib.request.urlopen(f"{taban}/{ad}", timeout=15) as r:
                     yol.write_bytes(r.read())
             except Exception:
                 pass
+        try:
+            onceki_epoch = json.loads(e_yol.read_text(encoding="utf-8")).get("epoch")
+        except Exception:
+            onceki_epoch = None
+        if onceki_epoch != STATE_EPOCH:
+            # Eski dönemin istatistik ve pozisyonlarını yeni başlangıca taşıma.
+            d_yol.unlink(missing_ok=True)
+            p_yol.unlink(missing_ok=True)
     defter = Defter.yukle(d_yol) if d_yol.exists() else Defter()
     try:
         portfoy = Portfoy.yukle(p_yol) if p_yol.exists() else Portfoy()
@@ -419,6 +432,7 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
 
     goz.defter.kaydet(cikti / "defter.json")
     goz.portfoy.kaydet(cikti / "portfoy.json")
+    _yaz_json(cikti / "state_epoch.json", {"epoch": STATE_EPOCH})
     print(f"✅ defter.json + portfoy.json — {len(goz.defter.kayitlar)} kayıt taşındı")
 
     grafik_dizin = cikti / "grafik"

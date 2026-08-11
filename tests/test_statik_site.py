@@ -86,6 +86,8 @@ def test_onceki_state_yayinlanani_yukler(tmp_path):
          "kayitlar": [_ornek_kayit(1, "Açık"), _ornek_kayit(2, "Aday")]},
         ensure_ascii=False), encoding="utf-8")
     Portfoy(r_dolar=25.0).kaydet(tmp_path / "portfoy.json")
+    (tmp_path / "state_epoch.json").write_text(
+        json.dumps({"epoch": s.STATE_EPOCH}), encoding="utf-8")
 
     taban = tmp_path.resolve().as_uri()          # file:///.../tmp
     d, p = s._onceki_state(tmp_path, taban)
@@ -93,6 +95,24 @@ def test_onceki_state_yayinlanani_yukler(tmp_path):
     assert d.tarama_turu == 7                      # sayaç korundu
     assert d.kayitlar[0].sembol == "BTCUSDT"
     assert isinstance(p, Portfoy)
+
+
+def test_onceki_state_epoch_degistiğinde_temiz_baslar(tmp_path):
+    """Eski canlı dönem Journal/portföyü yeni temiz başlangıca taşınmaz."""
+    (tmp_path / "defter.json").write_text(json.dumps(
+        {"id_sayac": 105, "tarama_turu": 73, "toplam_tarama": 40480,
+         "son_dongu": "2026-08-11T10:00:00+00:00",
+         "kayitlar": [_ornek_kayit(105, "TP")]}, ensure_ascii=False),
+        encoding="utf-8")
+    p = Portfoy(r_dolar=25.0)
+    p.ekle("BTCUSDT", "1h", 100, 95, 110, 1.0, "A", 80, "Long")
+    p.kaydet(tmp_path / "portfoy.json")
+    (tmp_path / "state_epoch.json").write_text(
+        json.dumps({"epoch": "old-era"}), encoding="utf-8")
+
+    d2, p2 = s._onceki_state(tmp_path, tmp_path.resolve().as_uri())
+    assert d2.kayitlar == [] and d2.tarama_turu == 0
+    assert p2.pozisyonlar == []
 
 
 def test_onceki_state_yoksa_bos_baslar(tmp_path):
