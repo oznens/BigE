@@ -611,6 +611,20 @@ def test_parite_hafiza_yirmi_kayitta_olgun():
     assert d.parite_hafiza()["XLMUSDT"]["ornek_durumu"] == "mature"
 
 
+def test_harmonik_parite_hafiza_pa_ile_karismaz_ve_skor_uydurmaz():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "ETHUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Harmonik"),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik"),
+        Kayit(3, "", "ETHUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action"),
+    ])
+    e = d.harmonik_parite_hafiza()["ETHUSDT"]
+    assert (e["tp"], e["stop"], e["wr"], e["r"]) == (1, 1, 50.0, 0.0)
+    assert e["miraz_score"] is None and e["auto_delist"] is False
+
+
 def test_ozet_lifecycle_sayar():
     """ozet() RESULT JOURNAL lifecycle durumlarını ayrı sayar."""
     d = Defter()

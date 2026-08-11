@@ -69,6 +69,7 @@ def test_durum_json_yapisi():
     assert d["adaylar"][0]["symbol"] == "BTCUSDT"     # Trade önce
     assert d["adaylar"][0]["kaynak"] == "Harmonik"
     assert d["adaylar"][0]["temas_detay"]["toplam"] == 2
+    assert "harmonik_parite_karakter" in d["memory"]
     assert d["adaylar"][0]["skor_modeli"] == "BigE heuristic v1"
     assert d["adaylar"][0]["kalite_kademe"] is None
     assert d["adaylar"][0]["test_asamasi"] == 5

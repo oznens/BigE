@@ -543,8 +543,9 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="m-wr-header" style="font-size:28px;font-weight:700;color:var(--vurgu);margin-bottom:8px"></div>
     <div id="m-konsept" class="grid g3"></div>
   </div>
-  <div class="grid g3">
-    <div class="panel"><h2>PARİTE HAFIZA ŞERİDİ</h2><div id="m-parite"></div></div>
+  <div class="grid g4">
+    <div class="panel"><h2>PRICE ACTION MEMORY</h2><div id="m-parite"></div></div>
+    <div class="panel"><h2>HARMONIC MEMORY</h2><div id="m-harmonik-parite"></div></div>
     <div class="panel"><h2>ZAMAN DİLİMİ KARAKTERİ</h2><div id="m-tf"></div></div>
     <div class="panel"><h2>PNL ANALYTICS</h2><div id="m-pnl"></div></div>
   </div>
@@ -1179,7 +1180,9 @@ function memoryEkran(d){
       <div class="v">${x.tp} <span style="color:var(--soluk);font-size:14px">/ ${x.stop}</span></div>
       <div class="s" style="color:${ec}">${x.toplam?"%"+x.wr+" win rate":""}</div>
     </div>`;}).join("");
-  $("#m-parite").innerHTML = tabloPariteKarakter(m.parite_karakter||m.parite);
+  $("#m-parite").innerHTML = tabloPariteKarakter(m.parite_karakter||m.parite,"PA");
+  $("#m-harmonik-parite").innerHTML =
+    tabloPariteKarakter(m.harmonik_parite_karakter,"HARMONİK");
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");
   const pnl = d.pnl||{};
   $("#m-pnl").innerHTML = `
@@ -1275,10 +1278,10 @@ function tabloPerf(veri,adsut){
       <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td></tr>`).join("")+`</table>`;
 }
 
-function tabloPariteKarakter(veri){
+function tabloPariteKarakter(veri,motor="PA"){
   const rows=Object.entries(veri||{}).sort((a,b)=>(b[1].wr||0)-(a[1].wr||0)).slice(0,10);
-  if(!rows.length) return `<div class="bos">PA karakter verisi yok</div>`;
-  return `<table><tr><th>PA Parite</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">Örnek</th></tr>`+
+  if(!rows.length) return `<div class="bos">${motor} karakter verisi yok</div>`;
+  return `<table><tr><th>${motor} Parite</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">Örnek</th></tr>`+
     rows.map(([ad,e])=>`<tr><td>${ad}</td>
       <td class="num ${wrCls(e.wr)}">%${e.wr}</td>
       <td class="num">${e.tp}/${e.stop}</td>

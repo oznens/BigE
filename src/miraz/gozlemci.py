@@ -1109,6 +1109,26 @@ class Defter:
             e["auto_delist"] = False
         return d
 
+    def harmonik_parite_hafiza(self) -> dict:
+        """Harmonic Memory Lab için pariteye özel, PA'dan ayrı performans."""
+        d: dict[str, dict] = {}
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP") or k.kaynak != "Harmonik":
+                continue
+            e = d.setdefault(k.sembol, {"tp": 0, "stop": 0, "r": 0.0})
+            e["tp" if k.durum == "TP" else "stop"] += 1
+            e["r"] += k.r_sonuc
+        for e in d.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            e["ornek_durumu"] = "mature" if n >= 20 else "learning"
+            e["miraz_score"] = None
+            e["score_model"] = "terminalMiraz-formula-undisclosed"
+            e["auto_delist"] = False
+        return d
+
     def takvim_veri(self) -> dict:
         """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.
 
