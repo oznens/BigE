@@ -242,6 +242,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
                    "harmonik_parite_karakter": defter.harmonik_parite_hafiza(),
                    "parite_konsept": defter.parite_konsept_hafiza(),
                    "tf_motor": defter.tf_motor_hafiza(),
+                   "entry_kalite": defter.entry_kalite_hafiza(),
                    "konsept": pnl["konsept"]},
         # Performance Intelligence + Journal + Aylık R ek verileri
         "perf_curve": defter.perf_curve(),

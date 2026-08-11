@@ -564,6 +564,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="m-tf-motor"></div>
     <div style="font-size:9px;color:var(--soluk);margin-top:6px">Price Action ve Harmonik ayrı · yalnız gözlem · otomatik TF filtresi yok</div>
   </div>
+  <div class="panel blok">
+    <h2>ENTRY KALİTE / GÜVEN MEMORY</h2>
+    <div class="grid g2"><div id="m-entry-kalite"></div><div id="m-entry-guven"></div></div>
+    <div id="m-entry-kalite-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1195,6 +1200,11 @@ function memoryEkran(d){
     tabloPariteKarakter(m.harmonik_parite_karakter,"HARMONİK");
   $("#m-parite-konsept").innerHTML = tabloPariteKonsept(m.parite_konsept);
   $("#m-tf-motor").innerHTML = tabloTfMotor(m.tf_motor);
+  const ek=m.entry_kalite||{};
+  $("#m-entry-kalite").innerHTML = tabloEntryKalite(ek.kalite,"ENTRY KALİTE");
+  $("#m-entry-guven").innerHTML = tabloEntryKalite(ek.guven_bandi,"ENTRY GÜVEN");
+  $("#m-entry-kalite-not").textContent=
+    `Gerçek entry snapshot kapsamı: ${ek.snapshot_kapsami||0}. Eski kayıtlar doldurulmaz; güven bantları BigE gözlem kovasıdır, Miraz eşiği değildir.`;
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");
   const pnl = d.pnl||{};
   $("#m-pnl").innerHTML = `
@@ -1318,6 +1328,15 @@ function tabloTfMotor(veri){
       <td class="num ${wrCls(e.wr)}">%${e.wr}</td><td class="num">${e.tp}/${e.stop}</td>
       <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td>
       <td>GÖZLEM · FİLTRE YOK</td></tr>`).join("")+`</table>`;
+}
+
+function tabloEntryKalite(veri,baslik){
+  const rows=veri||[];
+  if(!rows.length) return `<div class="bos">${baslik}: sonuç yok</div>`;
+  return `<table><tr><th>${baslik}</th><th>Motor</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">R</th></tr>`+
+    rows.map(e=>`<tr><td>${e.ad}</td><td>${e.motor}</td>
+      <td class="num ${wrCls(e.wr)}">%${e.wr}</td><td class="num">${e.tp}/${e.stop}</td>
+      <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td></tr>`).join("")+`</table>`;
 }
 
 // ── KONSEPT RAY ──

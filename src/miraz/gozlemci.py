@@ -78,6 +78,8 @@ class Kayit:
     # Cancelled/Shelved/Manuel
     durum: str = "Aday"
     entry_zaman: str = ""
+    entry_kalite: str | None = None
+    entry_guven: float | None = None
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
     # Result Journal motoru: Price Action / Harmonik / Late
@@ -248,6 +250,13 @@ class Defter:
                 continue
             if getattr(p, "entry_zaman", "") and not k.entry_zaman:
                 k.entry_zaman = p.entry_zaman
+                k.entry_kalite = k.kalite
+                k.entry_guven = k.guven
+                k.kalite_gecmisi.append({
+                    "zaman": k.entry_zaman, "kalite": k.kalite,
+                    "guven": k.guven, "kategori": "Trade",
+                    "lifecycle": "Entry", "olay": "entry-quality-snapshot",
+                })
                 if k.pattern:
                     k.harmonik_gecmisi.append({
                         "zaman": k.entry_zaman, "olay": "entry-filled",
@@ -1181,6 +1190,44 @@ class Defter:
             e["auto_filter"] = False
             rows.append(e)
         return sorted(rows, key=lambda x: (x["motor"], x["interval"]))
+
+    def entry_kalite_hafiza(self) -> dict:
+        """Gerçek entry snapshot'ını sonuçlarla kalite/güven bazında eşle."""
+        kalite: dict[tuple[str, str], dict] = {}
+        guven: dict[tuple[str, str], dict] = {}
+        kapsam = 0
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP"):
+                continue
+            if k.entry_kalite is None or k.entry_guven is None:
+                continue
+            kapsam += 1
+            band_alt = max(0, min(90, int(k.entry_guven // 10) * 10))
+            band = f"{band_alt}-{band_alt + 9}"
+            for depo, anahtar, ad in (
+                    (kalite, (k.kaynak, k.entry_kalite), k.entry_kalite),
+                    (guven, (k.kaynak, band), band)):
+                e = depo.setdefault(anahtar, {
+                    "motor": k.kaynak, "ad": ad,
+                    "tp": 0, "stop": 0, "r": 0.0,
+                })
+                e["tp" if k.durum == "TP" else "stop"] += 1
+                e["r"] += k.r_sonuc
+        def bitir(depo):
+            rows = []
+            for e in depo.values():
+                n = e["tp"] + e["stop"]
+                e["n"] = n
+                e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+                e["r"] = round(e["r"], 2)
+                rows.append(e)
+            return sorted(rows, key=lambda x: (x["motor"], x["ad"]))
+        return {
+            "kalite": bitir(kalite), "guven_bandi": bitir(guven),
+            "snapshot_kapsami": kapsam, "legacy_backfill": False,
+            "guven_bandi_origin": "BigE-observation-bucket-not-Miraz-threshold",
+            "auto_filter": False,
+        }
 
     def takvim_veri(self) -> dict:
         """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.

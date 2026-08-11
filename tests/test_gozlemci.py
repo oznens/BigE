@@ -170,6 +170,10 @@ def test_senkronize_portfoyden():
     assert d.kayitlar[0].durum == "TP"
     assert d.kayitlar[0].r_sonuc == 1.0
     assert d.kayitlar[0].entry_zaman == p.entry_zaman
+    assert (d.kayitlar[0].entry_kalite, d.kayitlar[0].entry_guven) == \
+        ("A", 80.0)
+    assert d.kayitlar[0].kalite_gecmisi[-1]["olay"] == \
+        "entry-quality-snapshot"
     assert d.kayitlar[0].harmonik_gecmisi[-1]["olay"] == "entry-filled"
     assert not d.kayitlar[0].aktif
 
@@ -667,6 +671,26 @@ def test_tf_motor_hafiza_pa_harmonik_ve_late_ayrimi():
     assert all(k[0] != "Late" for k in rows)
     assert all(x["observation_only"] and not x["auto_filter"]
                for x in rows.values())
+
+
+def test_entry_kalite_hafiza_yalniz_gercek_snapshotlari_kullanir():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              entry_kalite="A", entry_guven=84),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "B", 70, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik",
+              entry_kalite="B", entry_guven=76),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 90, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action"),
+    ])
+    o = d.entry_kalite_hafiza()
+    assert o["snapshot_kapsami"] == 2 and o["legacy_backfill"] is False
+    assert {(x["motor"], x["ad"]) for x in o["kalite"]} == {
+        ("Price Action", "A"), ("Harmonik", "B")}
+    assert {(x["motor"], x["ad"]) for x in o["guven_bandi"]} == {
+        ("Price Action", "80-89"), ("Harmonik", "70-79")}
+    assert o["auto_filter"] is False
 
 
 def test_ozet_lifecycle_sayar():
