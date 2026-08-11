@@ -607,6 +607,10 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="lifecycle" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--soluk)"></div>
   </div>
   <div class="panel blok">
+    <h2>AKTİF TRADELER · <span id="sc-active-n">0</span></h2>
+    <div id="sc-active" class="grid g4" style="gap:8px"></div>
+  </div>
+  <div class="panel blok">
     <h2>CANLI GRAFİK <span id="grafikbaslik" style="color:var(--soluk);font-weight:400"></span></h2>
     <div class="grafikwrap">
       <div class="konseptray" id="konseptray"></div>
@@ -1000,20 +1004,7 @@ function piEkran(d){
   // Aktif portföy: son-journal sınırından bağımsız, yalnız entry olmuş Açık kayıtlar.
   const ats = d.aktif_tradeler||[];
   $("#pi-active-n").textContent = ats.length;
-  $("#pi-active").innerHTML = ats.length ? ats.map(t=>`
-    <div class="tm-kart tm-active">
-      <div style="display:flex;justify-content:space-between;align-items:start">
-        <div>
-          <span class="sym">${t.sembol}</span>
-          <span class="tf">${t.interval}</span>
-          <span class="tf">/ ${t.kaynak||"PA"} / ${t.taraf}</span>
-        </div>
-        <span class="pos" style="font-size:10px;font-weight:700;color:var(--mavi)">TRADE AKTİF</span>
-      </div>
-      <div class="kalite">${Math.round(t.guven||0)}</div>
-      <div style="font-size:10px;color:#4a8a8a">ENTRY ${t.giris} · STOP ${t.stop} · TP ${t.hedef}</div>
-      <div style="font-size:10px;color:#4a8a8a">${(t.entry_zaman||"").slice(0,16)}</div>
-    </div>`).join("") : `<div class="bos">Entry olmuş açık trade yok</div>`;
+  $("#pi-active").innerHTML = aktifTradeKartlari(ats);
 
   // Trade Memory
   const tms = d.trade_memory||[];
@@ -1034,6 +1025,23 @@ function piEkran(d){
         ${Array(10).fill(0).map((_,i)=>`<div class="mini-bar" style="height:${4+i*1.8}px;background:${t.durum==="TP"?"var(--yesil)":"var(--kirmizi)"}"></div>`).join("")}
       </div>
     </div>`).join("");
+}
+
+function aktifTradeKartlari(ats){
+  return ats.length ? ats.map(t=>`
+    <div class="tm-kart tm-active">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div>
+          <span class="sym">${t.sembol}</span>
+          <span class="tf">${t.interval}</span>
+          <span class="tf">/ ${t.kaynak||"PA"} / ${t.taraf}</span>
+        </div>
+        <span class="pos" style="font-size:10px;font-weight:700;color:var(--mavi)">TRADE AKTİF</span>
+      </div>
+      <div class="kalite">${Math.round(t.guven||0)}</div>
+      <div style="font-size:10px;color:#4a8a8a">ENTRY ${t.giris} · STOP ${t.stop} · TP ${t.hedef}</div>
+      <div style="font-size:10px;color:#4a8a8a">${(t.entry_zaman||"").slice(0,16)}</div>
+    </div>`).join("") : `<div class="bos">Entry olmuş açık trade yok</div>`;
 }
 
 function _bkt(bkt, k){ const x=bkt[k]||{tp:0,stop:0,toplam:0,wr:0}; return {tp:x.tp,sl:x.stop}; }
@@ -1863,6 +1871,9 @@ async function tik(){
       `WR %${d.wr||0} · Toplam ${d.toplam_r>=0?"+":""}${(d.toplam_r||0).toFixed(1)}R`;
     $("#lifecycle").innerHTML=Object.entries(lc).map(([k,v])=>
       `<span>${k}: <b>${v}</b></span>`).join("");
+    const ats=d.aktif_tradeler||[];
+    $("#sc-active-n").textContent=ats.length;
+    $("#sc-active").innerHTML=aktifTradeKartlari(ats);
     konseptRay(d);
     adayListele(d);
     piyasaRadar(d);

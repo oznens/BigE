@@ -25,6 +25,14 @@ def test_playback_kalite_zaman_cizelgesi_webde_var():
     assert "z<=simdi" in html
 
 
+def test_aktif_tradeler_scanner_ekraninda_da_gorunur():
+    html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
+    assert 'id="sc-active"' in html
+    assert 'id="sc-active-n"' in html
+    assert "aktifTradeKartlari(ats)" in html
+    assert "TRADE AKTİF" in html
+
+
 def test_playback_kanitli_sureci_tasir():
     d = Defter()
     d.kayitlar = [Kayit(
