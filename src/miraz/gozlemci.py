@@ -112,6 +112,7 @@ class Kayit:
     risk_rr_hedef: float | None = None
     risk_r_dolar: float | None = None
     temas_detay: dict = field(default_factory=dict)
+    konseptler: list = field(default_factory=list)
 
     @property
     def aktif(self) -> bool:
@@ -192,6 +193,7 @@ class Defter:
             risk_rr_hedef=getattr(satir, "risk_rr_hedef", None),
             risk_r_dolar=getattr(satir, "risk_r_dolar", None),
             temas_detay=dict(getattr(satir, "temas_detay", None) or {}),
+            konseptler=list(getattr(satir, "konseptler", None) or []),
             kalite_gecmisi=[{
                 "zaman": acilis, "kalite": satir.kalite,
                 "guven": satir.guven, "kategori": satir.kategori,
@@ -1128,6 +1130,32 @@ class Defter:
             e["score_model"] = "terminalMiraz-formula-undisclosed"
             e["auto_delist"] = False
         return d
+
+    def parite_konsept_hafiza(self) -> list:
+        """Scanner Memory için PA parite×konsept sonuç matrisi."""
+        d: dict[tuple[str, str], dict] = {}
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP") or k.kaynak != "Price Action":
+                continue
+            for konsept in dict.fromkeys(k.konseptler or []):
+                e = d.setdefault((k.sembol, konsept), {
+                    "sembol": k.sembol, "konsept": konsept,
+                    "tp": 0, "stop": 0, "r": 0.0,
+                })
+                e["tp" if k.durum == "TP" else "stop"] += 1
+                e["r"] += k.r_sonuc
+        rows = []
+        for e in d.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            e["ornek_durumu"] = "mature" if n >= 20 else "learning"
+            e["miraz_score"] = None
+            e["auto_delist"] = False
+            rows.append(e)
+        return sorted(rows, key=lambda x: (-x["n"], -x["wr"],
+                                           x["sembol"], x["konsept"]))
 
     def takvim_veri(self) -> dict:
         """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.

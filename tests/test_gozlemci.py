@@ -38,6 +38,7 @@ class _Satir:
     risk_rr_hedef: float = 1.0
     risk_r_dolar: float = 25.0
     temas_detay: dict | None = None
+    konseptler: list | None = None
 
 
 def test_setup_ekle_ve_dedup():
@@ -49,6 +50,7 @@ def test_setup_ekle_ve_dedup():
         ("guvenli", 1.0, 25.0)
     assert k1.ana_tf_yapi == "yükseliş" and k1.htf_tf == "4h"
     assert k1.htf_yapi == "sağlıklı" and k1.ltf_yapi == "not-implemented"
+    assert k1.konseptler == []
     assert len(k1.kalite_gecmisi) == 1
     assert k1.kalite_gecmisi[0]["kalite"] == "A"
     # Aynı sembol+interval+taraf aktifken tekrar eklenmez
@@ -62,6 +64,11 @@ def test_setup_ekle_farkli_taraf():
     d.setup_ekle(_Satir(taraf="Long"))
     d.setup_ekle(_Satir(taraf="Short", hedef=90.0, stop=105.0))
     assert len(d.kayitlar) == 2
+
+
+def test_setup_ekle_konsept_snapshotini_saklar():
+    k = Defter().setup_ekle(_Satir(konseptler=["Root", "Cavity"]))
+    assert k.konseptler == ["Root", "Cavity"]
 
 
 def test_harmonik_snapshot_kalici_ve_pattern_ozeti_ayri():
@@ -623,6 +630,26 @@ def test_harmonik_parite_hafiza_pa_ile_karismaz_ve_skor_uydurmaz():
     e = d.harmonik_parite_hafiza()["ETHUSDT"]
     assert (e["tp"], e["stop"], e["wr"], e["r"]) == (1, 1, 50.0, 0.0)
     assert e["miraz_score"] is None and e["auto_delist"] is False
+
+
+def test_parite_konsept_hafiza_snapshot_ve_motor_ayrimi():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "UNIUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              konseptler=["Root", "Cavity", "Root"]),
+        Kayit(2, "", "UNIUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Price Action",
+              konseptler=["Root"]),
+        Kayit(3, "", "UNIUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Harmonik",
+              konseptler=["Root"]),
+    ])
+    rows = {(x["sembol"], x["konsept"]): x
+            for x in d.parite_konsept_hafiza()}
+    root = rows[("UNIUSDT", "Root")]
+    assert (root["n"], root["tp"], root["stop"], root["wr"]) == (2, 1, 1, 50.0)
+    assert rows[("UNIUSDT", "Cavity")]["n"] == 1
+    assert root["miraz_score"] is None and root["auto_delist"] is False
 
 
 def test_ozet_lifecycle_sayar():

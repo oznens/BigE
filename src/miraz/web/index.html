@@ -554,6 +554,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="m-temas" class="grid g4"></div>
     <div id="m-temas-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
   </div>
+  <div class="panel blok">
+    <h2>SCANNER MEMORY · PARİTE × KONSEPT</h2>
+    <div id="m-parite-konsept"></div>
+    <div style="font-size:9px;color:var(--soluk);margin-top:6px">Yalnız sonuçlanan Price Action kayıtları · çok etiketli kırılım · otomatik delist yok</div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1183,6 +1188,7 @@ function memoryEkran(d){
   $("#m-parite").innerHTML = tabloPariteKarakter(m.parite_karakter||m.parite,"PA");
   $("#m-harmonik-parite").innerHTML =
     tabloPariteKarakter(m.harmonik_parite_karakter,"HARMONİK");
+  $("#m-parite-konsept").innerHTML = tabloPariteKonsept(m.parite_konsept);
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");
   const pnl = d.pnl||{};
   $("#m-pnl").innerHTML = `
@@ -1286,6 +1292,16 @@ function tabloPariteKarakter(veri,motor="PA"){
       <td class="num ${wrCls(e.wr)}">%${e.wr}</td>
       <td class="num">${e.tp}/${e.stop}</td>
       <td class="num" title="Miraz skor formülü açıklanmadı">${e.n||0} · ${e.ornek_durumu==="mature"?"OLGUN":"ÖĞRENİYOR"}</td></tr>`).join("")+`</table>`;
+}
+
+function tabloPariteKonsept(veri){
+  const rows=(veri||[]).slice(0,20);
+  if(!rows.length) return `<div class="bos">sonuçlanan konsept snapshot'ı yok</div>`;
+  return `<table><tr><th>Parite</th><th>Konsept</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">R</th><th class="num">Örnek</th></tr>`+
+    rows.map(e=>`<tr><td>${e.sembol}</td><td>${e.konsept}</td>
+      <td class="num ${wrCls(e.wr)}">%${e.wr}</td><td class="num">${e.tp}/${e.stop}</td>
+      <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td>
+      <td class="num" title="Miraz skor/delist formülü açıklanmadı">${e.n} · ${e.ornek_durumu==="mature"?"OLGUN":"ÖĞRENİYOR"}</td></tr>`).join("")+`</table>`;
 }
 
 // ── KONSEPT RAY ──

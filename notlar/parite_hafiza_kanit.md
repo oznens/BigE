@@ -40,6 +40,10 @@ yuvarlanmış WR olmadığını gösterir.
 - `auto_delist=false`; kanıtsız eşik kullanılarak parite otomatik silinmez.
 - MEMORY ekranındaki parite tablosu PA karakter hafızasını ve örnek olgunluğunu
   gösterir. Genel PNL parite tablosu ayrı kalır.
+- Radar adayındaki konsept etiketleri setup açılışında Journal'a snapshot olarak
+  yazılır. Sonuçlanan PA kayıtları parite×konsept matrisinde ayrı ölçülür.
+  Bir setup birden fazla konsept taşıyabildiği için sonuç her etikete yazılır;
+  bu çok-etiketli kırılım işlem sayısı toplamı olarak sunulmaz.
 - Tweet `2060971866534138311` Price Action Memory Lab ve Harmonic Memory
   laboratuvarlarını ayrı adlandırdığı için Harmonic Memory de sembol bazında
   ayrı TP/STOP/WR/R tablosu olarak gösterilir; PA sonuçları bu tabloya karışmaz.
