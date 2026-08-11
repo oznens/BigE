@@ -119,11 +119,14 @@ def test_senkronize_portfoyden():
     p = pf.ekle("BTCUSDT", "1h", giris=100, stop=95, hedef=110, rr=1.0,
                 kalite="A", guven=80, yon="Long")
     p.durum = "TP"
+    p.entry_zaman = "2025-01-01T00:00:00+00:00"
     p.r_sonuc = 1.0
     p.kapanis_zaman = "2025-01-01T00:00:00+00:00"
     d.senkronize(pf)
     assert d.kayitlar[0].durum == "TP"
     assert d.kayitlar[0].r_sonuc == 1.0
+    assert d.kayitlar[0].entry_zaman == p.entry_zaman
+    assert d.kayitlar[0].harmonik_gecmisi[-1]["olay"] == "entry-filled"
     assert not d.kayitlar[0].aktif
 
 

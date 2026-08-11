@@ -77,6 +77,7 @@ class Kayit:
     # terminalMiraz lifecycle: Aday → Açık → TP/STOP/Expired/No-Entry/
     # Cancelled/Shelved/Manuel
     durum: str = "Aday"
+    entry_zaman: str = ""
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
     # Result Journal motoru: Price Action / Harmonik / Late
@@ -235,6 +236,13 @@ class Defter:
                         break
             if p is None:
                 continue
+            if getattr(p, "entry_zaman", "") and not k.entry_zaman:
+                k.entry_zaman = p.entry_zaman
+                if k.pattern:
+                    k.harmonik_gecmisi.append({
+                        "zaman": k.entry_zaman, "olay": "entry-filled",
+                        "pattern": k.pattern, "entry": k.giris,
+                    })
             k.durum = durum_map.get(p.durum, k.durum)
             if not k.aktif:
                 k.kapanis_zaman = p.kapanis_zaman or _simdi()

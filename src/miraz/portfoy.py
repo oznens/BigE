@@ -45,6 +45,7 @@ class Pozisyon:
     guven: float = 0.0
     durum: str = "Bekliyor"       # Bekliyor / Açık / TP / STOP / Manuel
     acilis_zaman: str = ""        # ISO-8601 UTC
+    entry_zaman: str = ""         # girişe ilk gerçek temas eden OHLCV barı
     kapanis_zaman: str = ""
     son_kontrol_zaman: str = ""   # güncelleme sırasında işlenen son barın zamanı
     r_sonuc: float = 0.0          # +rr (TP) / -1.0 (STOP) / 0.0
@@ -208,6 +209,7 @@ class Portfoy:
                     doldu = (high[j] >= poz.giris) if short else (low[j] <= poz.giris)
                     if doldu:
                         poz.durum = "Açık"
+                        poz.entry_zaman = idx[j].isoformat()
                         degisenler.append(poz)
 
                 if poz.durum == "Açık":

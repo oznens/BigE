@@ -113,8 +113,10 @@ def _playback_trade_memory(defter: Defter, n: int = 30) -> list[dict]:
                 0, len(getattr(k, "kalite_gecmisi", [])) - 1),
             "harmonik_detay": dict(getattr(k, "harmonik_detay", {}) or {}),
             "harmonik_gecmisi": list(getattr(k, "harmonik_gecmisi", []) or []),
-            "entry_zaman": None,
-            "entry_zaman_durumu": "not-recorded-by-current-journal",
+            "entry_zaman": getattr(k, "entry_zaman", "") or None,
+            "entry_zaman_durumu": ("recorded-entry-touch-bar" if
+                                     getattr(k, "entry_zaman", "") else
+                                     "legacy-not-recorded"),
             # Arşiv tweeti 2056806486127346084 playback'in yalnız sonucu değil,
             # setup oluşumunu ve fiyatın izlediği süreci de göstermesini tarif eder.
             # Defterde bulunmayan "kararsızlık" anlarını uydurmuyoruz; yalnız

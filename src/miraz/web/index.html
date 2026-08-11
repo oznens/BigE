@@ -1647,7 +1647,7 @@ function pbHafizaGoster(t){
       <div id="pb-quality-lines"></div>
       ${t.pattern?`<div class="pb-quality-title">HARMONİK / PRZ OLAYLARI</div>
       <div id="pb-harmonic-lines"></div>
-      <div style="margin-top:3px;color:var(--soluk);font-size:10px">ENTRY ZAMANI: ${t.entry_zaman||"JOURNAL'DA KAYITLI DEĞİL"}</div>`:""}
+      <div style="margin-top:3px;color:var(--soluk);font-size:10px">ENTRY ZAMANI: ${t.entry_zaman?new Date(t.entry_zaman).toLocaleString("tr-TR"):"LEGACY · KAYITLI DEĞİL"}</div>`:""}
       <div style="margin-top:4px;color:var(--soluk);font-size:10px">Kanıt: tweet ${t.playback_kanit?.tweet_id||"2056806486127346084"} · Arşivde açıklanmayan kararsızlık kuralı üretilmez.</div>
     </div>`;
 }

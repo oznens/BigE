@@ -57,16 +57,27 @@ def test_harmonik_playback_yalniz_kayitli_olaylari_tasir():
     assert trade["durum"] == "Cancelled"
     assert len(trade["harmonik_gecmisi"]) == 2
     assert trade["entry_zaman"] is None
-    assert trade["entry_zaman_durumu"] == "not-recorded-by-current-journal"
+    assert trade["entry_zaman_durumu"] == "legacy-not-recorded"
     assert trade["playback_kanit"]["harmonik_olay_politikasi"] == \
         "recorded-events-only-no-backfill"
+
+
+def test_harmonik_playback_kayitli_entry_barini_tasir():
+    d = Defter(kayitlar=[Kayit(
+        1, "2026-06-01T10:00:00+00:00", "BTCUSDT", "1h", "Long",
+        "A", 90, 100, 95, 105, 1.0, pattern="Gartley", durum="TP",
+        entry_zaman="2026-06-01T11:00:00+00:00",
+        kapanis_zaman="2026-06-01T12:00:00+00:00")])
+    trade = s._playback_trade_memory(d)[0]
+    assert trade["entry_zaman"] == "2026-06-01T11:00:00+00:00"
+    assert trade["entry_zaman_durumu"] == "recorded-entry-touch-bar"
 
 
 def test_harmonik_playback_web_renderer_var():
     html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
     assert "HARMONİK / PRZ OLAYLARI" in html
     assert "function pbHarmonikCiz" in html
-    assert "JOURNAL'DA KAYITLI DEĞİL" in html
+    assert "LEGACY · KAYITLI DEĞİL" in html
 
 
 def _ornek_kayit(id_=1, durum="Açık"):

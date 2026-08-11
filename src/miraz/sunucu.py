@@ -155,7 +155,8 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
     bildirimler = [{
         "sembol": k.sembol, "interval": k.interval, "durum": k.durum,
         "taraf": k.taraf, "kaynak": getattr(k, "kaynak", "Price Action"),
-        "pattern": k.pattern, "giris": k.giris, "stop": k.stop,
+        "pattern": k.pattern, "entry_zaman": getattr(k, "entry_zaman", ""),
+        "giris": k.giris, "stop": k.stop,
         "hedef": k.hedef, "r_sonuc": k.r_sonuc,
         "kapanis": (k.kapanis_zaman or "")[:16],
     } for k in kapanan]

@@ -93,6 +93,7 @@ def test_guncelle_giris_doldu():
     df = _df([(102, 105), (99, 103), (100, 104)])
     pf.guncelle("BTC", "4h", df)
     assert pf.pozisyonlar[0].durum == "Açık"
+    assert pf.pozisyonlar[0].entry_zaman == "2025-01-01T04:00:00+00:00"
 
 
 def test_guncelle_tp():

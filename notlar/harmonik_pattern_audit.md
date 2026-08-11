@@ -42,7 +42,8 @@ BigE motor kalite puanıyla olay geçmişine yazılır. Bekleyen pattern değiş
 kaybolursa ikinci bir gerçek olay kaydedilir. Playback yalnız bu kayıtlı olayları
 zaman sırasında gösterir; legacy kayıtlar için geçmiş üretmez.
 
-Mevcut Journal entry temasının kesin zamanını saklamadığından playback entry zamanı
-uydurmaz ve `not-recorded-by-current-journal` yayınlar. TP/STOP yanında kayıtlı
+Yeni dönem Journal'ı entry temasının kesin OHLCV bar zamanını saklar ve harmonik
+olay geçmişine `entry-filled` olarak ekler. Bu alanı taşımayan legacy kayıtların
+entry zamanı uydurulmaz ve `legacy-not-recorded` yayınlanır. TP/STOP yanında kayıtlı
 harmonik `Cancelled` vakaları da yaşam döngüsü incelemesi için playback listesine
 alınır; bunlar trade sonucu veya R başarısı olarak sayılmaz.
