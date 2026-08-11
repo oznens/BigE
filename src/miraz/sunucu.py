@@ -362,6 +362,7 @@ def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
                     "pattern": s.get("pattern"), "kaynak": s.get("kaynak"),
                     "rr": s.get("rr"), "entry_zaman": s.get("entry_zaman"),
                     "konseptler": s.get("konseptler", []),
+                    "harmonik_detay": s.get("harmonik_detay", {}),
                     "harmonik_gecmisi": s.get("harmonik_gecmisi", []),
                 }
     return None
@@ -474,6 +475,21 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
         harmonik = _harmonik_ciz(df, seviye)
     except Exception:
         harmonik = {}
+
+    # XABCD koordinatları eski kayıtta tutulmadıysa nokta uydurma; yalnız
+    # gerçekten kaydedilmiş PRZ merkezini kanıtlı fallback olarak göster.
+    if not harmonik.get("tamamlanan") and seviye.get("pattern"):
+        detay = seviye.get("harmonik_detay") or {}
+        prz = detay.get("prz") or {}
+        merkez = prz.get("merkez")
+        if merkez is not None:
+            harmonik["kayitli_prz"] = {
+                "isim": seviye.get("pattern"), "merkez": merkez,
+                "kaynak": prz.get("kaynak", "recorded-snapshot"),
+                "yon": {"Long": "Bullish", "Short": "Bearish"}.get(
+                    seviye.get("taraf")),
+                "nokta_politikasi": "no-invented-xabcd",
+            }
 
     # Harmonik fallback: seviyede giris yoksa tamamlanan harmonik'in kendi
     # entry/sl/tp1'ini kullan (destek_kutu olmadığında rp=None → giris=None olur)

@@ -1539,6 +1539,14 @@ function cizHarmonik(ctx,hm,px,Y,padL,padR,W){
       ctx.textAlign="left";
     }
   }
+  const K=hm.kayitli_prz;
+  if(K&&K.merkez!=null){
+    const y=Y(K.merkez),x0=padL,x1=W-padR;
+    ctx.strokeStyle=MOR;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=MOR;ctx.font="bold 10px sans-serif";
+    ctx.fillText(`KAYITLI PRZ · ${K.isim} ${K.yon==="Bullish"?"▲":"▼"}`,x0+5,y-7);
+  }
   ctx.lineWidth=1;ctx.textAlign="left";
 }
 
@@ -1559,6 +1567,9 @@ function cizGrafik(d, canvasId="grafik"){
     if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}});
   if(hm.olusan){[hm.olusan.prz_alt,hm.olusan.prz_ust,hm.olusan.D_proj].forEach(v=>{
     if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}});}
+  if(hm.kayitli_prz?.merkez!=null){
+    lo=Math.min(lo,hm.kayitli_prz.merkez);hi=Math.max(hi,hm.kayitli_prz.merkez);
+  }
   const kons=(d.konseptler||[]).filter(k=>!konseptFiltre.size||konseptFiltre.has(k.isim));
   kons.forEach(k=>[k.zone_alt,k.zone_ust].forEach(v=>{if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}}));
   const pad=(hi-lo)*0.06||1;lo-=pad;hi+=pad;

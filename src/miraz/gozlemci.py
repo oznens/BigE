@@ -1478,6 +1478,7 @@ class Defter:
             "giris": k.giris, "stop": k.stop, "hedef": k.hedef,
             "rr": k.rr, "pattern": k.pattern,
             "konseptler": list(getattr(k, "konseptler", [])),
+            "harmonik_detay": dict(getattr(k, "harmonik_detay", {})),
             "harmonik_gecmisi": list(getattr(k, "harmonik_gecmisi", [])),
             "entry_zaman": (k.entry_zaman or "")[:16],
         } for k in acik]

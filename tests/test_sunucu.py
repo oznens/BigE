@@ -164,6 +164,7 @@ def test_seviye_bul_acik_tradei_adaydan_once_kullanir():
                              "giris": 75.2, "stop": 77.8, "hedef": 72.6,
                              "taraf": "Short", "pattern": "AB=CD",
                              "kaynak": "Harmonik", "rr": 1.0,
+                             "harmonik_detay": {"prz": {"merkez": 75.2}},
                              "entry_zaman": "2026-08-11T15:00"}],
         "adaylar": [{"symbol": "SOLUSDT", "interval": "30m",
                       "giris": 76.0, "stop": 78.0, "hedef": 74.0,
@@ -174,6 +175,30 @@ def test_seviye_bul_acik_tradei_adaydan_once_kullanir():
     assert s["giris"] == 75.2
     assert s["pattern"] == "AB=CD"
     assert s["kaynak"] == "Harmonik"
+    assert s["harmonik_detay"]["prz"]["merkez"] == 75.2
+
+
+def test_harmonik_ciz_xabcd_yoksa_kayitli_przyi_uydurmadan_gosterir(monkeypatch):
+    import numpy as np
+    import pandas as pd
+    idx = pd.date_range("2026-01-01", periods=80, freq="h", tz="UTC")
+    fiyat = np.linspace(100, 110, 80)
+    df = pd.DataFrame({"open": fiyat, "high": fiyat + 1,
+                       "low": fiyat - 1, "close": fiyat,
+                       "volume": 1.0}, index=idx)
+    monkeypatch.setattr(sv.veri, "indir", lambda *a, **k: df)
+    monkeypatch.setattr(sv, "_harmonik_ciz", lambda *a, **k: {})
+    durum = {"aktif_tradeler": [{
+        "sembol": "SOLUSDT", "interval": "30m", "giris": 105,
+        "stop": 108, "hedef": 102, "taraf": "Short", "rr": 1,
+        "pattern": "AB=CD", "kaynak": "Harmonik",
+        "harmonik_detay": {"prz": {"merkez": 105,
+                                      "kaynak": "completed-D"}},
+    }]}
+    g = sv.grafik_veri("SOLUSDT", "30m", durum=durum, bar=60)
+    assert g["harmonik"]["kayitli_prz"] == {
+        "isim": "AB=CD", "merkez": 105, "kaynak": "completed-D",
+        "yon": "Bearish", "nokta_politikasi": "no-invented-xabcd"}
 
 
 def test_grafik_veri(monkeypatch):

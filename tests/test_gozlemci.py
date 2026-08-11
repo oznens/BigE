@@ -891,6 +891,7 @@ def test_aktif_trade_kartlari_yalniz_entry_olmus_aciklari_gosterir():
     d = Defter(kayitlar=[
         Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
               durum="Açık", kaynak="Harmonik", pattern="Gartley",
+              harmonik_detay={"prz": {"merkez": 100, "kaynak": "completed-D"}},
               harmonik_gecmisi=[{"olay": "pattern-detected"}],
               entry_zaman="2026-08-11T12:00:00+00:00"),
         Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
@@ -905,4 +906,5 @@ def test_aktif_trade_kartlari_yalniz_entry_olmus_aciklari_gosterir():
     assert kartlar[0]["etiket"] == "TRADE AKTİF"
     assert kartlar[0]["durum"] == "Açık"
     assert kartlar[0]["pattern"] == "Gartley"
+    assert kartlar[0]["harmonik_detay"]["prz"]["merkez"] == 100
     assert kartlar[0]["harmonik_gecmisi"] == [{"olay": "pattern-detected"}]
