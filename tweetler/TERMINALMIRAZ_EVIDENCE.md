@@ -1,6 +1,6 @@
 # terminalMiraz Kanıt Raporu
 
-Kaynak: `tweetler\tweetler.json` — **5054 tweet**.
+Kaynak: `tweetler/tweetler.json` — **5054 tweet**.
 Medya: **7731 referans / 7730 benzersiz dosya**.
 Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayrıca doğrulanmalıdır. Doğrulanmamış görseller manifestte `visual_review.status=pending` kalır.
 
@@ -10,7 +10,7 @@ Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayr�
 - Sahipsiz dosya: **0**
 - Birden fazla kez referanslanan dosya: **1**
 - Aynı içeriğe sahip dosya grubu: **409**
-- Tam görsel manifesti: `tweetler\terminalmiraz_image_manifest.json`
+- Tam görsel manifesti: `tweetler/terminalmiraz_image_manifest.json`
 
 ## terminal
 
