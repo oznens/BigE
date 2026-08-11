@@ -559,6 +559,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div id="m-parite-konsept"></div>
     <div style="font-size:9px;color:var(--soluk);margin-top:6px">Yalnız sonuçlanan Price Action kayıtları · çok etiketli kırılım · otomatik delist yok</div>
   </div>
+  <div class="panel blok">
+    <h2>ZAMAN DİLİMİ × MOTOR MEMORY</h2>
+    <div id="m-tf-motor"></div>
+    <div style="font-size:9px;color:var(--soluk);margin-top:6px">Price Action ve Harmonik ayrı · yalnız gözlem · otomatik TF filtresi yok</div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1189,6 +1194,7 @@ function memoryEkran(d){
   $("#m-harmonik-parite").innerHTML =
     tabloPariteKarakter(m.harmonik_parite_karakter,"HARMONİK");
   $("#m-parite-konsept").innerHTML = tabloPariteKonsept(m.parite_konsept);
+  $("#m-tf-motor").innerHTML = tabloTfMotor(m.tf_motor);
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");
   const pnl = d.pnl||{};
   $("#m-pnl").innerHTML = `
@@ -1302,6 +1308,16 @@ function tabloPariteKonsept(veri){
       <td class="num ${wrCls(e.wr)}">%${e.wr}</td><td class="num">${e.tp}/${e.stop}</td>
       <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td>
       <td class="num" title="Miraz skor/delist formülü açıklanmadı">${e.n} · ${e.ornek_durumu==="mature"?"OLGUN":"ÖĞRENİYOR"}</td></tr>`).join("")+`</table>`;
+}
+
+function tabloTfMotor(veri){
+  const rows=veri||[];
+  if(!rows.length) return `<div class="bos">sonuçlanan TF × motor verisi yok</div>`;
+  return `<table><tr><th>Motor</th><th>TF</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">R</th><th>Politika</th></tr>`+
+    rows.map(e=>`<tr><td>${e.motor}</td><td>${e.interval}</td>
+      <td class="num ${wrCls(e.wr)}">%${e.wr}</td><td class="num">${e.tp}/${e.stop}</td>
+      <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td>
+      <td>GÖZLEM · FİLTRE YOK</td></tr>`).join("")+`</table>`;
 }
 
 // ── KONSEPT RAY ──

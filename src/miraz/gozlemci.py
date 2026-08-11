@@ -1157,6 +1157,31 @@ class Defter:
         return sorted(rows, key=lambda x: (-x["n"], -x["wr"],
                                            x["sembol"], x["konsept"]))
 
+    def tf_motor_hafiza(self) -> list:
+        """Sonuçlanan kayıtları PA/Harmonik motoru ve TF bazında ayır."""
+        d: dict[tuple[str, str], dict] = {}
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP"):
+                continue
+            if k.kaynak not in ("Price Action", "Harmonik"):
+                continue
+            e = d.setdefault((k.kaynak, k.interval), {
+                "motor": k.kaynak, "interval": k.interval,
+                "tp": 0, "stop": 0, "r": 0.0,
+            })
+            e["tp" if k.durum == "TP" else "stop"] += 1
+            e["r"] += k.r_sonuc
+        rows = []
+        for e in d.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            e["observation_only"] = True
+            e["auto_filter"] = False
+            rows.append(e)
+        return sorted(rows, key=lambda x: (x["motor"], x["interval"]))
+
     def takvim_veri(self) -> dict:
         """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.
 

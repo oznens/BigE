@@ -652,6 +652,23 @@ def test_parite_konsept_hafiza_snapshot_ve_motor_ayrimi():
     assert root["miraz_score"] is None and root["auto_delist"] is False
 
 
+def test_tf_motor_hafiza_pa_harmonik_ve_late_ayrimi():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action"),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik"),
+        Kayit(3, "", "SOLUSDT", "4h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Late"),
+    ])
+    rows = {(x["motor"], x["interval"]): x for x in d.tf_motor_hafiza()}
+    assert rows[("Price Action", "1h")]["tp"] == 1
+    assert rows[("Harmonik", "1h")]["stop"] == 1
+    assert all(k[0] != "Late" for k in rows)
+    assert all(x["observation_only"] and not x["auto_filter"]
+               for x in rows.values())
+
+
 def test_ozet_lifecycle_sayar():
     """ozet() RESULT JOURNAL lifecycle durumlarını ayrı sayar."""
     d = Defter()
