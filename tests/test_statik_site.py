@@ -33,6 +33,14 @@ def test_aktif_tradeler_scanner_ekraninda_da_gorunur():
     assert "TRADE AKTİF" in html
 
 
+def test_aktif_trade_karti_grafigi_acar():
+    html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
+    assert 'data-active-trade="1"' in html
+    assert '.tm-kart.tik' in html
+    assert 'grafikYukle(k.dataset.sym,k.dataset.ivl)' in html
+    assert 'scrollIntoView({behavior:"smooth",block:"center"})' in html
+
+
 def test_playback_kanitli_sureci_tasir():
     d = Defter()
     d.kayitlar = [Kayit(

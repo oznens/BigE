@@ -1029,7 +1029,8 @@ function piEkran(d){
 
 function aktifTradeKartlari(ats){
   return ats.length ? ats.map(t=>`
-    <div class="tm-kart tm-active">
+    <div class="tm-kart tm-active tik" data-sym="${t.sembol}" data-ivl="${t.interval}"
+         data-active-trade="1" title="Açık işlemin grafiğini göster" style="cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:start">
         <div>
           <span class="sym">${t.sembol}</span>
@@ -1693,8 +1694,13 @@ function mirazYorumGoster(y){
 function md(s){return(s||"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");}
 
 document.addEventListener("click",e=>{
-  const k=e.target.closest(".kart.tik,.radar-satir.tik");
-  if(k&&k.dataset.sym){ grafikYukle(k.dataset.sym,k.dataset.ivl); }
+  const k=e.target.closest(".kart.tik,.radar-satir.tik,.tm-kart.tik");
+  if(k&&k.dataset.sym){
+    grafikYukle(k.dataset.sym,k.dataset.ivl);
+    if(k.dataset.activeTrade){
+      document.querySelector("#grafik")?.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+  }
 });
 window.addEventListener("resize",()=>{
   if(grafikSecili) grafikYukle(grafikSecili.sym,grafikSecili.ivl);
