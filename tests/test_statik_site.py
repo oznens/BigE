@@ -41,6 +41,21 @@ def test_aktif_trade_karti_grafigi_acar():
     assert 'scrollIntoView({behavior:"smooth",block:"center"})' in html
 
 
+def test_grafik_hedefleri_aktif_tradeleri_de_kapsar():
+    durum = {
+        "adaylar": [],
+        "bildirimler": [],
+        "trade_memory": [],
+        "aktif_tradeler": [
+            {"sembol": "FETUSDT", "interval": "15m"},
+            {"sembol": "SOLUSDT", "interval": "30m"},
+        ],
+        "varsayilan_grafik": None,
+    }
+    assert s._grafik_hedefleri(durum) == [
+        ("FETUSDT", "15m"), ("SOLUSDT", "30m")]
+
+
 def test_playback_kanitli_sureci_tasir():
     d = Defter()
     d.kayitlar = [Kayit(

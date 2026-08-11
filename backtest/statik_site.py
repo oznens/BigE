@@ -293,6 +293,12 @@ def _grafik_hedefleri(durum: dict) -> list[tuple[str, str]]:
     for t in durum.get("trade_memory", []):
         if t.get("sembol") and t.get("interval"):
             cift.add((t["sembol"], t["interval"]))
+    # Entry olmuş açık işlemler önceki taramalardan taşınabilir ve güncel aday
+    # listesinde bulunmayabilir. Kartları tıklanınca grafik açılabilmesi için
+    # bunların sembol/TF dosyalarını da her statik yayında yeniden üret.
+    for t in durum.get("aktif_tradeler", []):
+        if t.get("sembol") and t.get("interval"):
+            cift.add((t["sembol"], t["interval"]))
     vg = durum.get("varsayilan_grafik") or {}
     if vg.get("symbol"):
         cift.add((vg["symbol"], vg["interval"]))
