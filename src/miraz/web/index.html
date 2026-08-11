@@ -569,6 +569,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="grid g2"><div id="m-entry-kalite"></div><div id="m-entry-guven"></div></div>
     <div id="m-entry-kalite-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
   </div>
+  <div class="panel blok">
+    <h2>ENTRY HACİM MEMORY</h2>
+    <div id="m-entry-hacim"></div>
+    <div id="m-entry-hacim-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1203,6 +1208,10 @@ function memoryEkran(d){
   const ek=m.entry_kalite||{};
   $("#m-entry-kalite").innerHTML = tabloEntryKalite(ek.kalite,"ENTRY KALİTE");
   $("#m-entry-guven").innerHTML = tabloEntryKalite(ek.guven_bandi,"ENTRY GÜVEN");
+  const eh=m.entry_hacim||{};
+  $("#m-entry-hacim").innerHTML = tabloEntryKalite(eh.oran_bandi,"HACİM ORANI");
+  $("#m-entry-hacim-not").textContent =
+    `Kapsam ${eh.snapshot_kapsami||0} sonuç · önceki en fazla 20 bar medyanına oran · BigE gözlem bandı · filtre yok · legacy backfill yok`;
   $("#m-entry-kalite-not").textContent=
     `Gerçek entry snapshot kapsamı: ${ek.snapshot_kapsami||0}. Eski kayıtlar doldurulmaz; güven bantları BigE gözlem kovasıdır, Miraz eşiği değildir.`;
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");

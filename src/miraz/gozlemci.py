@@ -80,6 +80,10 @@ class Kayit:
     entry_zaman: str = ""
     entry_kalite: str | None = None
     entry_guven: float | None = None
+    entry_hacim: float | None = None
+    entry_hacim_oran: float | None = None
+    entry_hacim_pencere: int | None = None
+    entry_kapanis: float | None = None
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
     # Result Journal motoru: Price Action / Harmonik / Late
@@ -252,6 +256,10 @@ class Defter:
                 k.entry_zaman = p.entry_zaman
                 k.entry_kalite = k.kalite
                 k.entry_guven = k.guven
+                k.entry_hacim = getattr(p, "entry_hacim", None)
+                k.entry_hacim_oran = getattr(p, "entry_hacim_oran", None)
+                k.entry_hacim_pencere = getattr(p, "entry_hacim_pencere", None)
+                k.entry_kapanis = getattr(p, "entry_kapanis", None)
                 k.kalite_gecmisi.append({
                     "zaman": k.entry_zaman, "kalite": k.kalite,
                     "guven": k.guven, "kategori": "Trade",
@@ -1227,6 +1235,47 @@ class Defter:
             "snapshot_kapsami": kapsam, "legacy_backfill": False,
             "guven_bandi_origin": "BigE-observation-bucket-not-Miraz-threshold",
             "auto_filter": False,
+        }
+
+    def entry_hacim_hafiza(self) -> dict:
+        """Entry barı hacim oranını sonuçlarla salt gözlem olarak eşle."""
+        gruplar: dict[tuple[str, str], dict] = {}
+        kapsam = 0
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP") or k.entry_hacim_oran is None:
+                continue
+            kapsam += 1
+            oran = k.entry_hacim_oran
+            if oran < 1:
+                band = "<1.0x"
+            elif oran < 1.5:
+                band = "1.0-1.49x"
+            elif oran < 2:
+                band = "1.5-1.99x"
+            else:
+                band = ">=2.0x"
+            anahtar = (k.kaynak, band)
+            e = gruplar.setdefault(anahtar, {
+                "motor": k.kaynak, "ad": band,
+                "tp": 0, "stop": 0, "r": 0.0,
+            })
+            e["tp" if k.durum == "TP" else "stop"] += 1
+            e["r"] += k.r_sonuc
+        rows = []
+        sira = {"<1.0x": 0, "1.0-1.49x": 1, "1.5-1.99x": 2, ">=2.0x": 3}
+        for e in gruplar.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            rows.append(e)
+        rows.sort(key=lambda x: (x["motor"], sira[x["ad"]]))
+        return {
+            "oran_bandi": rows, "snapshot_kapsami": kapsam,
+            "ratio_basis": "entry-bar-volume/prior-up-to-20-bar-median",
+            "ratio_basis_origin": "BigE-observation-normalization-not-Miraz-rule",
+            "band_origin": "BigE-observation-bucket-not-Miraz-threshold",
+            "legacy_backfill": False, "auto_filter": False,
         }
 
     def takvim_veri(self) -> dict:

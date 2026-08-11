@@ -164,6 +164,10 @@ def test_senkronize_portfoyden():
                 kalite="A", guven=80, yon="Long")
     p.durum = "TP"
     p.entry_zaman = "2025-01-01T00:00:00+00:00"
+    p.entry_hacim = 2400
+    p.entry_hacim_oran = 1.6
+    p.entry_hacim_pencere = 20
+    p.entry_kapanis = 101
     p.r_sonuc = 1.0
     p.kapanis_zaman = "2025-01-01T00:00:00+00:00"
     d.senkronize(pf)
@@ -172,6 +176,9 @@ def test_senkronize_portfoyden():
     assert d.kayitlar[0].entry_zaman == p.entry_zaman
     assert (d.kayitlar[0].entry_kalite, d.kayitlar[0].entry_guven) == \
         ("A", 80.0)
+    assert (d.kayitlar[0].entry_hacim, d.kayitlar[0].entry_hacim_oran,
+            d.kayitlar[0].entry_hacim_pencere,
+            d.kayitlar[0].entry_kapanis) == (2400, 1.6, 20, 101)
     assert d.kayitlar[0].kalite_gecmisi[-1]["olay"] == \
         "entry-quality-snapshot"
     assert d.kayitlar[0].harmonik_gecmisi[-1]["olay"] == "entry-filled"
@@ -690,6 +697,24 @@ def test_entry_kalite_hafiza_yalniz_gercek_snapshotlari_kullanir():
         ("Price Action", "A"), ("Harmonik", "B")}
     assert {(x["motor"], x["ad"]) for x in o["guven_bandi"]} == {
         ("Price Action", "80-89"), ("Harmonik", "70-79")}
+    assert o["auto_filter"] is False
+
+
+def test_entry_hacim_hafiza_yalniz_gercek_snapshotlari_kullanir():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              entry_hacim_oran=1.7),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "B", 70, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik",
+              entry_hacim_oran=.8),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 90, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action"),
+    ])
+    o = d.entry_hacim_hafiza()
+    assert o["snapshot_kapsami"] == 2 and o["legacy_backfill"] is False
+    assert {(x["motor"], x["ad"]) for x in o["oran_bandi"]} == {
+        ("Price Action", "1.5-1.99x"), ("Harmonik", "<1.0x")}
     assert o["auto_filter"] is False
 
 

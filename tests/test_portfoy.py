@@ -20,14 +20,16 @@ from miraz.portfoy import Portfoy, Pozisyon, radar_sinyallerini_ekle
 # ---------------------------------------------------------------------------
 
 def _df(bars):
-    """bars: [(low, high), ...] veya [(low, high, close), ...]."""
+    """bars: (low, high[, close[, volume]])."""
     low = np.array([b[0] for b in bars], dtype=float)
     high = np.array([b[1] for b in bars], dtype=float)
     mid = np.array([b[2] if len(b) > 2 else (b[0] + b[1]) / 2
                     for b in bars], dtype=float)
+    volume = np.array([b[3] if len(b) > 3 else 1.0 for b in bars],
+                      dtype=float)
     idx = pd.date_range("2025-01-01", periods=len(bars), freq="4h", tz="UTC")
     return pd.DataFrame({"open": mid, "high": high, "low": low,
-                         "close": mid, "volume": np.ones(len(bars))},
+                         "close": mid, "volume": volume},
                         index=idx)
 
 
@@ -90,10 +92,14 @@ def test_guncelle_giris_doldu():
     _ekle(pf)
     # bar0: 2025-01-01 00:00 zaten acilis_zaman, bar1 sonrası kontrol
     # df 3 bar: bar0 yüksek (fill yok), bar1 girişe değer (low=99)
-    df = _df([(102, 105), (99, 103), (100, 104)])
+    df = _df([(102, 105, 103, 2), (99, 103, 101, 6), (100, 104, 102, 1)])
     pf.guncelle("BTC", "4h", df)
     assert pf.pozisyonlar[0].durum == "Açık"
     assert pf.pozisyonlar[0].entry_zaman == "2025-01-01T04:00:00+00:00"
+    assert pf.pozisyonlar[0].entry_hacim == 6
+    assert pf.pozisyonlar[0].entry_hacim_oran == 3
+    assert pf.pozisyonlar[0].entry_hacim_pencere == 1
+    assert pf.pozisyonlar[0].entry_kapanis == 101
 
 
 def test_guncelle_tp():

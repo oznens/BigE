@@ -46,6 +46,12 @@ class Pozisyon:
     durum: str = "Bekliyor"       # Bekliyor / Açık / TP / STOP / Manuel
     acilis_zaman: str = ""        # ISO-8601 UTC
     entry_zaman: str = ""         # girişe ilk gerçek temas eden OHLCV barı
+    # Entry barı gözlem snapshot'ı. Oran, önceki en fazla 20 tamamlanmış barın
+    # medyanına göredir; eşik/filtre değildir ve Miraz kuralı sayılmaz.
+    entry_hacim: float | None = None
+    entry_hacim_oran: float | None = None
+    entry_hacim_pencere: int | None = None
+    entry_kapanis: float | None = None
     kapanis_zaman: str = ""
     son_kontrol_zaman: str = ""   # güncelleme sırasında işlenen son barın zamanı
     r_sonuc: float = 0.0          # +rr (TP) / -1.0 (STOP) / 0.0
@@ -210,6 +216,19 @@ class Portfoy:
                     if doldu:
                         poz.durum = "Açık"
                         poz.entry_zaman = idx[j].isoformat()
+                        poz.entry_kapanis = float(close[j])
+                        if "volume" in df.columns:
+                            hacim = float(alt_df["volume"].iloc[j])
+                            if pd.notna(hacim):
+                                onceki = df.loc[
+                                    df.index < idx[j], "volume"].tail(20)
+                                onceki = onceki[onceki > 0]
+                                poz.entry_hacim = hacim
+                                poz.entry_hacim_pencere = int(len(onceki))
+                                if len(onceki):
+                                    taban = float(onceki.median())
+                                    poz.entry_hacim_oran = round(
+                                        hacim / taban, 4)
                         degisenler.append(poz)
 
                 if poz.durum == "Açık":
