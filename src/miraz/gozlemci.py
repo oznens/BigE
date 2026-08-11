@@ -111,6 +111,7 @@ class Kayit:
     risk_modu: str = "legacy-unknown"
     risk_rr_hedef: float | None = None
     risk_r_dolar: float | None = None
+    temas_detay: dict = field(default_factory=dict)
 
     @property
     def aktif(self) -> bool:
@@ -190,6 +191,7 @@ class Defter:
             risk_modu=getattr(satir, "risk_modu", "legacy-unknown"),
             risk_rr_hedef=getattr(satir, "risk_rr_hedef", None),
             risk_r_dolar=getattr(satir, "risk_r_dolar", None),
+            temas_detay=dict(getattr(satir, "temas_detay", None) or {}),
             kalite_gecmisi=[{
                 "zaman": acilis, "kalite": satir.kalite,
                 "guven": satir.guven, "kategori": satir.kategori,
@@ -808,6 +810,39 @@ class Defter:
             "kanit_tweet_id": "2062336764656677002",
             "legacy_backfill": False,
             "custom_mode_origin": "BigE-not-terminalMiraz",
+        }
+
+    def temas_davranisi_ozeti(self) -> dict:
+        """PA temas snapshot'larını Journal sonuçlarıyla dokunuş kovalarında göster."""
+        kovalar = {"0": [], "1": [], "2": [], "3+": []}
+        kapsam = 0
+        for k in self.kayitlar:
+            if k.kaynak not in ("Price Action", "Scanner"):
+                continue
+            detay = k.temas_detay or {}
+            if not detay:
+                continue
+            kapsam += 1
+            toplam = int(detay.get("toplam", 0) or 0)
+            kovalar[str(toplam) if toplam < 3 else "3+"].append(k)
+        rows = []
+        for ad, kayitlar in kovalar.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            tp = sum(k.durum == "TP" for k in journal)
+            stop = sum(k.durum == "STOP" for k in journal)
+            rows.append({
+                "dokunus": ad, "setup_sayisi": len(kayitlar),
+                "journal_n": len(journal), "tp": tp, "stop": stop,
+                "wr": round(100 * tp / len(journal), 1) if journal else None,
+                "toplam_r": round(sum(k.r_sonuc for k in journal), 2),
+            })
+        return {
+            "kovalar": rows, "snapshot_kapsami": kapsam,
+            "kanit_tweet_id": "2063838608230883776",
+            "kanit_gorseller": ["HKQ4_NFWgAEVWK2.png", "HKQ5As9XkAAP1e0.png"],
+            "legacy_backfill": False,
+            "sayim_modeli": "BigE-heuristic-not-disclosed-by-archive",
+            "guven_puani_miraz_kurali": False,
         }
 
     def pa_alt_tur_ozeti(self) -> dict:

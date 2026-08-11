@@ -12,7 +12,7 @@ from miraz.radar import (RadarRapor, RadarSatiri, _kategori_belirle,
                          _gec_kalmis, _lifecycle_belirle,
                          CEKIRDEK_EVREN, GENIS_EVREN,
                          VARSAYILAN_EVREN, TERMINALMIRAZ_TF, RISK_MODLARI,
-                         risk_modu_adi,
+                         risk_modu_adi, temas_snapshot,
                          KANITLI_KALITE_YAPISI, _UST_TF, _ALT_TF,
                          _ltf_snapshot, HTF_POLICY, MTF_KALIBRASYON_POLICY,
                          mtf_kalibrasyon_kapisi, _pa_setup_turleri)
@@ -33,6 +33,19 @@ def test_risk_modu_adi_kanitli_ve_custom_ayrimi():
     assert risk_modu_adi(2.0) == "dengeli"
     assert risk_modu_adi(3.5) == "riskli"
     assert risk_modu_adi(1.75) == "custom-bige"
+
+
+def test_temas_snapshot_json_uyumlu_ve_kokeni_acik():
+    class T:
+        alt, ust, toplam = 95.0, 97.0, 2
+        tepki, kirilma, icerde = 2, 0, 0
+        son_davranis, tepki_orani = "tepki", 1.0
+        yorgunluk, guven_etkisi = 0.5, 8.0
+    class S:
+        temas = T()
+    o = temas_snapshot(S())
+    assert o["toplam"] == 2 and o["tepki"] == 2
+    assert o["model_origin"] == "BigE-heuristic-not-disclosed-by-archive"
 
 
 def test_ltf_esleme_gozlenen_merdivende_bir_alt_tf_ve_15m_bos():

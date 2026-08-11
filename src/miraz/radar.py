@@ -90,6 +90,23 @@ def risk_modu_adi(rr_hedef: float) -> str:
             return ad
     return "custom-bige"
 
+
+def temas_snapshot(senaryo) -> dict:
+    """Temas analizini Radar/Journal için sabit, JSON-uyumlu özete çevir."""
+    t = getattr(senaryo, "temas", None)
+    if t is None:
+        return {}
+    return {
+        "alt": getattr(t, "alt", None), "ust": getattr(t, "ust", None),
+        "toplam": getattr(t, "toplam", 0), "tepki": getattr(t, "tepki", 0),
+        "kirilma": getattr(t, "kirilma", 0), "icerde": getattr(t, "icerde", 0),
+        "son_davranis": getattr(t, "son_davranis", "yok"),
+        "tepki_orani": getattr(t, "tepki_orani", 0.0),
+        "yorgunluk": getattr(t, "yorgunluk", 0.0),
+        "guven_etkisi": getattr(t, "guven_etkisi", 0.0),
+        "model_origin": "BigE-heuristic-not-disclosed-by-archive",
+    }
+
 # Kanıtlar terminolojik olarak ayrıdır; içerikler açıklanmadığı için BigE
 # kontrolleriyle birebir eşleme yapılmaz.
 # - 2066320810545910019: PA 3 kademe, Harmonik 4 özel filtre detayı.
@@ -162,6 +179,7 @@ class RadarSatiri:
     risk_modu: str = "guvenli"
     risk_rr_hedef: float = 1.0
     risk_r_dolar: float = 25.0
+    temas_detay: dict = None
     # terminalMiraz Result Journal motoru: Price Action / Harmonik / Late
     # (+ lifecycle nedeni Filtered / HTF). TradeFi (hisse) bizde yok.
     kaynak: str = "Price Action"
@@ -207,6 +225,8 @@ class RadarSatiri:
             self.setup_turleri = []
         if self.setup_tur_detaylari is None:
             self.setup_tur_detaylari = {}
+        if self.temas_detay is None:
+            self.temas_detay = {}
 
     @property
     def _sira(self) -> tuple:
@@ -638,6 +658,7 @@ def radar_tara(semboller: list[str] | None = None,
                         pattern=_pat, kaynak=_kaynak,
                         risk_modu=risk_modu_adi(rr_hedef),
                         risk_rr_hedef=rr_hedef, risk_r_dolar=r_dolar,
+                        temas_detay=temas_snapshot(s),
                         harmonik_detay=getattr(s, "harmonik_detay", None),
                         lifecycle=_lifecycle_belirle(kategori, notu, _pat),
                         ana_tf_yapi=getattr(
@@ -713,6 +734,7 @@ def radar_tara(semboller: list[str] | None = None,
                         pattern=_s_pat, kaynak=_s_kaynak,
                         risk_modu=risk_modu_adi(rr_hedef),
                         risk_rr_hedef=rr_hedef, risk_r_dolar=r_dolar,
+                        temas_detay=temas_snapshot(ks),
                         harmonik_detay=getattr(ks, "harmonik_detay", None),
                         lifecycle=_lifecycle_belirle(kategori, notu, _s_pat),
                         ana_tf_yapi=getattr(

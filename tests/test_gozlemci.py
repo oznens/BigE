@@ -37,6 +37,7 @@ class _Satir:
     risk_modu: str = "guvenli"
     risk_rr_hedef: float = 1.0
     risk_r_dolar: float = 25.0
+    temas_detay: dict | None = None
 
 
 def test_setup_ekle_ve_dedup():
@@ -129,6 +130,22 @@ def test_risk_modu_ozeti_modlari_birlestirmez():
     assert o["kanit_tweet_id"] == "2062336764656677002"
     assert {x["risk_modu"] for x in o["modlar"]} == {"guvenli", "dengeli"}
     assert all(x["journal_n"] == 1 for x in o["modlar"])
+
+
+def test_temas_davranisi_ozeti_dokunus_kovalarini_ayirir():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="TP", r_sonuc=1.0, temas_detay={"toplam": 2}),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="STOP", r_sonuc=-1.0, temas_detay={"toplam": 4}),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="TP", r_sonuc=1.0),
+    ])
+    o = d.temas_davranisi_ozeti()
+    rows = {x["dokunus"]: x for x in o["kovalar"]}
+    assert o["snapshot_kapsami"] == 2 and o["legacy_backfill"] is False
+    assert rows["2"]["tp"] == 1 and rows["3+"]["stop"] == 1
+    assert o["guven_puani_miraz_kurali"] is False
 
 
 def test_senkronize_portfoyden():

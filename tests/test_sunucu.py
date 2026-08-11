@@ -19,7 +19,8 @@ def _rapor():
     r.satirlar = [
         RadarSatiri("BTCUSDT", "1h", 50000, "Trade", "A", 85, "destek",
                     50200, 52200, 1.0, taraf="Long", stop=48200,
-                    pattern="Gartley", kaynak="Harmonik"),
+                    pattern="Gartley", kaynak="Harmonik",
+                    temas_detay={"toplam": 2, "tepki": 2}),
         RadarSatiri("ETHUSDT", "1h", 3200, "Watch", "C", 55, "bölge",
                     3250, 3570, 0.8, taraf="Long", stop=2930,
                     kaynak="Filtered", lifecycle="Watch"),
@@ -60,12 +61,14 @@ def test_durum_json_yapisi():
     d = sv.durum_json(g, _rapor(), aralik=180)
     # üst düzey anahtarlar
     for k in ("zaman", "tarama_no", "ozet", "execution", "buckets",
-              "lifecycle", "adaylar", "bildirimler", "pnl", "memory"):
+              "lifecycle", "adaylar", "bildirimler", "pnl", "memory",
+              "temas_davranisi"):
         assert k in d, k
     # aday akışı: Trade + Watch (Elenen aday listesine girmez)
     assert len(d["adaylar"]) == 2
     assert d["adaylar"][0]["symbol"] == "BTCUSDT"     # Trade önce
     assert d["adaylar"][0]["kaynak"] == "Harmonik"
+    assert d["adaylar"][0]["temas_detay"]["toplam"] == 2
     assert d["adaylar"][0]["skor_modeli"] == "BigE heuristic v1"
     assert d["adaylar"][0]["kalite_kademe"] is None
     assert d["adaylar"][0]["test_asamasi"] == 5

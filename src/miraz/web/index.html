@@ -548,6 +548,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="panel"><h2>ZAMAN DİLİMİ KARAKTERİ</h2><div id="m-tf"></div></div>
     <div class="panel"><h2>PNL ANALYTICS</h2><div id="m-pnl"></div></div>
   </div>
+  <div class="panel blok">
+    <h2>TEMAS DAVRANIŞI · JOURNAL SNAPSHOT</h2>
+    <div id="m-temas" class="grid g4"></div>
+    <div id="m-temas-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1184,6 +1189,15 @@ function memoryEkran(d){
     <div class="metrik"><div class="k">EN İYİ / EN KÖTÜ GÜN</div>
       <div class="v"><span class="pos">${sgn(pnl.en_iyi_gun||0)}</span> / <span class="neg">${sgn(pnl.en_kotu_gun||0)}</span></div>
       <div class="s">${pnl.kazanc_gun||0}↑ ${pnl.zarar_gun||0}↓ gün</div></div>`;
+  const ta=d.temas_davranisi||{}, tr=ta.kovalar||[];
+  $("#m-temas").innerHTML=tr.map(x=>`<div class="metrik">
+    <div class="k">${x.dokunus} TEMAS</div><div class="v">${x.setup_sayisi}</div>
+    <div class="s">Journal ${x.journal_n} · TP ${x.tp} / STOP ${x.stop}
+      ${x.wr==null?"":" · %"+x.wr+" WR"} · ${sgn(x.toplam_r||0)}</div>
+  </div>`).join("")||`<div class="bos">snapshot verisi yok</div>`;
+  $("#m-temas-not").textContent=
+    `Snapshot kapsamı: ${ta.snapshot_kapsami||0}. Kanıt: tweet ${ta.kanit_tweet_id||"—"}. `+
+    "Temas sayımı ve güven etkisi BigE yorumudur; açıklanmamış Miraz eşiği değildir. Eski kayıtlar geriye dönük etiketlenmez.";
 }
 
 // ── SCANNER ──
