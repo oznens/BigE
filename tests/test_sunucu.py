@@ -62,7 +62,7 @@ def test_durum_json_yapisi():
     # üst düzey anahtarlar
     for k in ("zaman", "tarama_no", "ozet", "execution", "buckets",
               "lifecycle", "adaylar", "bildirimler", "pnl", "memory",
-              "temas_davranisi"):
+              "temas_davranisi", "aktif_tradeler"):
         assert k in d, k
     # aday akışı: Trade + Watch (Elenen aday listesine girmez)
     assert len(d["adaylar"]) == 2

@@ -885,3 +885,21 @@ def test_gozlemci_dongu_radar_yamali(monkeypatch):
     assert sonuc.defter_ozet["toplam"] == 1
     assert len(g.portfoy.pozisyonlar) == 1
     assert g.defter.tarama_turu == 1
+
+
+def test_aktif_trade_kartlari_yalniz_entry_olmus_aciklari_gosterir():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="Açık", kaynak="Price Action",
+              entry_zaman="2026-08-11T12:00:00+00:00"),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="Aday", kaynak="Price Action"),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1,
+              durum="STOP", kaynak="Price Action",
+              kapanis_zaman="2026-08-11T13:00:00+00:00"),
+    ])
+    kartlar = d.aktif_trade_kartlari()
+    assert len(kartlar) == 1
+    assert kartlar[0]["sembol"] == "BTCUSDT"
+    assert kartlar[0]["etiket"] == "TRADE AKTİF"
+    assert kartlar[0]["durum"] == "Açık"

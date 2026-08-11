@@ -249,6 +249,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
                    "konsept": pnl["konsept"]},
         # Performance Intelligence + Journal + Aylık R ek verileri
         "perf_curve": defter.perf_curve(),
+        "aktif_tradeler": defter.aktif_trade_kartlari(),
         "trade_memory": defter.trade_memory(24),
         "takvim": defter.takvim_veri(),
         "lifecycle_ozet": {

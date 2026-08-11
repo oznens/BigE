@@ -164,6 +164,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   padding:9px 10px;border-top:2px solid var(--pi-kenar)}
 .tm-kart.tm-tp{border-top-color:var(--yesil)}
 .tm-kart.tm-sl{border-top-color:var(--kirmizi)}
+.tm-kart.tm-active{border-top-color:var(--mavi);box-shadow:0 0 0 1px rgba(36,169,255,.10)}
 .tm-kart .sym{font-weight:700;font-size:13px}
 .tm-kart .tf{font-size:10px;color:var(--soluk);margin-left:4px}
 .tm-kart .src{font-size:10px;color:#4a8a8a;margin-top:2px}
@@ -451,6 +452,12 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <h2>TERMINAL READOUT</h2>
       <div id="pi-readout" class="readout"></div>
     </div>
+  </div>
+
+  <!-- GERÇEK AKTİF PORTFÖY -->
+  <div class="panel pi-bg">
+    <h2>AKTİF TRADELER · <span id="pi-active-n">0</span></h2>
+    <div id="pi-active" class="grid g4" style="gap:8px"></div>
   </div>
 
   <!-- TRADE MEMORY -->
@@ -989,6 +996,24 @@ function piEkran(d){
     GENEL BAŞARI <b style="color:var(--pi-vurgu)">%${tm.wr}</b><br>
     TOPLAM TP <b style="color:var(--yesil)">${tm.tp}</b><br>
     TOPLAM SL <b style="color:var(--kirmizi)">${tm.sl}</b>`;
+
+  // Aktif portföy: son-journal sınırından bağımsız, yalnız entry olmuş Açık kayıtlar.
+  const ats = d.aktif_tradeler||[];
+  $("#pi-active-n").textContent = ats.length;
+  $("#pi-active").innerHTML = ats.length ? ats.map(t=>`
+    <div class="tm-kart tm-active">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div>
+          <span class="sym">${t.sembol}</span>
+          <span class="tf">${t.interval}</span>
+          <span class="tf">/ ${t.kaynak||"PA"} / ${t.taraf}</span>
+        </div>
+        <span class="pos" style="font-size:10px;font-weight:700;color:var(--mavi)">TRADE AKTİF</span>
+      </div>
+      <div class="kalite">${Math.round(t.guven||0)}</div>
+      <div style="font-size:10px;color:#4a8a8a">ENTRY ${t.giris} · STOP ${t.stop} · TP ${t.hedef}</div>
+      <div style="font-size:10px;color:#4a8a8a">${(t.entry_zaman||"").slice(0,16)}</div>
+    </div>`).join("") : `<div class="bos">Entry olmuş açık trade yok</div>`;
 
   // Trade Memory
   const tms = d.trade_memory||[];

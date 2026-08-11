@@ -1463,6 +1463,22 @@ class Defter:
             "kapanis": (k.kapanis_zaman or "")[:16],
         } for k in kapali]
 
+    def aktif_trade_kartlari(self) -> list:
+        """Gerçek entry olmuş tüm açık işlemler; kapanan/aday kayıtlar girmez."""
+        acik = sorted(
+            [k for k in self.kayitlar if k.durum == "Açık"],
+            key=lambda k: k.entry_zaman or k.acilis_zaman, reverse=True,
+        )
+        return [{
+            "id": k.id, "sembol": k.sembol, "interval": k.interval,
+            "durum": k.durum, "etiket": "TRADE AKTİF",
+            "taraf": k.taraf,
+            "kaynak": getattr(k, "kaynak", "Price Action"),
+            "kalite": k.kalite, "guven": round(k.guven, 0),
+            "giris": k.giris, "stop": k.stop, "hedef": k.hedef,
+            "entry_zaman": (k.entry_zaman or "")[:16],
+        } for k in acik]
+
     # --- kalıcılık ---
 
     def kaydet(self, dosya: str | Path = DEFTER_DOSYA) -> None:
