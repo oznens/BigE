@@ -158,6 +158,24 @@ def test_seviye_bul():
     assert sv._seviye_bul(durum, "XXX", "1h") is None
 
 
+def test_seviye_bul_acik_tradei_adaydan_once_kullanir():
+    durum = {
+        "aktif_tradeler": [{"sembol": "SOLUSDT", "interval": "30m",
+                             "giris": 75.2, "stop": 77.8, "hedef": 72.6,
+                             "taraf": "Short", "pattern": "AB=CD",
+                             "kaynak": "Harmonik", "rr": 1.0,
+                             "entry_zaman": "2026-08-11T15:00"}],
+        "adaylar": [{"symbol": "SOLUSDT", "interval": "30m",
+                      "giris": 76.0, "stop": 78.0, "hedef": 74.0,
+                      "pattern": None, "kaynak": "Price Action"}],
+        "bildirimler": [],
+    }
+    s = sv._seviye_bul(durum, "SOLUSDT", "30m")
+    assert s["giris"] == 75.2
+    assert s["pattern"] == "AB=CD"
+    assert s["kaynak"] == "Harmonik"
+
+
 def test_grafik_veri(monkeypatch):
     """grafik_veri(): mum + MACD + seviye (ZONE dâhil) üretir, JSON'lanabilir."""
     import numpy as np
@@ -179,6 +197,24 @@ def test_grafik_veri(monkeypatch):
     assert "macd" in g and len(g["macd"]["macd"]) == 60
     assert "harmonik" in g                     # harmonik anahtarı her zaman var
     json.dumps(g)                              # serileştirilebilir
+
+
+def test_grafik_veri_acik_tradei_gercek_entry_mumundan_baslatir(monkeypatch):
+    import numpy as np
+    import pandas as pd
+    idx = pd.date_range("2026-01-01", periods=80, freq="h", tz="UTC")
+    fiyat = np.linspace(100, 110, 80)
+    df = pd.DataFrame({"open": fiyat, "high": fiyat + 1,
+                       "low": fiyat - 1, "close": fiyat,
+                       "volume": 1.0}, index=idx)
+    monkeypatch.setattr(sv.veri, "indir", lambda *a, **k: df)
+    durum = {"aktif_tradeler": [{
+        "sembol": "BTCUSDT", "interval": "1h", "giris": 108,
+        "stop": 104, "hedef": 112, "taraf": "Long",
+        "kaynak": "Price Action", "entry_zaman": idx[70].isoformat(),
+    }]}
+    g = sv.grafik_veri("BTCUSDT", "1h", durum=durum, bar=60)
+    assert g["seviye"]["setup_bar"] == 50
 
 
 def _zigzag(pivots, seg=10):

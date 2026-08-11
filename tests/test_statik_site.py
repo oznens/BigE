@@ -39,6 +39,7 @@ def test_aktif_trade_karti_grafigi_acar():
     assert '.tm-kart.tik' in html
     assert 'grafikYukle(k.dataset.sym,k.dataset.ivl)' in html
     assert 'scrollIntoView({behavior:"smooth",block:"center"})' in html
+    assert "longSetup?kapanis<sv.stop:kapanis>sv.stop" in html
 
 
 def test_grafik_hedefleri_aktif_tradeleri_de_kapsar():

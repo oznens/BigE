@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import threading
+import pandas as pd
 from collections import Counter
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -345,8 +346,13 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
 # ---------------------------------------------------------------------------
 
 def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
-    """Son anlık görüntüdeki aday/bildirimlerden bu sembolün setup seviyeleri."""
-    for liste in (durum.get("adaylar", []), durum.get("bildirimler", [])):
+    """Aktif işlem öncelikli setup seviyelerini bul.
+
+    Aynı sembol/TF için yeni aday veya eski bildirim bulunabilir. Grafikte açık
+    işlemin gerçek entry/stop/TP ve harmonik pattern'i her zaman önceliklidir.
+    """
+    for liste in (durum.get("aktif_tradeler", []), durum.get("adaylar", []),
+                  durum.get("bildirimler", [])):
         for s in liste:
             sym = s.get("symbol") or s.get("sembol")
             if sym == symbol and s.get("interval") == interval:
@@ -354,7 +360,9 @@ def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
                     "giris": s.get("giris"), "stop": s.get("stop"),
                     "hedef": s.get("hedef"), "taraf": s.get("taraf", "Long"),
                     "pattern": s.get("pattern"), "kaynak": s.get("kaynak"),
-                    "rr": s.get("rr"),
+                    "rr": s.get("rr"), "entry_zaman": s.get("entry_zaman"),
+                    "konseptler": s.get("konseptler", []),
+                    "harmonik_gecmisi": s.get("harmonik_gecmisi", []),
                 }
     return None
 
@@ -487,6 +495,22 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
     giris_p = seviye.get("giris")
     taraf = (seviye.get("taraf") or "Long")
     setup_bar: int | None = None
+    # Açık işlemde çizgilerin ve TP/STOP taramasının başlangıcı gerçek entry
+    # mumudur; eski pivotlardan önceki fiyat hareketi sonuç sayılmaz.
+    entry_zaman = seviye.get("entry_zaman")
+    if entry_zaman:
+        try:
+            entry_ts = pd.Timestamp(entry_zaman)
+            if entry_ts.tzinfo is None:
+                entry_ts = entry_ts.tz_localize("UTC")
+            else:
+                entry_ts = entry_ts.tz_convert("UTC")
+            idx_utc = df.index.tz_convert("UTC")
+            uygun_idx = [i for i, ts in enumerate(idx_utc) if ts >= entry_ts]
+            if uygun_idx:
+                setup_bar = uygun_idx[0]
+        except Exception:
+            pass
     if t and t.get("noktalar") and len(t["noktalar"]) >= 5:
         d_nokta = t["noktalar"][4]
         setup_bar = d_nokta[0] if isinstance(d_nokta, list) else int(d_nokta)
@@ -511,7 +535,10 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
         setup_bar = max(0, len(mumlar) - 40)
     # Çizgi çok kısa kalmasın (en az ~25 bar uzasın) ama mumların solunu da
     # aşmasın — aşırı sağdaki pivotu makul bir başlangıca çek.
-    setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 25)))
+    if entry_zaman:
+        setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 1)))
+    else:
+        setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 25)))
 
     # PA konsept bölgeleri (Cavity/Root/Shade/Buffer zone kutuları + seviyeler)
     konseptler = []

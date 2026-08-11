@@ -1476,6 +1476,9 @@ class Defter:
             "kaynak": getattr(k, "kaynak", "Price Action"),
             "kalite": k.kalite, "guven": round(k.guven, 0),
             "giris": k.giris, "stop": k.stop, "hedef": k.hedef,
+            "rr": k.rr, "pattern": k.pattern,
+            "konseptler": list(getattr(k, "konseptler", [])),
+            "harmonik_gecmisi": list(getattr(k, "harmonik_gecmisi", [])),
             "entry_zaman": (k.entry_zaman or "")[:16],
         } for k in acik]
 

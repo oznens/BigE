@@ -1594,7 +1594,10 @@ function cizGrafik(d, canvasId="grafik"){
         if(longSetup?lo<=sv.giris:hi>=sv.giris){acik=true;durum="ACIK";}
       }
       if(acik){
-        const stopVur=sv.stop!=null&&(longSetup?lo<=sv.stop:hi>=sv.stop);
+        // Journal ile aynı kural: STOP fitille değil mum kapanışıyla;
+        // TP hedef bölgesine temasla sonuçlanır.
+        const kapanis=m[i][4];
+        const stopVur=sv.stop!=null&&(longSetup?kapanis<sv.stop:kapanis>sv.stop);
         const tpVur=sv.hedef!=null&&(longSetup?hi>=sv.hedef:lo<=sv.hedef);
         if(stopVur){durum="STOP";cozumIdx=i;break;}
         if(tpVur){durum="TP";cozumIdx=i;break;}
