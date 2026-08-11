@@ -53,6 +53,7 @@ def test_setup_ekle_ve_dedup():
     assert k1.konseptler == []
     assert len(k1.kalite_gecmisi) == 1
     assert k1.kalite_gecmisi[0]["kalite"] == "A"
+    assert k1.kalite_gecmisi[0]["olay"] == "candidate-quality-snapshot"
     # Aynı sembol+interval+taraf aktifken tekrar eklenmez
     k2 = d.setup_ekle(_Satir())
     assert k2 is None
@@ -715,6 +716,33 @@ def test_entry_hacim_hafiza_yalniz_gercek_snapshotlari_kullanir():
     assert o["snapshot_kapsami"] == 2 and o["legacy_backfill"] is False
     assert {(x["motor"], x["ad"]) for x in o["oran_bandi"]} == {
         ("Price Action", "1.5-1.99x"), ("Harmonik", "<1.0x")}
+    assert o["auto_filter"] is False
+
+
+def test_adaydan_entry_kalite_hafiza_gercek_yolu_sonucla_esler():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "B", 76, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              entry_kalite="B", entry_guven=76,
+              kalite_gecmisi=[{"kalite": "C", "guven": 60,
+                                "olay": "candidate-quality-snapshot"}]),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "B", 68, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik",
+              entry_kalite="B", entry_guven=68,
+              kalite_gecmisi=[{"kalite": "A", "guven": 80,
+                                "olay": "candidate-quality-snapshot"}]),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              entry_kalite="A", entry_guven=80,
+              kalite_gecmisi=[{"kalite": "A", "guven": 80}]),
+    ])
+    o = d.adaydan_entry_kalite_hafiza()
+    assert o["snapshot_kapsami"] == 2 and o["legacy_backfill"] is False
+    assert {(x["motor"], x["ad"], x["ortalama_guven_delta"])
+            for x in o["kalite_gecisi"]} == {
+        ("Price Action", "C→B", 16.0), ("Harmonik", "A→B", -12.0)}
+    assert {(x["motor"], x["ad"]) for x in o["guven_yonu"]} == {
+        ("Price Action", "YÜKSELDİ"), ("Harmonik", "DÜŞTÜ")}
     assert o["auto_filter"] is False
 
 

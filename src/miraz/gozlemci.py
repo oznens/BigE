@@ -203,6 +203,7 @@ class Defter:
             kalite_gecmisi=[{
                 "zaman": acilis, "kalite": satir.kalite,
                 "guven": satir.guven, "kategori": satir.kategori,
+                    "olay": "candidate-quality-snapshot",
                     "lifecycle": getattr(satir, "lifecycle", "Candidate"),
                     "ana_tf_yapi": getattr(satir, "ana_tf_yapi", ""),
                     "htf_tf": getattr(satir, "htf_tf", ""),
@@ -1275,6 +1276,60 @@ class Defter:
             "ratio_basis": "entry-bar-volume/prior-up-to-20-bar-median",
             "ratio_basis_origin": "BigE-observation-normalization-not-Miraz-rule",
             "band_origin": "BigE-observation-bucket-not-Miraz-threshold",
+            "legacy_backfill": False, "auto_filter": False,
+        }
+
+    def adaydan_entry_kalite_hafiza(self) -> dict:
+        """İlk aday snapshot'ından gerçek entry snapshot'ına kalite yolunu ölç."""
+        gecisler: dict[tuple[str, str], dict] = {}
+        guven_yonu: dict[tuple[str, str], dict] = {}
+        kapsam = 0
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP"):
+                continue
+            if k.entry_kalite is None or k.entry_guven is None:
+                continue
+            if not k.kalite_gecmisi:
+                continue
+            ilk = k.kalite_gecmisi[0]
+            if ilk.get("olay") != "candidate-quality-snapshot":
+                continue
+            if ilk.get("kalite") is None or ilk.get("guven") is None:
+                continue
+            kapsam += 1
+            gecis = f'{ilk["kalite"]}→{k.entry_kalite}'
+            delta = round(float(k.entry_guven) - float(ilk["guven"]), 2)
+            yon = "YÜKSELDİ" if delta > 0 else "DÜŞTÜ" if delta < 0 else "AYNI"
+            for depo, anahtar, ad in (
+                    (gecisler, (k.kaynak, gecis), gecis),
+                    (guven_yonu, (k.kaynak, yon), yon)):
+                e = depo.setdefault(anahtar, {
+                    "motor": k.kaynak, "ad": ad,
+                    "tp": 0, "stop": 0, "r": 0.0,
+                    "guven_delta_toplam": 0.0,
+                })
+                e["tp" if k.durum == "TP" else "stop"] += 1
+                e["r"] += k.r_sonuc
+                e["guven_delta_toplam"] += delta
+
+        def bitir(depo):
+            rows = []
+            for e in depo.values():
+                n = e["tp"] + e["stop"]
+                e["n"] = n
+                e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+                e["r"] = round(e["r"], 2)
+                e["ortalama_guven_delta"] = round(
+                    e.pop("guven_delta_toplam") / n, 2) if n else 0.0
+                rows.append(e)
+            return sorted(rows, key=lambda x: (x["motor"], x["ad"]))
+
+        return {
+            "kalite_gecisi": bitir(gecisler),
+            "guven_yonu": bitir(guven_yonu),
+            "snapshot_kapsami": kapsam,
+            "basis": "first-candidate-snapshot-to-real-entry-snapshot",
+            "direction_origin": "exact-delta-sign-no-Miraz-threshold",
             "legacy_backfill": False, "auto_filter": False,
         }
 

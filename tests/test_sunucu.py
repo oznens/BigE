@@ -74,6 +74,7 @@ def test_durum_json_yapisi():
     assert "tf_motor" in d["memory"]
     assert "entry_kalite" in d["memory"]
     assert "entry_hacim" in d["memory"]
+    assert "adaydan_entry_kalite" in d["memory"]
     assert d["adaylar"][0]["skor_modeli"] == "BigE heuristic v1"
     assert d["adaylar"][0]["kalite_kademe"] is None
     assert d["adaylar"][0]["test_asamasi"] == 5
