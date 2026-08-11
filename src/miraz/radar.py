@@ -21,18 +21,80 @@ from . import konsept as kons
 from . import senaryo as sn
 from . import veri
 
-# HTF eşlemesi (setup TF → üst zaman dilimi). terminalMiraz HTF-LTF kontrolü:
-# alt TF setup'ı üst TF onaylamazsa Elenen'e düşer.
+# HTF eşlemesi (setup TF → üst zaman dilimi). Arşiv alt+üst TF kontrolünü
+# kanıtlıyor; bu kesin eşleme BigE'nin uygulanmış yorumudur, Miraz'ın açıklanmış
+# özel eşleme tablosu değildir.
 _UST_TF = {"15m": "1h", "30m": "2h", "1h": "4h", "2h": "4h",
            "4h": "1d", "1d": "1w"}
+# Gözlenen terminal TF merdivenindeki bir alt basamak. Arşiv kesin eşlemeyi
+# açıklamaz; bu yüzden yalnız audit snapshot'ıdır, karar kapısı değildir.
+_ALT_TF = {"30m": "15m", "1h": "30m", "2h": "1h", "4h": "2h",
+           "1d": "4h"}
 
-# terminalMiraz zaman dilimleri: intraday M15/M30/H1/H2 + swing H4
-# (hoca H4'ü ana resim/HTF teyidi için sık kullanır — radar bu 5 TF'i tarar).
+HTF_POLICY = {
+    "archive_status": "implemented-in-testing-announced",
+    "evidence_tweet_ids": ["2046218068255236383", "2052860896360480962",
+                           "2064005426710986769"],
+    "archive_confirmation_scope": "upper-and-lower-timeframes",
+    "exact_tf_mapping": "undisclosed-by-archive",
+    "current_mapping_origin": "BigE-interpretation",
+    "current_implementation": "upper-veto-plus-lower-observation",
+    "ltf_implementation": "observation-only",
+    "ltf_mapping_origin": "BigE-adjacent-observed-TF-interpretation",
+    "ltf_decision_effect": "none-until-calibrated",
+    "direction_veto_origin": "BigE-safeguard-not-Miraz-rule",
+}
+
+# Arşiv minimum örnek, istatistiksel güven veya puan/veto dönüşüm formülü vermez.
+# Bu kapı, gözlemsel MTF metriklerinin kendiliğinden trade kuralına dönüşmesini
+# engeller. Mevcut HTF BigE güvenlik vetosu bu yeni kalibrasyon kapsamı dışındadır.
+MTF_KALIBRASYON_POLICY = {
+    "scope": "new-observation-derived-rules",
+    "state": "locked",
+    "automatic_activation": False,
+    "minimum_verified_samples": None,
+    "minimum_sample_origin": "undisclosed-by-archive",
+    "effect_formula": "undisclosed-by-archive",
+    "causal_validation": "not-established",
+    "trade_effect": "none",
+    "existing_htf_veto": "unchanged-BigE-safeguard",
+    "unlock_requires": [
+        "explicit-threshold", "documented-effect-formula",
+        "out-of-sample-validation", "explicit-operator-enable",
+    ],
+}
+
+
+def mtf_kalibrasyon_kapisi(sinif: str, dogrulanmis_n: int) -> dict:
+    """Gözlemsel MTF sınıfının trade etkisini güvenli varsayılanla reddet."""
+    return {
+        "sinif": sinif, "dogrulanmis_n": max(int(dogrulanmis_n), 0),
+        "eligible": False, "effect": 0,
+        "state": MTF_KALIBRASYON_POLICY["state"],
+        "reason": "threshold-formula-and-causal-validation-undisclosed",
+    }
+
+# Arşiv görsellerinde gözlenen canlı TF seti: M15/M30/H1/H2/H4. Tweet
+# 2064005426710986769 aynı anda 4 TF tarandığını söyler ama dördünü adlandırmaz;
+# bu liste bu yüzden "kesin Miraz kuralı" değil, BigE canlı tarama seçimidir.
 TERMINALMIRAZ_TF = ["15m", "30m", "1h", "2h", "4h"]
 
-# 3 risk modu (tweet: "Aşırı Güvenli / Dengeli / Tamamen Riskli").
-# rr_hedef = hedefin kaç R uzağa konacağı: güvenli erken kâr-al, riskli koşturur.
-RISK_MODLARI = {"guvenli": 1.0, "dengeli": 1.5, "riskli": 2.0}
+# 3 risk modu. Doğrudan arşiv kanıtı 2062336764656677002:
+# Güvenli +1R / Dengeli +2R / Riskli +3.5R.
+RISK_MODLARI = {"guvenli": 1.0, "dengeli": 2.0, "riskli": 3.5}
+
+# Kanıtlar terminolojik olarak ayrıdır; içerikler açıklanmadığı için BigE
+# kontrolleriyle birebir eşleme yapılmaz.
+# - 2066320810545910019: PA 3 kademe, Harmonik 4 özel filtre detayı.
+# - 2060346993600262442: Harmonik 5 test aşaması, her aşamada 4 kontrol.
+KANITLI_KALITE_YAPISI = {
+    "Price Action": {"kalite_kademe": 3},
+    "Harmonik": {
+        "test_asamasi": 5,
+        "asama_basi_kontrol": 4,
+        "kalite_filtre_detayi": 4,
+    },
+}
 
 # Çekirdek evren — hızlı tarama (terminalMiraz "öncelikli takip" listesi)
 CEKIRDEK_EVREN = [
@@ -93,9 +155,48 @@ class RadarSatiri:
     # terminalMiraz Result Journal motoru: Price Action / Harmonik / Late
     # (+ lifecycle nedeni Filtered / HTF). TradeFi (hisse) bizde yok.
     kaynak: str = "Price Action"
+    # Karar kategorisinden bağımsız terminalMiraz yaşam döngüsü.
+    # Arşiv kanıtı: 2064005426710986769 ve 2065351367544181110.
+    lifecycle: str = "Candidate"
+    # Sayısal güven ağırlıkları arşivde açıklanmadığı için Miraz kuralı değil.
+    skor_modeli: str = "BigE heuristic v1"
+    kalite_kademe: int | None = None
+    test_asamasi: int | None = None
+    asama_basi_kontrol: int | None = None
+    kalite_filtre_detayi: int | None = None
+    filtre_esleme: str = "undisclosed-by-archive"
+    # MTF denetim snapshot'ı. Üst TF eşlemesi/sert veto BigE yorumudur;
+    # arşivin bahsettiği alt TF kontrolü henüz uygulanmamıştır.
+    ana_tf_yapi: str = ""
+    htf_tf: str = ""
+    htf_yapi: str = ""
+    ltf_tf: str = ""
+    ltf_yapi: str = "not-implemented"
+    ltf_onay: str = "not-available"
+    # PA alt türleri çok-etiketlidir. OB bağımsız dedektör değil, BigE kutu
+    # sezgisinin proxy etiketidir; ayrıntı sözlüğü bu kökeni açıklar.
+    setup_turleri: list = None
+    setup_tur_detaylari: dict = None
+    harmonik_detay: dict = None
     # PA konsept katmanları (Drift/Torque/Root/Shade/Strike/Cavity/Shear/
     # Ladder/Buffer/Reservoir) — bu setup'ta tetiklenen konsept isimleri.
     konseptler: list = None
+
+    def __post_init__(self):
+        motor = "Harmonik" if self.pattern else "Price Action"
+        yapi = KANITLI_KALITE_YAPISI[motor]
+        if self.kalite_kademe is None:
+            self.kalite_kademe = yapi.get("kalite_kademe")
+        if self.test_asamasi is None:
+            self.test_asamasi = yapi.get("test_asamasi")
+        if self.asama_basi_kontrol is None:
+            self.asama_basi_kontrol = yapi.get("asama_basi_kontrol")
+        if self.kalite_filtre_detayi is None:
+            self.kalite_filtre_detayi = yapi.get("kalite_filtre_detayi")
+        if self.setup_turleri is None:
+            self.setup_turleri = []
+        if self.setup_tur_detaylari is None:
+            self.setup_tur_detaylari = {}
 
     @property
     def _sira(self) -> tuple:
@@ -143,11 +244,11 @@ class RadarRapor:
 
 
 def _kategori_belirle(s) -> tuple[str, str]:
-    """Senaryodan (kategori, not) üretir. HTF aşağı → Elenen (terminalMiraz)."""
+    """Senaryodan (kategori, not) üretir; HTF engeli BigE güvenlik yorumudur."""
     karar = s.karar.karar if s.karar else "Skip"
-    # terminalMiraz kuralı: üst zaman dilimi problemli → Elenen Setup
+    # Arşiv kesin eşleme/veto kuralını açıklamaz; bu BigE güvenlik yorumudur.
     if s.mtf_yapi == "problemli" and karar in ("Trade", "Watch"):
-        return "Elenen", "HTF aşağı — Elenen Setup (HTF-LTF filtresi)"
+        return "Elenen", "HTF aşağı — BigE güvenlik filtresi (eşleme arşivde açıklanmadı)"
     # Miraz: "düşüş yapısında dipten alınmaz, kırılım onayı beklenir."
     # Kendi TF yapısı düşüşte ise Long karşı-trend → en fazla Watch (Trade değil).
     # Trade'e ancak yapısal dönüş (CHoCH-yukarı) onayı varsa izin ver.
@@ -172,6 +273,77 @@ def _kategori_belirle(s) -> tuple[str, str]:
     return karar, ", ".join(notlar)
 
 
+def _ltf_snapshot(df_alt, taraf: str) -> tuple[str, str]:
+    """Alt TF yapısını gözlemle; trade puanı veya veto üretme."""
+    if df_alt is None or len(df_alt) == 0:
+        return "not-available", "not-available"
+    try:
+        from .yapi import market_yapisi
+        durum = getattr(market_yapisi(df_alt), "durum", "") or "Bilinmiyor"
+    except Exception:
+        return "Bilinmiyor", "not-available"
+    if durum == "yükseliş":
+        onay = "trend-devam" if taraf == "Long" else "zayiflama"
+    elif durum == "düşüş":
+        onay = "trend-devam" if taraf == "Short" else "zayiflama"
+    else:
+        onay = "notr"
+    return durum, onay
+
+
+def _pa_setup_turleri(s, taraf: str) -> tuple[list[str], dict]:
+    """Senaryo nesnesindeki gerçek tetikleri çok-etiketli PA audit'e dönüştür."""
+    turler: list[str] = []
+    detay: dict = {}
+    kutu = (getattr(s, "destek_kutu", None) if taraf == "Long"
+            else getattr(s, "direnc_kutu", None))
+    if kutu is not None:
+        turler.append("OB Proxy")
+        detay["OB Proxy"] = {
+            "origin": "BigE-zone-heuristic-not-exact-order-block",
+            "tip": getattr(kutu, "tip", "Destek" if taraf == "Long" else "Direnç"),
+            "guc": getattr(kutu, "guc", None),
+        }
+    div = getattr(s, "divergence", None)
+    if div is not None:
+        turler.append("Divergence")
+        detay["Divergence"] = {"tip": getattr(div, "tip", "Bilinmiyor")}
+    ikili = getattr(s, "ikili", None)
+    if ikili is not None:
+        turler.append("Double Top/Bottom")
+        detay["Double Top/Bottom"] = {
+            "tip": getattr(ikili, "tip", "Bilinmiyor"),
+            "onayli": bool(getattr(ikili, "onayli", False)),
+        }
+    obo = getattr(s, "obo", None)
+    if obo is not None:
+        turler.append("OBO/TOBO")
+        detay["OBO/TOBO"] = {
+            "tip": getattr(obo, "tip", "Bilinmiyor"),
+            "onayli": bool(getattr(obo, "onayli", False)),
+        }
+    fib = getattr(s, "fib", None)
+    if fib is not None and bool(getattr(fib, "aktif", False)):
+        turler.append("Fibonacci Retracement")
+        detay["Fibonacci Retracement"] = {
+            "yon": getattr(fib, "yon", "Bilinmiyor"),
+            "golden_icinde": bool(getattr(fib, "fiyat_golden_icinde", False)),
+        }
+        if bool(getattr(fib, "fiyat_golden_icinde", False)):
+            turler.append("Golden Pocket")
+            detay["Golden Pocket"] = {"aralik": [
+                getattr(fib, "golden_alt", None), getattr(fib, "golden_ust", None)]}
+    my = getattr(s, "market_yapisi", None)
+    kirilim = getattr(my, "kirilim", None) if my is not None else None
+    if kirilim:
+        turler.append("MSB")
+        detay["MSB"] = {
+            "exact_signal": kirilim,
+            "origin": "BigE-market-structure-BOS-CHoCH-mapping",
+        }
+    return turler, detay
+
+
 def _short_kategori(ks) -> tuple[str, str]:
     """Kısa senaryodan (kategori, not). HTF yukarı → Elenen (short aleyhine)."""
     karar = ks.karar.karar if ks.karar else "Skip"
@@ -192,18 +364,21 @@ def _short_kategori(ks) -> tuple[str, str]:
     return karar, ", ".join(notlar)
 
 
-# Geç-kalmış (Late) eşiği: giriş→hedef hareketinin ne kadarı zaten gitmişse
-# setup "geç" sayılır (terminalMiraz Late filtresi — stop riskini azaltır).
-_LATE_ESIK = 0.5
+# Arşiv Late filtresinin varlığını kanıtlıyor (2059325292926148742), ancak
+# sayısal tespit eşiğini/formülünü açıklamıyor. Önceki %50 değeri kanıtsızdı.
+# Otomatik Miraz sınıflandırması bu yüzden kapalıdır. Fonksiyon yalnız açıkça
+# eşik verilen BigE deneylerinde kullanılabilir.
+_LATE_ESIK = None
 
 
-def _gec_kalmis(fiyat, giris, hedef, taraf: str, esik: float = _LATE_ESIK) -> bool:
+def _gec_kalmis(fiyat, giris, hedef, taraf: str,
+                 esik: float | None = _LATE_ESIK) -> bool:
     """Fiyat, giriş→hedef yolunun esik'ten fazlasını katettiyse geç-kalmış.
 
     Long : katedilen = fiyat − giriş, toplam = hedef − giriş
     Short: katedilen = giriş − fiyat, toplam = giriş − hedef
     """
-    if fiyat is None or giris is None or hedef is None:
+    if esik is None or fiyat is None or giris is None or hedef is None:
         return False
     if taraf == "Short":
         toplam, katedilen = giris - hedef, giris - fiyat
@@ -212,6 +387,30 @@ def _gec_kalmis(fiyat, giris, hedef, taraf: str, esik: float = _LATE_ESIK) -> bo
     if toplam <= 0:
         return False
     return (katedilen / toplam) >= esik
+
+
+def _lifecycle_belirle(kategori: str, notu: str, pattern: str | None) -> str:
+    """Radar kararını arşivdeki ayrı setup statüsüne dönüştürür.
+
+    `Trade/Watch/Skip/Elenen` karar katmanıdır; Late/Cancelled/No-Entry/
+    Filtered ise terminalMiraz arşivinde ayrı raporlanan yaşam döngüsüdür.
+    """
+    n = (notu or "").lower()
+    if "late" in n or "geç kalmış" in n:
+        return "Late"
+    if "stop bölgesi çiğnenmiş" in n:
+        return "Cancelled" if pattern else "Filtered"
+    # No-Entry arşivde "Entry bölgesine gelmedi" demektir (2061490944713601191).
+    # Hedefin daha önce görülmesi farklı bir bayat-bölge filtresidir.
+    if "entry bölgesine gelmedi" in n:
+        return "No-Entry"
+    if "hedef zaten görüldü" in n or "bölge çiğnenmiş" in n:
+        return "Filtered"
+    if kategori in ("Skip", "Elenen"):
+        return "Filtered"
+    if kategori == "Watch":
+        return "Watch"
+    return "Candidate"
 
 
 def _hedef_zaten_gorundu(df, hedef, taraf: str, bar: int = 40) -> bool:
@@ -232,21 +431,21 @@ def _hedef_zaten_gorundu(df, hedef, taraf: str, bar: int = 40) -> bool:
 
 
 def _stop_zaten_vuruldu(df, stop, taraf: str, bar: int = 40) -> bool:
-    """Son `bar` mumda fiyat stop seviyesini (geçersizlik) zaten çiğnediyse True.
+    """Son `bar` mumda stop ötesinde kapanış oluştuysa True.
 
     @tradermiraz'ın anlattığı hatanın diğer yüzü: setup hâlâ "Trade" görünüyor
     ama stop bölgesi yakın geçmişte zaten delinmiş — yani bu işlem girilmiş olsa
     çoktan stop olurdu. Stop, fiyatın yeni geçtiği bölgenin içinde kalıyorsa
     setup geçersizdir (PENDLE short: stop 1.47 iken fiyat 1.48-1.49 görmüş).
-      Short: stop GİRİŞİN ÜSTÜNDE → son yüksek ≥ stop ise çiğnenmiş.
-      Long : stop GİRİŞİN ALTINDA → son düşük ≤ stop ise çiğnenmiş.
+      Short: stop GİRİŞİN ÜSTÜNDE → kapanış > stop.
+      Long : stop GİRİŞİN ALTINDA → kapanış < stop.
     """
     if stop is None or df is None or len(df) == 0:
         return False
     son = df.tail(bar)
     if taraf == "Short":
-        return float(son["high"].max()) >= stop
-    return float(son["low"].min()) <= stop
+        return bool((son["close"] > stop).any())
+    return bool((son["close"] < stop).any())
 
 
 # Konsept confluence puanları (teyit/çelişki için taban ağırlık; guç ile ölçeklenir)
@@ -329,14 +528,23 @@ def radar_tara(semboller: list[str] | None = None,
 
     for sym in semboller:
         for tf in intervallar:
+            ust_tf = _UST_TF.get(tf)
+            alt_tf = _ALT_TF.get(tf)
+            df = df_ust = df_alt = None
             try:
                 df = veri.indir(sym, tf, gun=gun, max_bar=max_bar)
-                ust_tf = _UST_TF.get(tf)
-                df_ust = (veri.indir(sym, ust_tf, gun=gun, max_bar=max_bar)
-                          if ust_tf else None)
             except Exception as e:
                 rapor.hatalar.append(f"{sym}/{tf}: {e}")
-                df = None
+            if df is not None and ust_tf:
+                try:
+                    df_ust = veri.indir(sym, ust_tf, gun=gun, max_bar=max_bar)
+                except Exception as e:
+                    rapor.hatalar.append(f"{sym}/{tf} HTF {ust_tf}: {e}")
+            if df is not None and alt_tf:
+                try:
+                    df_alt = veri.indir(sym, alt_tf, gun=gun, max_bar=max_bar)
+                except Exception as e:
+                    rapor.hatalar.append(f"{sym}/{tf} LTF {alt_tf}: {e}")
 
             # PA konsept katmanları (Drift…Reservoir) — TF başına bir kez
             kons_sinyal = {}
@@ -366,6 +574,8 @@ def radar_tara(semboller: list[str] | None = None,
                     s = sn.senaryo_uret(df, df_ust=df_ust, gguc=gguc,
                                         r_dolar=r_dolar,
                                         cluster_hafiza=cluster_hafiza)
+                    ltf_yapi, ltf_onay = _ltf_snapshot(df_alt, "Long")
+                    setup_turleri, setup_tur_detaylari = _pa_setup_turleri(s, "Long")
                     from .risk import risk_plani
                     rp = (risk_plani(s, r_dolar=r_dolar, rr_hedef=rr_hedef)
                           if s.destek_kutu else None)
@@ -416,6 +626,15 @@ def radar_tara(semboller: list[str] | None = None,
                         rr=rp.rr_orani if rp else None, not_=notu,
                         taraf="Long", stop=rp.stop if rp else None,
                         pattern=_pat, kaynak=_kaynak,
+                        harmonik_detay=getattr(s, "harmonik_detay", None),
+                        lifecycle=_lifecycle_belirle(kategori, notu, _pat),
+                        ana_tf_yapi=getattr(
+                            getattr(s, "market_yapisi", None), "durum", ""),
+                        htf_tf=ust_tf or "", htf_yapi=s.mtf_yapi or "",
+                        ltf_tf=alt_tf or "", ltf_yapi=ltf_yapi,
+                        ltf_onay=ltf_onay,
+                        setup_turleri=setup_turleri,
+                        setup_tur_detaylari=setup_tur_detaylari,
                         konseptler=_konsept_etiketleri("Long")))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (long): {e}")
@@ -425,6 +644,8 @@ def radar_tara(semboller: list[str] | None = None,
                     from .kisa import kisa_senaryo
                     from .risk import mesafe_hedef
                     ks = kisa_senaryo(df, df_ust=df_ust)
+                    ltf_yapi, ltf_onay = _ltf_snapshot(df_alt, "Short")
+                    setup_turleri, setup_tur_detaylari = _pa_setup_turleri(ks, "Short")
                     # Konsept confluence (short): teyit/çelişki güveni ±18 oynatır
                     k_etki, k_metin = _konsept_etki(kons_sinyal, "Short")
                     _konsept_skor_uygula(ks.karar, k_etki)
@@ -478,6 +699,15 @@ def radar_tara(semboller: list[str] | None = None,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
                         not_=notu, taraf="Short", stop=ks.fitil_seviye,
                         pattern=_s_pat, kaynak=_s_kaynak,
+                        harmonik_detay=getattr(ks, "harmonik_detay", None),
+                        lifecycle=_lifecycle_belirle(kategori, notu, _s_pat),
+                        ana_tf_yapi=getattr(
+                            getattr(ks, "market_yapisi", None), "durum", ""),
+                        htf_tf=ust_tf or "", htf_yapi=ks.mtf_yapi or "",
+                        ltf_tf=alt_tf or "", ltf_yapi=ltf_yapi,
+                        ltf_onay=ltf_onay,
+                        setup_turleri=setup_turleri,
+                        setup_tur_detaylari=setup_tur_detaylari,
                         konseptler=_konsept_etiketleri("Short")))
                 except Exception as e:
                     rapor.hatalar.append(f"{sym}/{tf} (short): {e}")

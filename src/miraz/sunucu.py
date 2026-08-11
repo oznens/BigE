@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import threading
+from collections import Counter
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -34,6 +35,7 @@ from . import veri
 from . import indikator
 from . import konsept as kons
 from . import yorum
+from .radar import HTF_POLICY, MTF_KALIBRASYON_POLICY, mtf_kalibrasyon_kapisi
 
 WEB_DIZIN = Path(__file__).resolve().parent / "web"
 
@@ -52,9 +54,27 @@ def _satir_json(s) -> dict:
         "symbol": s.symbol, "interval": s.interval, "fiyat": s.fiyat,
         "kategori": s.kategori, "kalite": s.kalite, "guven": s.guven,
         "taraf": s.taraf, "kaynak": getattr(s, "kaynak", "Price Action"),
-        "pattern": getattr(s, "pattern", None), "giris": s.giris,
+        "pattern": getattr(s, "pattern", None),
+        "harmonik_detay": getattr(s, "harmonik_detay", None) or {},
+        "giris": s.giris,
         "stop": s.stop, "hedef": s.hedef, "rr": s.rr, "not_": s.not_,
         "konseptler": konseptler,
+        "lifecycle": getattr(s, "lifecycle", "Candidate"),
+        "skor_modeli": getattr(s, "skor_modeli", "BigE heuristic v1"),
+        "kalite_kademe": getattr(s, "kalite_kademe", None),
+        "test_asamasi": getattr(s, "test_asamasi", None),
+        "asama_basi_kontrol": getattr(s, "asama_basi_kontrol", None),
+        "kalite_filtre_detayi": getattr(s, "kalite_filtre_detayi", None),
+        "filtre_esleme": getattr(s, "filtre_esleme", "undisclosed-by-archive"),
+        "ana_tf_yapi": getattr(s, "ana_tf_yapi", ""),
+        "htf_tf": getattr(s, "htf_tf", ""),
+        "htf_yapi": getattr(s, "htf_yapi", ""),
+        "ltf_tf": getattr(s, "ltf_tf", ""),
+        "ltf_yapi": getattr(s, "ltf_yapi", "not-implemented"),
+        "ltf_onay": getattr(s, "ltf_onay", "not-available"),
+        "setup_turleri": list(getattr(s, "setup_turleri", None) or []),
+        "setup_tur_detaylari": dict(
+            getattr(s, "setup_tur_detaylari", None) or {}),
     }
     # @tradermiraz tarzı plan yorumu (her setup kartında gösterilir)
     try:
@@ -140,6 +160,9 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "kapanis": (k.kapanis_zaman or "")[:16],
     } for k in kapanan]
 
+    radar_lifecycle = Counter(
+        getattr(s, "lifecycle", "Candidate") for s in rapor.satirlar
+    )
     return {
         "zaman": _simdi_iso(),
         "tarama_no": defter.tarama_turu,
@@ -155,14 +178,51 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
             "bekleyen": bekleyen_n, "daily_pnl": round(toplam_r, 1),
             "open_risk": open_risk, "r_dolar": r_dolar, "canli": canli,
             "kiraz_durum": kiraz_durum, "kiraz_mesaj": kiraz_mesaj,
+            "entry_tetik": "zone-touch",
+            "stop_tetik": "candle-close",
+            "tp_tetik": "target-touch",
         },
         "buckets": d_ozet["buckets"],
+        # Result Journal kümülatiftir: yalnız Defter'e bir kez yazılmış kayıtlar.
+        # Anlık radar snapshot'ı ayrı tutulur; aksi halde aynı setup her taramada
+        # yeniden journal sonucu gibi sayılır.
         "lifecycle": {
-            "Filtered": d_ozet["Filtered"], "Shelved": d_ozet["Shelved"],
-            "No-Entry": d_ozet["No-Entry"], "Expired": d_ozet["Expired"],
+            "Filtered": d_ozet["Filtered"],
+            "Shelved": d_ozet["Shelved"],
+            "No-Entry": d_ozet["No-Entry"],
+            "Expired": d_ozet["Expired"],
             "Cancelled": d_ozet["Cancelled"],
         },
+        "filtered_nedenleri": defter.filtered_neden_ozeti(),
+        "filtered_etki": defter.filtered_etki_ozeti(),
+        "filtered_kalite_gecisleri": defter.filtered_kalite_gecis_ozeti(),
+        "htf_denetim": defter.htf_denetim_ozeti(),
+        "ltf_gozlem": defter.ltf_gozlem_ozeti(),
+        "mtf_kalibrasyon": {
+            "policy": MTF_KALIBRASYON_POLICY,
+            "ltf_siniflari": [
+                mtf_kalibrasyon_kapisi(x["ad"], x["dogrulanmis_n"])
+                for x in defter.ltf_gozlem_ozeti()["siniflar"]
+            ],
+            "htf_dogrulanmis_n": defter.htf_denetim_ozeti()["dogrulanmis_n"],
+        },
+        "pa_alt_turleri": defter.pa_alt_tur_ozeti(),
+        "pa_capraz": defter.pa_capraz_ozeti(),
+        "harmonik_patternler": defter.harmonik_pattern_ozeti(),
+        "harmonik_capraz": defter.harmonik_capraz_ozeti(),
+        "filtered_takip": [{
+            "id": k.id, "sembol": k.sembol, "interval": k.interval,
+            "taraf": k.taraf, "neden": k.durum_nedeni or "legacy-unknown",
+            "durum": k.karsi_olgusal_durum or "Takip Başlamadı",
+            "giris": k.giris, "stop": k.stop, "hedef": k.hedef,
+            "entry_zaman": k.karsi_olgusal_entry_zaman,
+            "sonuc_zaman": k.karsi_olgusal_zaman,
+            "journal_r": 0.0,
+        } for k in reversed(defter.kayitlar) if k.durum == "Filtered"][:30],
+        "radar_lifecycle": dict(radar_lifecycle),
         "wr": d_ozet["wr"], "toplam_r": d_ozet["toplam_r"],
+        "toplam_r_late_haric": d_ozet["toplam_r_late_haric"],
+        "late_katki_r": d_ozet["late_katki_r"],
         "aktif_kayit": d_ozet["aktif"],
         "adaylar": [_satir_json(s) for s in adaylar[:16]],
         "konsept_sayim": getattr(rapor, "konsept_sayim", {}) or {},
@@ -171,6 +231,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "bildirimler": bildirimler,
         "pnl": pnl,
         "memory": {"parite": pnl["parite"], "tf": pnl["tf"],
+                   "parite_karakter": pnl["parite_karakter"],
                    "konsept": pnl["konsept"]},
         # Performance Intelligence + Journal + Aylık R ek verileri
         "perf_curve": defter.perf_curve(),
@@ -181,9 +242,85 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
             "Açık": d_ozet.get("Açık", 0),
             "TP": d_ozet.get("TP", 0),
             "STOP": d_ozet.get("STOP", 0),
+            "Filtered": d_ozet.get("Filtered", 0),
+            "Shelved": d_ozet.get("Shelved", 0),
             "Expired": d_ozet.get("Expired", 0),
             "No-Entry": d_ozet.get("No-Entry", 0),
             "Cancelled": d_ozet.get("Cancelled", 0),
+        },
+        "result_journal_policy": {
+            "mode": "cumulative-persisted-records",
+            "outcomes": ["TP", "STOP"],
+            "other_results": ["Filtered", "Shelved", "No-Entry", "Expired", "Cancelled"],
+            "engine_buckets": ["Price Action", "Harmonik", "Late"],
+            "evidence_tweet_ids": ["2065351367544181110", "2059325292926148742"],
+            "radar_snapshot_included": False,
+            "late_detection": "undisclosed-by-archive",
+            "late_auto_classification": False,
+            "late_performance_comparison": "included-and-excluded",
+        },
+        "htf_policy": dict(HTF_POLICY),
+        "dynamic_quality_policy": {
+            "mode": "re-evaluate-until-entry",
+            "history": "persisted-on-change",
+            "open_positions_re_evaluated": False,
+            "evidence_tweet_ids": ["2064005426710986769"],
+            "scan_frequency": "runtime-configured-not-archive-rule",
+            "check_count": "undisclosed-by-archive",
+        },
+        "shelved_policy": {
+            "archive_label": "Rafa Kalktı",
+            "evidence_tweet_ids": ["2065351367544181110"],
+            "criteria": "undisclosed-by-archive",
+            "automatic": False,
+            "supported_transition": "pending-to-shelved-explicit",
+            "reason_required_for_audit": True,
+        },
+        "terminal_lifecycle_policy": {
+            "Cancelled": {
+                "meaning": "setup-structurally-invalidated",
+                "harmonic_evidence_tweet_id": "2062383146415333550",
+                "automatic_harmonic_validity_check": True,
+            },
+            "No-Entry": {
+                "meaning": "entry-zone-not-reached",
+                "evidence_tweet_id": "2061490944713601191",
+                "observation_horizon": "undisclosed-by-archive",
+                "automatic": False,
+            },
+            "Expired": {
+                "meaning": "time-expiry",
+                "exact_archive_rule": "undisclosed-by-archive",
+                "current_timeout": "24-bars-BigE-default",
+            },
+            "stale_target_seen": {
+                "result": "Filtered",
+                "not_no_entry": True,
+            },
+        },
+        "filtered_reason_policy": {
+            "journal_status": "Filtered",
+            "reason_taxonomy_origin": "BigE-audit-derived-from-radar-notes",
+            "miraz_exact_reason_mapping": "undisclosed-by-archive",
+            "counterfactual_rule": "report-only-explicitly-verified-TP-STOP",
+            "untracked_stop_claim": "forbidden",
+            "tracking": "forward-only-from-first-post-filter-snapshot",
+            "entry_trigger": "price-touch",
+            "tp_trigger": "price-touch",
+            "stop_trigger": "candle-close-beyond-invalidation",
+            "tracking_expiry": "undisclosed-by-archive-no-auto-expiry",
+            "result_journal_included": False,
+            "breakdown_basis": "persisted-filter-time-snapshot",
+            "breakdowns": ["engine", "timeframe", "quality", "audit-reason"],
+            "quality_transition_basis": "persisted-consecutive-distinct-snapshots",
+            "quality_transition_attribution": "descriptive-not-causal",
+            "causality_claim": "not-made",
+            "evidence_tweet_ids": ["2059325292926148742"],
+            "reasons": [
+                "htf-conflict", "quality-weakened", "stale-zone",
+                "structural-invalidity", "filtered-other", "legacy-unknown",
+            ],
+            "evidence_tweet_ids": ["2059325292926148742", "2064005426710986769"],
         },
     }
 

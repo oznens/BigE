@@ -299,7 +299,10 @@ def tara(
                 p[0][0], p[1][0], p[2][0], p[3][0], p[4][0],
                 X, A, B, C, D, "Bullish",
             )
-            sonuclar.extend(b for b in bulunanlar if b.kalite >= min_kalite)
+            sonuclar.extend(
+                b for b in bulunanlar
+                if b.kalite >= min_kalite and _tamamlanmis_gecerli(df, b)
+            )
 
         # Bearish: H-L-H-L-H
         elif tipler == ["H", "L", "H", "L", "H"]:
@@ -308,11 +311,34 @@ def tara(
                 p[0][0], p[1][0], p[2][0], p[3][0], p[4][0],
                 X, A, B, C, D, "Bearish",
             )
-            sonuclar.extend(b for b in bulunanlar if b.kalite >= min_kalite)
+            sonuclar.extend(
+                b for b in bulunanlar
+                if b.kalite >= min_kalite and _tamamlanmis_gecerli(df, b)
+            )
 
     # D en yakın olan (en yeni) üste gelsin
     sonuclar.sort(key=lambda s: s.D_idx, reverse=True)
     return sonuclar
+
+
+def _tamamlanmis_gecerli(df, sonuc: HarmonikSonuc) -> bool:
+    """C ile D arasında pattern yapısı bozulmuşsa tamamlanmış sayma.
+
+    Arşiv kanıtı `2062383146415333550`: C belirlendikten sonra harmonik iptal
+    olduğu halde eski setup bölgesinin hafızada kalması, sonradan yanlış TP
+    üretmiş ve kayıt `Cancelled Harmonic` olarak düzeltilmiştir. Kesin fitil/
+    kapanış toleransı açıklanmadığından burada forming kontroldeki BigE %0.2
+    toleransı kullanılır; bu oran Miraz kuralı değildir.
+    """
+    if sonuc.D_idx <= sonuc.C_idx + 1:
+        return True
+    aralik = df.iloc[sonuc.C_idx + 1:sonuc.D_idx]
+    if len(aralik) == 0:
+        return True
+    pay = abs(sonuc.D) * 0.002 if sonuc.D else 0.0
+    if sonuc.yon == "Bullish":
+        return float(aralik["high"].max()) <= sonuc.A + pay
+    return float(aralik["low"].min()) >= sonuc.A - pay
 
 
 # ---------------------------------------------------------------------------

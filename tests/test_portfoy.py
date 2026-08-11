@@ -20,10 +20,11 @@ from miraz.portfoy import Portfoy, Pozisyon, radar_sinyallerini_ekle
 # ---------------------------------------------------------------------------
 
 def _df(bars):
-    """bars: [(low, high), ...] → UTC-indexed OHLCV DataFrame."""
+    """bars: [(low, high), ...] veya [(low, high, close), ...]."""
     low = np.array([b[0] for b in bars], dtype=float)
     high = np.array([b[1] for b in bars], dtype=float)
-    mid = (low + high) / 2
+    mid = np.array([b[2] if len(b) > 2 else (b[0] + b[1]) / 2
+                    for b in bars], dtype=float)
     idx = pd.date_range("2025-01-01", periods=len(bars), freq="4h", tz="UTC")
     return pd.DataFrame({"open": mid, "high": high, "low": low,
                          "close": mid, "volume": np.ones(len(bars))},
@@ -71,6 +72,14 @@ def test_ekle_farkli_tf():
     assert len(pf.pozisyonlar) == 2
 
 
+def test_bekleyen_emir_kalite_filtresiyle_iptal():
+    pf = Portfoy()
+    p = _ekle(pf)
+    assert pf.bekleyen_iptal(p.id, "Filtered") is True
+    assert p.durum == "Filtered" and p in pf.kapali and p not in pf.aktif
+    assert pf.bekleyen_iptal(p.id, "Cancelled") is False
+
+
 # ---------------------------------------------------------------------------
 # Güncelleme — giriş/TP/STOP simülasyonu
 # ---------------------------------------------------------------------------
@@ -99,25 +108,32 @@ def test_guncelle_tp():
 
 
 def test_guncelle_stop():
-    """Giriş dolduktan sonra stop vurulunca STOP."""
+    """Giriş dolduktan sonra stop altında kapanış gelince STOP."""
     pf = Portfoy()
     _ekle(pf)
     # bar0: low=99 (giriş dolar), bar1: low=94 (stop=95 kırılır)
-    df = _df([(99, 103), (94, 98), (100, 102)])
+    df = _df([(99, 103), (94, 98, 94.5), (100, 102)])
     pf.guncelle("BTC", "4h", df)
     p = pf.pozisyonlar[0]
     assert p.durum == "STOP"
     assert p.r_sonuc == pytest.approx(-1.0)
 
 
-def test_guncelle_ayni_bar_stop_oncelik():
-    """Aynı barda hem stop hem hedef → muhafazakâr STOP."""
+def test_guncelle_stop_fitili_hedef_temasinda_tp():
+    """Stop fitili invalidasyon değildir; kapanış içerideyse hedef teması TP."""
     pf = Portfoy()
     _ekle(pf)
     # bar0: giriş dolar, bar1: hem stop hem hedef
     df = _df([(99, 103), (94, 111)])
     pf.guncelle("BTC", "4h", df)
-    assert pf.pozisyonlar[0].durum == "STOP"
+    assert pf.pozisyonlar[0].durum == "TP"
+
+
+def test_guncelle_stop_fitili_tek_basina_acik_kalir():
+    pf = Portfoy()
+    p = _ekle(pf)
+    pf.guncelle("BTC", "4h", _df([(99, 103), (94, 100, 97)]))
+    assert p.durum == "Açık"
 
 
 def test_guncelle_hicbir_degisiklik():
@@ -186,23 +202,23 @@ def test_short_tp():
 
 
 def test_short_stop():
-    """Short: giriş dolunca, fiyat stop'a ÇIKINCA (high ≥ stop) STOP."""
+    """Short: giriş dolunca, stop üstünde kapanış gelirse STOP."""
     pf = Portfoy()
     _ekle_short(pf)
     # bar0 high 101 (giriş dolar), bar1 high 106 (stop 105 vurulur)
-    df = _df([(99, 101), (103, 106), (100, 102)])
+    df = _df([(99, 101), (103, 106, 105.5), (100, 102)])
     pf.guncelle("BTC", "4h", df)
     p = pf.pozisyonlar[0]
     assert p.durum == "STOP" and p.r_sonuc == pytest.approx(-1.0)
 
 
-def test_short_ayni_bar_stop_oncelik():
-    """Short: aynı barda hem stop hem hedef → muhafazakâr STOP."""
+def test_short_stop_fitili_hedef_temasinda_tp():
+    """Short stop fitili invalidasyon değildir; hedef teması TP olur."""
     pf = Portfoy()
     _ekle_short(pf)
     df = _df([(99, 101), (89, 106)])    # giriş dolar; sonra hem TP hem STOP
     pf.guncelle("BTC", "4h", df)
-    assert pf.pozisyonlar[0].durum == "STOP"
+    assert pf.pozisyonlar[0].durum == "TP"
 
 
 # ---------------------------------------------------------------------------

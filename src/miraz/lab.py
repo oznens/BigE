@@ -102,14 +102,13 @@ def _simule(df, bar: int, giris: float, stop: float, hedef: float,
             max_bar: int, yon: str = "long") -> tuple[str, int]:
     """Giriş barından sonra TP/STOP/Dolmadı sonucunu döndürür.
 
-    Long : giriş limiti altta (low ≤ giriş), STOP altta, TP üstte.
-    Short: giriş limiti üstte (high ≥ giriş), STOP üstte, TP altta.
-    Önce limit girişe dokunulmalı; aynı barda hem stop hem hedef → STOP (muhafazakâr).
+    Long/Short giriş ve TP temasla; STOP yalnız stop ötesi mum kapanışıyla.
     """
     n = len(df)
     son = min(bar + max_bar, n - 1)
     low = df["low"].to_numpy()
     high = df["high"].to_numpy()
+    close = df["close"].to_numpy()
     short = yon == "short"
 
     doldu = False
@@ -121,7 +120,7 @@ def _simule(df, bar: int, giris: float, stop: float, hedef: float,
             else:
                 continue
         # giriş dolduktan sonra (aynı bar dahil) stop/hedef kontrolü
-        stop_vurdu = high[j] >= stop if short else low[j] <= stop
+        stop_vurdu = close[j] > stop if short else close[j] < stop
         tp_vurdu = low[j] <= hedef if short else high[j] >= hedef
         if stop_vurdu:
             return "STOP", j

@@ -12,10 +12,11 @@ from miraz.lab import _simule, LabRapor, Islem
 
 
 def _df(bars):
-    """bars: list of (low, high) → OHLC df (open=close=orta)."""
+    """bars: (low, high) veya (low, high, close)."""
     low = np.array([b[0] for b in bars], dtype=float)
     high = np.array([b[1] for b in bars], dtype=float)
-    mid = (low + high) / 2
+    mid = np.array([b[2] if len(b) > 2 else (b[0] + b[1]) / 2
+                    for b in bars], dtype=float)
     return pd.DataFrame({"open": mid, "high": high, "low": low,
                          "close": mid, "volume": np.ones(len(bars))})
 
@@ -30,7 +31,7 @@ def test_simule_tp():
 
 def test_simule_stop():
     # giriş dolar (bar1 low 99), sonra stop'a düşer (bar2 low 94)
-    df = _df([(100, 100), (99, 101), (94, 98), (100, 100)])
+    df = _df([(100, 100), (99, 101), (94, 98, 94.5), (100, 100)])
     sonuc, j = _simule(df, 0, giris=100, stop=95, hedef=110, max_bar=5)
     assert sonuc == "STOP"
 
@@ -42,11 +43,11 @@ def test_simule_dolmadi():
     assert sonuc == "Dolmadı"
 
 
-def test_simule_ayni_bar_stop_oncelik():
-    # giriş dolu; bir bar hem stop hem hedefi içerir → muhafazakâr STOP
+def test_simule_fitil_stop_hedef_temasinda_tp():
+    # stop fitili var ama kapanış içeride; hedef teması → TP
     df = _df([(100, 100), (94, 111)])
     sonuc, j = _simule(df, 0, giris=100, stop=95, hedef=110, max_bar=3)
-    assert sonuc == "STOP"
+    assert sonuc == "TP"
 
 
 def test_rapor_istatistik():
@@ -121,7 +122,7 @@ def test_simule_short_tp():
 
 def test_simule_short_stop():
     # bar1 high≥110 → giriş dolar; bar2 high≥115 → STOP
-    df = _df([(108, 112), (109, 111), (112, 116), (100, 100)])
+    df = _df([(108, 112), (109, 111), (112, 116, 115.5), (100, 100)])
     sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=5,
                        yon="short")
     assert sonuc == "STOP"
@@ -135,12 +136,12 @@ def test_simule_short_dolmadi():
     assert sonuc == "Dolmadı"
 
 
-def test_simule_short_ayni_bar_stop_oncelik():
-    # bar1: high≥110 (giriş dolar) + high≥115 (stop) aynı bar → STOP
+def test_simule_short_fitil_stop_hedef_temasinda_tp():
+    # stop fitili var ama kapanış içeride; hedef teması → TP
     df = _df([(108, 108), (90, 116)])
     sonuc, j = _simule(df, 0, giris=110, stop=115, hedef=95, max_bar=3,
                        yon="short")
-    assert sonuc == "STOP"
+    assert sonuc == "TP"
 
 
 # ---- _kur_kisa mod mantığı ----

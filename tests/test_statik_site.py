@@ -13,8 +13,60 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import backtest.statik_site as s
-from miraz.gozlemci import Defter
+from miraz.gozlemci import Defter, Kayit
 from miraz.portfoy import Portfoy
+
+
+def test_playback_kalite_zaman_cizelgesi_webde_var():
+    html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
+    assert "KALİTE ZAMAN ÇİZELGESİ" in html
+    assert "function pbKaliteCiz" in html
+    assert "GÜÇLENDİ" in html and "ZAYIFLADI" in html
+    assert "z<=simdi" in html
+
+
+def test_playback_kanitli_sureci_tasir():
+    d = Defter()
+    d.kayitlar = [Kayit(
+        1, "2026-06-01T10:00:00+00:00", "BTCUSDT", "1h", "Long",
+        "A", 90, 100, 95, 105, 1.0, durum="TP",
+        kapanis_zaman="2026-06-01T15:00:00+00:00", r_sonuc=1.0,
+    )]
+    trade = s._playback_trade_memory(d)[0]
+    assert [x["asama"] for x in trade["surec"]] == ["SETUP OLUŞUMU", "SONUÇ"]
+    assert trade["surec"][-1]["durum"] == "TP"
+    assert trade["playback_kanit"]["tweet_id"] == "2056806486127346084"
+    assert trade["playback_kanit"]["kararsizlik_etiketi"] == "kayit-yoksa-uretilmez"
+
+
+def test_harmonik_playback_yalniz_kayitli_olaylari_tasir():
+    d = Defter(kayitlar=[Kayit(
+        1, "2026-06-01T10:00:00+00:00", "BTCUSDT", "1h", "Long",
+        "A", 90, 100, 95, 105, 1.0, pattern="Gartley",
+        durum="Cancelled", kapanis_zaman="2026-06-01T12:00:00+00:00",
+        durum_nedeni="harmonic-pattern-changed-or-disappeared",
+        harmonik_gecmisi=[
+            {"zaman": "2026-06-01T10:00:00+00:00",
+             "olay": "pattern-detected", "pattern": "Gartley",
+             "prz": {"merkez": 100}},
+            {"zaman": "2026-06-01T12:00:00+00:00",
+             "olay": "pattern-changed-or-disappeared",
+             "onceki_pattern": "Gartley", "yeni_pattern": None},
+        ])])
+    trade = s._playback_trade_memory(d)[0]
+    assert trade["durum"] == "Cancelled"
+    assert len(trade["harmonik_gecmisi"]) == 2
+    assert trade["entry_zaman"] is None
+    assert trade["entry_zaman_durumu"] == "not-recorded-by-current-journal"
+    assert trade["playback_kanit"]["harmonik_olay_politikasi"] == \
+        "recorded-events-only-no-backfill"
+
+
+def test_harmonik_playback_web_renderer_var():
+    html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
+    assert "HARMONİK / PRZ OLAYLARI" in html
+    assert "function pbHarmonikCiz" in html
+    assert "JOURNAL'DA KAYITLI DEĞİL" in html
 
 
 def _ornek_kayit(id_=1, durum="Açık"):

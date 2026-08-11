@@ -99,7 +99,9 @@ class Portfoy:
             for p in self.pozisyonlar:
                 if (p.sembol == sembol and p.interval == interval
                         and p.yon == yon
-                        and p.durum in ("Expired", "STOP", "TP", "Manuel")
+                        and p.durum in ("Expired", "STOP", "TP", "Manuel",
+                                        "Cancelled", "Filtered", "Late", "No-Entry",
+                                        "Shelved")
                         and giris > 0 and abs(p.giris - giris) <= giris * 0.005):
                     ref = p.kapanis_zaman or p.acilis_zaman
                     if not ref:
@@ -131,6 +133,16 @@ class Portfoy:
                 return True
         return False
 
+    def bekleyen_iptal(self, pozisyon_id: int, durum: str = "Cancelled") -> bool:
+        """Henüz dolmamış emri kalite/lifecycle filtresi nedeniyle kapatır."""
+        for p in self.pozisyonlar:
+            if p.id == pozisyon_id and p.durum == "Bekliyor":
+                p.durum = durum
+                p.r_sonuc = 0.0
+                p.kapanis_zaman = _simdi()
+                return True
+        return False
+
     # -----------------------------------------------------------------------
     # Güncelleme — TP / STOP takibi
     # -----------------------------------------------------------------------
@@ -140,8 +152,8 @@ class Portfoy:
         """Bir sembol için açık/bekleyen pozisyonları OHLCV veriyle günceller.
 
         df: veri.indir()'den gelen UTC DatetimeIndex'li OHLCV DataFrame.
-        max_bekleme: Bekliyor bir emir bu kadar bar içinde dolmazsa → Expired
-                     (terminalMiraz Expired filtresi; giriş gelmeyen emir iptal).
+        max_bekleme: Bekliyor bir emir bu kadar bar içinde dolmazsa → Expired.
+                     24 bar BigE varsayılanıdır; Miraz süresi arşivde açıklanmaz.
         Döndürür: durum değişen Pozisyon listesi.
         """
         aktif = [p for p in self.pozisyonlar
@@ -168,6 +180,7 @@ class Portfoy:
 
             low = alt_df["low"].to_numpy()
             high = alt_df["high"].to_numpy()
+            close = alt_df["close"].to_numpy()
             idx = alt_df.index
             short = poz.yon == "Short"
 
@@ -198,9 +211,9 @@ class Portfoy:
                         degisenler.append(poz)
 
                 if poz.durum == "Açık":
-                    # Long: stop aşağıda (low ≤ stop), hedef yukarıda (high ≥ hedef).
-                    # Short: stop yukarıda (high ≥ stop), hedef aşağıda (low ≤ hedef).
-                    stop_vurdu = (high[j] >= poz.stop) if short else (low[j] <= poz.stop)
+                    # Miraz invalidasyonu mum kapanışıdır; fitil tek başına STOP
+                    # değildir. TP hedef bölgesine temasla gerçekleşir.
+                    stop_vurdu = (close[j] > poz.stop) if short else (close[j] < poz.stop)
                     tp_vurdu = (low[j] <= poz.hedef) if short else (high[j] >= poz.hedef)
                     if stop_vurdu:        # aynı bar stop+tp → muhafazakâr STOP
                         poz.durum = "STOP"
@@ -250,7 +263,8 @@ class Portfoy:
     @property
     def kapali(self) -> list:
         return [p for p in self.pozisyonlar
-                if p.durum in ("TP", "STOP", "Manuel", "Expired")]
+                if p.durum in ("TP", "STOP", "Manuel", "Expired",
+                               "Cancelled", "Filtered", "Late", "No-Entry")]
 
     @property
     def toplam_r(self) -> float:

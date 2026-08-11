@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.harmonik import (
     tara, _bullish_oranlar, _bearish_oranlar, _kontrol_et, HarmonikSonuc,
-    olusan_harmonik, OlusanHarmonik,
+    olusan_harmonik, OlusanHarmonik, _tamamlanmis_gecerli,
 )
 from miraz.pivotlar import pivot_listesi, swing_high_maske, swing_low_maske
 
@@ -137,6 +137,20 @@ def test_olusan_harmonik_projeksiyon():
 def test_olusan_harmonik_yetersiz_pivot():
     df = _df([100, 110, 100])
     assert olusan_harmonik(df, [(0, 100, "L"), (1, 110, "H")]) is None
+
+
+def test_tamamlanmis_bearish_c_d_arasinda_a_altina_sarkarsa_iptal():
+    df = _df([120, 100, 110, 98, 105, 118])
+    h = HarmonikSonuc("Shark", "Bearish", 0, 1, 2, 2, 5,
+                      120, 100, 110, 110, 118, 118, 121, 112, 110, 1.0)
+    assert _tamamlanmis_gecerli(df, h) is False
+
+
+def test_tamamlanmis_bearish_c_d_yapisi_korunursa_gecerli():
+    df = _df([120, 100, 110, 101, 105, 118])
+    h = HarmonikSonuc("Shark", "Bearish", 0, 1, 2, 2, 5,
+                      120, 100, 110, 110, 118, 118, 121, 112, 110, 1.0)
+    assert _tamamlanmis_gecerli(df, h) is True
 
 
 def test_tarama_bos_df():

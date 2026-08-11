@@ -21,7 +21,11 @@ def _rapor():
                     50200, 52200, 1.0, taraf="Long", stop=48200,
                     pattern="Gartley", kaynak="Harmonik"),
         RadarSatiri("ETHUSDT", "1h", 3200, "Watch", "C", 55, "bölge",
-                    3250, 3570, 0.8, taraf="Long", stop=2930, kaynak="Filtered"),
+                    3250, 3570, 0.8, taraf="Long", stop=2930,
+                    kaynak="Filtered", lifecycle="Watch"),
+        RadarSatiri("TAOUSDT", "1h", 270, "Elenen", "D", 20, "riskli",
+                    220, 200, 1.0, taraf="Short", stop=280,
+                    pattern="Deep Crab", kaynak="Late", lifecycle="Cancelled"),
     ]
     return r
 
@@ -58,17 +62,78 @@ def test_durum_json_yapisi():
     for k in ("zaman", "tarama_no", "ozet", "execution", "buckets",
               "lifecycle", "adaylar", "bildirimler", "pnl", "memory"):
         assert k in d, k
-    # aday akışı: Trade + Watch
+    # aday akışı: Trade + Watch (Elenen aday listesine girmez)
     assert len(d["adaylar"]) == 2
     assert d["adaylar"][0]["symbol"] == "BTCUSDT"     # Trade önce
     assert d["adaylar"][0]["kaynak"] == "Harmonik"
+    assert d["adaylar"][0]["skor_modeli"] == "BigE heuristic v1"
+    assert d["adaylar"][0]["kalite_kademe"] is None
+    assert d["adaylar"][0]["test_asamasi"] == 5
+    assert d["adaylar"][0]["asama_basi_kontrol"] == 4
+    assert d["adaylar"][0]["kalite_filtre_detayi"] == 4
+    assert d["adaylar"][0]["filtre_esleme"] == "undisclosed-by-archive"
+    assert "ana_tf_yapi" in d["adaylar"][0]
+    assert d["adaylar"][0]["ltf_yapi"] == "not-implemented"
     # bildirimler: kapanan 2 kayıt
     assert len(d["bildirimler"]) == 2
     # execution: kiraz EXECUTION (Trade var)
     assert d["execution"]["kiraz_durum"] == "EXECUTION MODE"
     assert d["execution"]["wallet"] >= 5000   # 5000 + R kazancı
+    assert d["execution"]["stop_tetik"] == "candle-close"
     # buckets gerçek motor isimleri
     assert "Price Action" in d["buckets"] and "Harmonik" in d["buckets"]
+    assert "parite_karakter" in d["memory"]
+    # Anlık radar lifecycle kalıcı Result Journal toplamına karışmaz.
+    assert d["lifecycle"]["Cancelled"] == 0
+    assert d["lifecycle_ozet"]["Cancelled"] == 0
+    assert d["radar_lifecycle"]["Cancelled"] == 1
+    assert d["result_journal_policy"]["radar_snapshot_included"] is False
+    assert d["result_journal_policy"]["late_detection"] == "undisclosed-by-archive"
+    assert d["result_journal_policy"]["late_auto_classification"] is False
+    assert d["htf_policy"]["archive_status"] == \
+        "implemented-in-testing-announced"
+    assert d["htf_policy"]["archive_confirmation_scope"] == "upper-and-lower-timeframes"
+    assert d["htf_policy"]["exact_tf_mapping"] == "undisclosed-by-archive"
+    assert d["htf_policy"]["ltf_implementation"] == "observation-only"
+    assert d["htf_policy"]["current_implementation"] == \
+        "upper-veto-plus-lower-observation"
+    assert d["dynamic_quality_policy"]["history"] == "persisted-on-change"
+    assert d["dynamic_quality_policy"]["check_count"] == "undisclosed-by-archive"
+    assert d["shelved_policy"]["criteria"] == "undisclosed-by-archive"
+    assert d["shelved_policy"]["automatic"] is False
+    assert d["shelved_policy"]["reason_required_for_audit"] is True
+    lp = d["terminal_lifecycle_policy"]
+    assert lp["No-Entry"]["meaning"] == "entry-zone-not-reached"
+    assert lp["No-Entry"]["automatic"] is False
+    assert lp["Expired"]["exact_archive_rule"] == "undisclosed-by-archive"
+    assert lp["stale_target_seen"]["not_no_entry"] is True
+    assert d["filtered_reason_policy"]["reason_taxonomy_origin"] == \
+        "BigE-audit-derived-from-radar-notes"
+    assert d["filtered_reason_policy"]["miraz_exact_reason_mapping"] == \
+        "undisclosed-by-archive"
+    assert "filtered_nedenleri" in d
+    assert d["filtered_etki"]["engellenen_stop"] is None
+    assert d["filtered_etki"]["claim_allowed"] is False
+    assert set(d["filtered_etki"]["kirilimlar"]) == {
+        "motor", "timeframe", "kalite", "neden"}
+    assert "filtered_takip" in d
+    assert "filtered_kalite_gecisleri" in d
+    assert "htf_denetim" in d
+    assert "ltf_gozlem" in d
+    assert d["ltf_gozlem"]["causality_claim"] == "not-made"
+    assert d["mtf_kalibrasyon"]["policy"]["state"] == "locked"
+    assert d["mtf_kalibrasyon"]["policy"]["minimum_verified_samples"] is None
+    assert d["mtf_kalibrasyon"]["policy"]["trade_effect"] == "none"
+    assert "pa_alt_turleri" in d
+    assert d["pa_alt_turleri"]["ob_label"] == "OB Proxy"
+    assert "pa_capraz" in d
+    assert d["pa_capraz"]["automatic_recommendation"] is False
+    assert d["htf_denetim"]["miraz_exact_mapping"] == "undisclosed-by-archive"
+    assert d["filtered_kalite_gecisleri"]["causality_claim"] == "not-made"
+    assert d["filtered_reason_policy"]["untracked_stop_claim"] == "forbidden"
+    assert d["result_journal_policy"]["evidence_tweet_ids"] == [
+        "2065351367544181110", "2059325292926148742"]
+    assert d["adaylar"][1]["lifecycle"] == "Watch"
     # JSON serileştirilebilir olmalı
     json.dumps(d)
 
@@ -204,6 +269,18 @@ def test_handler_serve_uctan_uca(monkeypatch):
             f"http://127.0.0.1:{s.port}/", timeout=3).read().decode("utf-8")
         assert "TERMINAL" in html and "api/durum" in html
         assert "api/grafik" in html and "CANLI GRAFİK" in html
+        assert "FILTER IMPACT" in html
+        assert "pi-filter-reasons" in html
+        assert "pi-filter-tracks" in html
+        assert "pi-filter-motor" in html and "pi-filter-timeframe" in html
+        assert "pi-filter-quality-transitions" in html
+        assert "HTF AUDIT" in html and "pi-htf-records" in html
+        assert "pi-ltf-outcomes" in html
+        assert "MTF CALIBRATION GATE" in html and "pi-mtf-gate" in html
+        assert "PRICE ACTION SUBTYPE AUDIT" in html
+        assert "pi-pa-subtypes" in html
+        assert "PA CROSS MATRIX" in html and "pi-pa-cross" in html
+        assert "KARŞI-OLGUSAL TAKİP YOK" in html
         # /api/grafik symbol'süz → 400
         try:
             urllib.request.urlopen(

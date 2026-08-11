@@ -65,10 +65,11 @@ def _onceki_state(cikti: Path, onceki_url: str | None) -> tuple[Defter, Portfoy]
 
 
 def _playback_trade_memory(defter: Defter, n: int = 30) -> list[dict]:
-    """Playback'e yalnız gerçekleşmiş TP/STOP işlemlerini ver."""
+    """Playback'e sonuçlanan trade ve kayıtlı harmonik iptalleri ver."""
     kapali = sorted(
         [k for k in defter.kayitlar
-         if k.durum in ("TP", "STOP") and k.kapanis_zaman],
+         if (k.durum in ("TP", "STOP") or
+             (k.pattern and k.durum == "Cancelled")) and k.kapanis_zaman],
         key=lambda k: k.kapanis_zaman,
         reverse=True,
     )[:n]
@@ -94,6 +95,28 @@ def _playback_trade_memory(defter: Defter, n: int = 30) -> list[dict]:
             "rr": k.rr,
             "acilis": k.acilis_zaman or "",
             "kapanis": k.kapanis_zaman or "",
+            "kalite_gecmisi": list(getattr(k, "kalite_gecmisi", [])),
+            "kalite_degisim_sayisi": max(
+                0, len(getattr(k, "kalite_gecmisi", [])) - 1),
+            "harmonik_detay": dict(getattr(k, "harmonik_detay", {}) or {}),
+            "harmonik_gecmisi": list(getattr(k, "harmonik_gecmisi", []) or []),
+            "entry_zaman": None,
+            "entry_zaman_durumu": "not-recorded-by-current-journal",
+            # Arşiv tweeti 2056806486127346084 playback'in yalnız sonucu değil,
+            # setup oluşumunu ve fiyatın izlediği süreci de göstermesini tarif eder.
+            # Defterde bulunmayan "kararsızlık" anlarını uydurmuyoruz; yalnız
+            # kaydedilmiş setup/sonuç zamanlarını ve gerçek mum akışını sunuyoruz.
+            "surec": [
+                {"asama": "SETUP OLUŞUMU", "zaman": k.acilis_zaman or ""},
+                {"asama": "SONUÇ", "zaman": k.kapanis_zaman or "",
+                 "durum": k.durum},
+            ],
+            "playback_kanit": {
+                "tweet_id": "2056806486127346084",
+                "kapsam": "setup-olusumu-fiyat-sureci-sonuc",
+                "kararsizlik_etiketi": "kayit-yoksa-uretilmez",
+                "harmonik_olay_politikasi": "recorded-events-only-no-backfill",
+            },
         })
     return out
 
@@ -198,7 +221,7 @@ def _kapanis_barini_bul(poz, onceki_durum: str, onceki_kontrol: str,
                 if doldu:
                     acik = True
             if acik:
-                stop_vurdu = float(row["high"]) >= poz.stop if short else float(row["low"]) <= poz.stop
+                stop_vurdu = float(row["close"]) > poz.stop if short else float(row["close"]) < poz.stop
                 tp_vurdu = float(row["low"]) <= poz.hedef if short else float(row["high"]) >= poz.hedef
                 if stop_vurdu or tp_vurdu:
                     return ts
@@ -307,8 +330,8 @@ _PLAYBACK_PATCH = r"""
       };
       pbBar=Math.max(5, Math.min(m.length, (setup>=0?setup:0)+1));
       pbGrafVeri._playbackSon = kapanis>=0 ? Math.min(m.length,kapanis+1) : m.length;
-      pbRender();
       pbHafizaGoster(t);
+      pbRender();
     }catch(e){ $("#pb-info").textContent="grafik yüklenemedi: "+(e.message||e); }
   };
 
@@ -383,6 +406,13 @@ def uret(cikti: Path, semboller: list[str], intervallar: list[str],
     durum["hazir"] = True
     durum["maliyet"] = _maliyet_ozeti(goz.defter, goz.portfoy)
     durum["trade_memory"] = _playback_trade_memory(goz.defter)
+    durum["playback_policy"] = {
+        "mode": "candle-by-candle",
+        "scope": "closed-tp-stop",
+        "evidence_tweet_ids": ["2056806486127346084"],
+        "shows": ["setup-formation", "price-process", "result"],
+        "undisclosed": ["indecision-detection-rule"],
+    }
     _yaz_json(cikti / "durum.json", durum)
     print(f"✅ durum.json — {durum['ozet']} · playback {len(durum['trade_memory'])} TP/STOP · "
           f"net {durum['maliyet']['net_r']:+.2f}R")

@@ -260,6 +260,16 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .hafiza-kart{background:var(--panel2);border:1px solid var(--kenar);border-radius:5px;
   padding:8px;font-size:11px;margin-bottom:5px}
 .hafiza-kart .hs{font-weight:700;color:var(--vurgu);margin-bottom:3px}
+.pb-quality-title{margin-top:10px;padding-top:8px;border-top:1px solid var(--kenar);
+  color:var(--vurgu);font-size:10px;font-weight:700;letter-spacing:.6px}
+.pb-quality-line{position:relative;margin-left:6px;padding:7px 0 7px 14px;
+  border-left:1px solid var(--kenar);font-size:10px;color:var(--soluk)}
+.pb-quality-line:before{content:"";position:absolute;left:-4px;top:11px;width:7px;
+  height:7px;border-radius:50%;background:var(--mavi)}
+.pb-quality-line.up:before{background:var(--yesil)}
+.pb-quality-line.down:before{background:var(--kirmizi)}
+.pb-quality-line .qmain{color:var(--metin);font-weight:700}
+.pb-quality-line .qtime{display:block;margin-top:2px;color:#527083}
 </style>
 </head>
 <body>
@@ -350,6 +360,76 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   <div class="panel pi-bg blok">
     <h2>RESULT ENGINES</h2>
     <div id="pi-engines" class="grid" style="grid-template-columns:repeat(8,1fr);gap:6px"></div>
+  </div>
+
+  <div class="panel pi-bg blok">
+    <h2>HARMONIC PATTERN AUDIT · CLAIM-LOCKED</h2>
+    <div id="pi-harmonic-patterns" class="grid g4" style="gap:6px"></div>
+    <div id="pi-harmonic-note" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+    <div style="margin-top:9px">
+      <h2>HARMONIC CROSS MATRIX · PRZ / C→D</h2>
+      <div id="pi-harmonic-cross" class="grid g4" style="gap:6px"></div>
+      <div id="pi-harmonic-cross-note" style="font-size:9px;color:var(--soluk);margin-top:5px"></div>
+    </div>
+  </div>
+
+  <div class="panel pi-bg blok">
+    <h2>PRICE ACTION SUBTYPE AUDIT · MULTI-LABEL</h2>
+    <div id="pi-pa-subtypes" class="grid g4" style="gap:6px"></div>
+    <div id="pi-pa-subtype-note" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+    <div style="margin-top:9px">
+      <h2>PA CROSS MATRIX · CLAIM-LOCKED</h2>
+      <div id="pi-pa-cross" class="grid g4" style="gap:6px"></div>
+      <div id="pi-pa-cross-note" style="font-size:9px;color:var(--soluk);margin-top:5px"></div>
+    </div>
+  </div>
+
+  <!-- FILTER IMPACT: hacim ve doğrulanmış karşı-olgusal sonuç ayrı tutulur -->
+  <div class="panel pi-bg blok">
+    <h2>FILTER IMPACT · DENETİMLİ ETKİ</h2>
+    <div class="grid g2" style="grid-template-columns:3fr 1fr;gap:8px">
+      <div id="pi-filter-reasons" class="grid g3" style="gap:6px"></div>
+      <div class="pi-engine" style="border-top-color:var(--sari)">
+        <div class="k">DOĞRULANMIŞ ENGELLENEN STOP</div>
+        <div class="v" id="pi-filter-stop">—</div>
+        <div class="wr pi-sub" id="pi-filter-coverage">KARŞI-OLGUSAL TAKİP YOK</div>
+      </div>
+    </div>
+    <div id="pi-filter-note" style="font-size:9px;color:var(--soluk);margin-top:7px"></div>
+    <div class="grid g4" style="gap:6px;margin-top:8px">
+      <div><h2>MOTOR</h2><div id="pi-filter-motor"></div></div>
+      <div><h2>TIMEFRAME</h2><div id="pi-filter-timeframe"></div></div>
+      <div><h2>KALİTE</h2><div id="pi-filter-kalite"></div></div>
+      <div><h2>NEDEN</h2><div id="pi-filter-neden"></div></div>
+    </div>
+    <div style="margin-top:9px">
+      <h2>KALİTE GEÇİŞ PLAYBACK</h2>
+      <div id="pi-filter-quality-transitions" class="grid g4" style="gap:6px"></div>
+      <div id="pi-filter-quality-note" style="font-size:9px;color:var(--soluk);margin-top:5px"></div>
+    </div>
+    <div id="pi-filter-tracks" class="grid g4" style="gap:6px;margin-top:8px"></div>
+  </div>
+
+  <!-- HTF AUDIT — BigE yorumunu Miraz'ın gizli eşlemesi gibi sunmaz -->
+  <div class="panel pi-bg blok">
+    <h2>HTF AUDIT · BIGE INTERPRETATION</h2>
+    <div class="grid g3" style="gap:8px">
+      <div id="pi-htf-summary" class="pi-engine"></div>
+      <div><h2>TF EŞLEME</h2><div id="pi-htf-mapping"></div></div>
+      <div><h2>MOTOR</h2><div id="pi-htf-engine"></div></div>
+    </div>
+    <div id="pi-htf-records" class="grid g4" style="gap:6px;margin-top:8px"></div>
+    <div id="pi-htf-note" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+    <div style="margin-top:9px">
+      <h2>LTF OBSERVATION · COUNTERFACTUAL DISTRIBUTION</h2>
+      <div id="pi-ltf-outcomes" class="grid g3" style="gap:6px"></div>
+      <div id="pi-ltf-note" style="font-size:9px;color:var(--soluk);margin-top:5px"></div>
+    </div>
+    <div class="pi-engine" style="margin-top:8px;border-top-color:var(--kirmizi)">
+      <div class="k">MTF CALIBRATION GATE</div>
+      <div class="v" id="pi-mtf-gate" style="font-size:16px;color:var(--kirmizi)">LOCKED</div>
+      <div class="wr pi-sub" id="pi-mtf-gate-note"></div>
+    </div>
   </div>
 
   <!-- PERFORMANCE CURVE + ENGINE HEATMAP + TERMINAL READOUT -->
@@ -621,10 +701,11 @@ function piEkran(d){
     {k:"PRICE ACTION", ...(_bkt(bkt,"Price Action")), c:"var(--yesil)"},
     {k:"HARMONİK", ...(_bkt(bkt,"Harmonik")), c:"var(--mor)"},
     {k:"LATE", ...(_bkt(bkt,"Late")), c:"var(--sari)"},
-    {k:"RAFA KALKAN", tp:0, sl:0, extra:"0", c:"var(--mavi)"},
-    {k:"NO-ENTRY", tp:lc["No-Entry"]||0, sl:0, extra:"0", c:"var(--soluk)"},
-    {k:"EXPIRED", tp:lc["Expired"]||0, sl:0, extra:"0", c:"var(--soluk)"},
-    {k:"CANCELLED", tp:lc["Cancelled"]||0, sl:0, extra:"0", c:"#444"},
+    {k:"FİLTRELENDİ", tp:lc["Filtered"]||0, sl:0, extra:"", c:"var(--sari)"},
+    {k:"RAFA KALKTI", tp:lc["Shelved"]||0, sl:0, extra:"", c:"var(--mavi)"},
+    {k:"ENTRY OLMADI", tp:lc["No-Entry"]||0, sl:0, extra:"", c:"var(--soluk)"},
+    {k:"EXPIRED", tp:lc["Expired"]||0, sl:0, extra:"", c:"var(--soluk)"},
+    {k:"CANCELLED", tp:lc["Cancelled"]||0, sl:0, extra:"", c:"#444"},
   ];
   $("#pi-engines").innerHTML = LC_DISPLAY.map(e=>{
     const tot=e.tp+(e.sl||0), wr=tot>0?Math.round(100*e.tp/tot):0;
@@ -636,6 +717,178 @@ function piEkran(d){
       <div class="pbar"><div class="pbar-fill" style="width:${wr}%;background:${e.c}"></div></div>
     </div>`;
   }).join("");
+
+  const hp=d.harmonik_patternler||{patternler:[],harmonik_setup_sayisi:0,
+    detayli_snapshot_sayisi:0,minimum_sample:null};
+  $("#pi-harmonic-patterns").innerHTML=(hp.patternler||[]).map(s=>{
+    const journal=s.journal_n
+      ? `J ${s.journal_tp}TP/${s.journal_stop}STOP · WR %${s.journal_wr}`
+      : `JOURNAL —`;
+    const cf=s.counterfactual_n
+      ? `CF ${s.counterfactual_tp}TP/${s.counterfactual_stop}STOP`
+      : `CF —`;
+    const q=s.motor_kalite_ortalama===null?"KALİTE —":`MOTOR Q ${s.motor_kalite_ortalama}`;
+    return `<div class="pi-engine" style="border-top-color:var(--mor)">
+      <div class="k">${s.pattern}</div><div class="v">${s.setup_sayisi}</div>
+      <div class="wr pi-sub">${journal}<br>${cf} · ${q}<br>C→D İPTAL ${s.cancelled_cd}</div>
+    </div>`;
+  }).join("") || `<div class="readout">HARMONİK PATTERN VERİSİ YOK</div>`;
+  $("#pi-harmonic-note").textContent=
+    `${hp.detayli_snapshot_sayisi}/${hp.harmonik_setup_sayisi} ayrıntılı snapshot · eski kayıtlar tahminle doldurulmaz · oranlar BigE motoruna aittir · minimum örnek ${hp.minimum_sample===null?"AÇIKLANMADI":hp.minimum_sample} · öneri kilitli`;
+  const hx=d.harmonik_capraz||{hucreler:[],hucre_sayisi:0,minimum_sample:null};
+  $("#pi-harmonic-cross").innerHTML=(hx.hucreler||[]).slice(0,24).map(c=>{
+    const journal=c.journal_n?`${c.journal_tp}TP/${c.journal_stop}STOP`:`J —`;
+    const cf=c.counterfactual_n
+      ? `CF ${c.counterfactual_tp}TP/${c.counterfactual_stop}STOP`:`CF —`;
+    return `<div class="pi-engine" style="border-top-color:var(--mor)">
+      <div class="k">${c.pattern} · ${c.boyut}</div>
+      <div class="v" style="font-size:14px">${c.deger}</div>
+      <div class="wr pi-sub">N ${c.setup_sayisi} · ${journal} · ${cf}<br>%${c.counterfactual_kapsama_yuzde} CF KAPSAM · 🔒 ${c.claim_state}</div>
+    </div>`;
+  }).join("") || `<div class="readout">HARMONİK ÇAPRAZ VERİSİ YOK</div>`;
+  $("#pi-harmonic-cross-note").textContent=
+    `${hx.hucre_sayisi} hücre · TF/yön/Journal kalite/ham motor kalite/PRZ/C→D · minimum örnek ${hx.minimum_sample===null?"AÇIKLANMADI":hx.minimum_sample} · otomatik öneri kapalı`;
+
+  const pa=d.pa_alt_turleri||{turler:[],pa_setup_sayisi:0,
+    etiketli_setup_sayisi:0,etiket_kapsama_yuzde:0};
+  $("#pi-pa-subtypes").innerHTML=(pa.turler||[]).map(s=>{
+    const journal=s.journal_n
+      ? `J ${s.journal_tp}TP/${s.journal_stop}STOP · WR %${s.journal_wr}`
+      : `JOURNAL —`;
+    const cf=s.counterfactual_n
+      ? `CF ${s.counterfactual_tp}TP/${s.counterfactual_stop}STOP · %${s.counterfactual_kapsama_yuzde} kapsam`
+      : `CF — · ${s.filtered_n} filtered`;
+    return `<div class="pi-engine" style="border-top-color:var(--yesil)">
+      <div class="k">${s.tur}</div><div class="v">${s.setup_sayisi}</div>
+      <div class="wr pi-sub">${journal}<br>${cf}</div>
+    </div>`;
+  }).join("") || `<div class="readout">PA ALT TÜR VERİSİ YOK</div>`;
+  $("#pi-pa-subtype-note").textContent=
+    `${pa.etiketli_setup_sayisi}/${pa.pa_setup_sayisi} PA setup etiketli · %${pa.etiket_kapsama_yuzde} kapsam · satırlar çok-etiketlidir ve toplanamaz · OB yalnız BigE zone proxy'dir`;
+  const px=d.pa_capraz||{hucreler:[],hucre_sayisi:0,minimum_sample:null};
+  $("#pi-pa-cross").innerHTML=(px.hucreler||[]).slice(0,24).map(c=>{
+    const journal=c.journal_n?`${c.journal_tp}TP/${c.journal_stop}STOP`:"J —";
+    const cf=c.counterfactual_n
+      ? `CF ${c.counterfactual_tp}TP/${c.counterfactual_stop}STOP`
+      : `CF —`;
+    return `<div class="pi-engine" style="border-top-color:var(--sari)">
+      <div class="k">${c.tur} · ${c.boyut}</div>
+      <div class="v" style="font-size:14px">${c.deger}</div>
+      <div class="wr pi-sub">N ${c.setup_sayisi} · ${journal} · ${cf}<br>%${c.counterfactual_kapsama_yuzde} CF KAPSAM · 🔒 ${c.claim_state}</div>
+    </div>`;
+  }).join("") || `<div class="readout">ÇAPRAZ HÜCRE VERİSİ YOK</div>`;
+  $("#pi-pa-cross-note").textContent=
+    `${px.hucre_sayisi} hücre · minimum örnek ${px.minimum_sample===null?"AÇIKLANMADI":px.minimum_sample} · eksik kapsam ve açıklanmamış eşik nedeniyle otomatik öneri kapalı`;
+
+  // Filter Impact — arşivde etki raporu kanıtlıdır; canlı STOP iddiası ancak
+  // bu setup'ın sonraki TP/STOP sonucu ayrıca doğrulanmışsa gösterilir.
+  const fi = d.filtered_etki||{setup_sayisi:0,nedenler:{},dogrulanmis_n:0,
+    engellenen_stop:null,kapsama_yuzde:0,durum:"not-tracked"};
+  const reasonLabels = {
+    "htf-conflict":"HTF ÇATIŞMASI", "quality-weakened":"KALİTE ZAYIFLADI",
+    "stale-zone":"BAYAT BÖLGE", "structural-invalidity":"YAPI BOZULDU",
+    "filtered-other":"DİĞER", "legacy-unknown":"ESKİ / BİLİNMİYOR"
+  };
+  const reasonRows = Object.entries(fi.nedenler||{}).sort((a,b)=>b[1]-a[1]);
+  $("#pi-filter-reasons").innerHTML = reasonRows.length ? reasonRows.map(([k,n])=>`
+    <div class="pi-engine" style="border-top-color:var(--mavi)">
+      <div class="k">${reasonLabels[k]||k}</div><div class="v">${n}</div>
+      <div class="wr pi-sub">SETUP</div>
+    </div>`).join("") : `<div class="readout">HENÜZ FİLTRELENMİŞ SETUP YOK</div>`;
+  $("#pi-filter-stop").textContent = fi.engellenen_stop===null ? "—" : fi.engellenen_stop;
+  $("#pi-filter-coverage").textContent = fi.claim_allowed
+    ? `${fi.dogrulanmis_n}/${fi.setup_sayisi} İZLENDİ · %${fi.kapsama_yuzde}`
+    : `${fi.karsi_olgusal_acik||0} AÇIK · ${fi.karsi_olgusal_bekliyor||0} BEKLİYOR`;
+  $("#pi-filter-note").textContent = fi.claim_allowed
+    ? `Yalnız ileri doğru izlenip doğrulanmış ${fi.dogrulanmis_n} kayıt rapora dahil.`
+    : `${fi.setup_sayisi||0} filtrelenmiş setup izleniyor; henüz TP/STOP doğrulanmadığı için korunan STOP sayısı ileri sürülmüyor.`;
+  const kirilimRender = (id, rows) => {
+    $(id).innerHTML = (rows||[]).map(r=>{
+      const sonuc = r.claim_allowed
+        ? `${r.engellenen_stop} STOP · ${r.olasi_tp} TP · %${r.kapsama_yuzde} kapsam`
+        : `STOP — · ${r.dogrulanmis_n}/${r.setup_sayisi} doğrulandı`;
+      return `<div class="pi-curve" style="padding:6px 0">
+        <span class="lbl">${reasonLabels[r.ad]||r.ad}</span>
+        <span class="val" style="color:var(--sari)">${r.setup_sayisi}</span>
+        <div class="sub">${sonuc}</div>
+      </div>`;
+    }).join("") || `<div class="readout">VERİ YOK</div>`;
+  };
+  const fk = fi.kirilimlar||{};
+  kirilimRender("#pi-filter-motor", fk.motor);
+  kirilimRender("#pi-filter-timeframe", fk.timeframe);
+  kirilimRender("#pi-filter-kalite", fk.kalite);
+  kirilimRender("#pi-filter-neden", fk.neden);
+  const kg = d.filtered_kalite_gecisleri||{gecisler:[],gecisli_setup_sayisi:0,
+    filtered_setup_sayisi:0,gecmis_kapsama_yuzde:0};
+  $("#pi-filter-quality-transitions").innerHTML = (kg.gecisler||[]).map(g=>{
+    const renk=g.yon==="zayifladi"?"var(--kirmizi)":
+      g.yon==="guclendi"?"var(--yesil)":"var(--soluk)";
+    const yonLabel=g.yon==="zayifladi"?"ZAYIFLAMA":
+      g.yon==="guclendi"?"GÜÇLENME":"SINIFLANDIRILMADI";
+    const sonuc=g.claim_allowed
+      ? `${g.engellenen_stop} STOP · ${g.olasi_tp} TP · %${g.kapsama_yuzde} kapsam`
+      : `SONUÇ — · 0/${g.setup_sayisi} doğrulandı`;
+    return `<div class="pi-engine" style="border-top-color:${renk}">
+      <div class="k">${yonLabel}</div>
+      <div class="v" style="font-size:16px;color:${renk}">${g.gecis}</div>
+      <div class="wr pi-sub">${g.setup_sayisi} SETUP · ${sonuc}</div>
+    </div>`;
+  }).join("") || `<div class="readout">KALİTE GEÇİŞ VERİSİ YOK</div>`;
+  $("#pi-filter-quality-note").textContent =
+    `${kg.gecisli_setup_sayisi}/${kg.filtered_setup_sayisi} setup'ta kalıcı geçiş geçmişi var · %${kg.gecmis_kapsama_yuzde} kapsam · nedensellik iddiası yok`;
+  const takip = d.filtered_takip||[];
+  $("#pi-filter-tracks").innerHTML = takip.slice(0,8).map(k=>{
+    const renk=k.durum==="TP"?"var(--yesil)":k.durum==="STOP"?"var(--kirmizi)":
+      k.durum==="Açık"?"var(--mavi)":"var(--sari)";
+    return `<div class="pi-engine" style="border-top-color:${renk}">
+      <div class="k">${k.sembol} · ${k.interval} · ${k.taraf}</div>
+      <div class="v" style="font-size:14px;color:${renk}">${k.durum}</div>
+      <div class="wr pi-sub">${reasonLabels[k.neden]||k.neden} · JOURNAL 0R</div>
+    </div>`;
+  }).join("");
+
+  // HTF Audit: mevcut üst-TF BigE uygulamasını ve eksik LTF katmanını açıklar.
+  const ha=d.htf_denetim||{setup_sayisi:0,dogrulanmis_n:0,kapsama_yuzde:0,
+    kirilimlar:{},kayitlar:[],current_implementation:"upper-only",
+    ltf_status:"not-implemented"};
+  $("#pi-htf-summary").innerHTML=`<div class="k">HTF ÇATIŞMASI</div>
+    <div class="v">${ha.setup_sayisi}</div>
+    <div class="wr pi-sub">${ha.dogrulanmis_n} DOĞRULANDI · %${ha.kapsama_yuzde} KAPSAM</div>`;
+  kirilimRender("#pi-htf-mapping", (ha.kirilimlar||{}).tf_esleme);
+  kirilimRender("#pi-htf-engine", (ha.kirilimlar||{}).motor);
+  $("#pi-htf-records").innerHTML=(ha.kayitlar||[]).slice(0,8).map(k=>`
+    <div class="pi-engine" style="border-top-color:var(--mor)">
+      <div class="k">${k.sembol} · ${k.interval}→${k.htf_tf}</div>
+      <div class="v" style="font-size:13px">${k.ana_tf_yapi} / ${k.htf_yapi}</div>
+      <div class="wr pi-sub">LTF ${k.ltf_tf}: ${k.ltf_yapi} / ${k.ltf_onay} · ${k.motor} · ${k.kalite} · ${(k.kalite_gecisleri||[]).join(", ")||"GEÇİŞ YOK"} · ${k.karsi_olgusal_sonuc||k.karsi_olgusal_durum}</div>
+    </div>`).join("");
+  $("#pi-htf-note").textContent=
+    `Üst TF eşlemesi BigE yorumudur · LTF: ${ha.ltf_status} · Miraz kesin eşlemesi açıklanmadı · nedensellik iddiası yok`;
+  const lo=d.ltf_gozlem||{siniflar:[],filtered_setup_sayisi:0,
+    gozlemli_setup_sayisi:0,gozlem_kapsama_yuzde:0,dogrulanmis_n:0,
+    sonuc_kapsama_yuzde:0};
+  const ltfLabels={"trend-devam":"TREND DEVAM","zayiflama":"ZAYIFLAMA","notr":"NÖTR"};
+  $("#pi-ltf-outcomes").innerHTML=(lo.siniflar||[]).map(s=>{
+    const renk=s.ad==="trend-devam"?"var(--yesil)":
+      s.ad==="zayiflama"?"var(--kirmizi)":"var(--soluk)";
+    const sonuc=s.claim_allowed
+      ? `${s.counterfactual_tp} TP · ${s.counterfactual_stop} STOP · %${s.sonuc_kapsama_yuzde} sonuç kapsamı`
+      : `TP/STOP — · 0/${s.setup_sayisi} doğrulandı`;
+    return `<div class="pi-engine" style="border-top-color:${renk}">
+      <div class="k">${ltfLabels[s.ad]||s.ad}</div>
+      <div class="v" style="color:${renk}">${s.setup_sayisi}</div>
+      <div class="wr pi-sub">${sonuc}</div>
+    </div>`;
+  }).join("") || `<div class="readout">LTF GÖZLEM VERİSİ YOK</div>`;
+  $("#pi-ltf-note").textContent=
+    `${lo.gozlemli_setup_sayisi}/${lo.filtered_setup_sayisi} setup'ta LTF snapshot · %${lo.gozlem_kapsama_yuzde} gözlem kapsamı · ${lo.dogrulanmis_n} sonuç · bu dağılım WR değildir ve karar etkisi yoktur`;
+  const mk=d.mtf_kalibrasyon||{policy:{state:"locked",minimum_verified_samples:null,
+    trade_effect:"none",unlock_requires:[]},ltf_siniflari:[]};
+  const mkp=mk.policy||{};
+  $("#pi-mtf-gate").textContent=(mkp.state||"locked").toUpperCase();
+  $("#pi-mtf-gate-note").textContent=
+    `AUTO ${mkp.automatic_activation?"ON":"OFF"} · MIN ÖRNEK ${mkp.minimum_verified_samples===null?"AÇIKLANMADI":mkp.minimum_verified_samples} · TRADE ETKİSİ ${String(mkp.trade_effect||"none").toUpperCase()} · ${(mkp.unlock_requires||[]).join(" + ")}`;
 
   // Performance Curve
   const curveRows = [
@@ -904,7 +1157,7 @@ function memoryEkran(d){
       <div class="v">${x.tp} <span style="color:var(--soluk);font-size:14px">/ ${x.stop}</span></div>
       <div class="s" style="color:${ec}">${x.toplam?"%"+x.wr+" win rate":""}</div>
     </div>`;}).join("");
-  $("#m-parite").innerHTML = tabloPerf(m.parite,"Parite");
+  $("#m-parite").innerHTML = tabloPariteKarakter(m.parite_karakter||m.parite);
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");
   const pnl = d.pnl||{};
   $("#m-pnl").innerHTML = `
@@ -989,6 +1242,16 @@ function tabloPerf(veri,adsut){
       <td class="num ${wrCls(e.wr)}">%${e.wr}</td>
       <td class="num">${e.tp}/${e.stop}</td>
       <td class="num ${rCls(e.r)}">${e.r>=0?"+":""}${e.r.toFixed(1)}</td></tr>`).join("")+`</table>`;
+}
+
+function tabloPariteKarakter(veri){
+  const rows=Object.entries(veri||{}).sort((a,b)=>(b[1].wr||0)-(a[1].wr||0)).slice(0,10);
+  if(!rows.length) return `<div class="bos">PA karakter verisi yok</div>`;
+  return `<table><tr><th>PA Parite</th><th class="num">WR</th><th class="num">TP/SL</th><th class="num">Örnek</th></tr>`+
+    rows.map(([ad,e])=>`<tr><td>${ad}</td>
+      <td class="num ${wrCls(e.wr)}">%${e.wr}</td>
+      <td class="num">${e.tp}/${e.stop}</td>
+      <td class="num" title="Miraz skor formülü açıklanmadı">${e.n||0} · ${e.ornek_durumu==="mature"?"OLGUN":"ÖĞRENİYOR"}</td></tr>`).join("")+`</table>`;
 }
 
 // ── KONSEPT RAY ──
@@ -1330,8 +1593,8 @@ async function pbSec(idx){
   try{
     pbGrafVeri=await(await fetch(API_GRAFIK(t.sembol,t.interval))).json();
     pbBar=Math.max(10,Math.floor((pbGrafVeri.mumlar||[]).length*0.5));
-    pbRender();
     pbHafizaGoster(t);
+    pbRender();
   }catch(e){ $("#pb-info").textContent="grafik yüklenemedi"; }
 }
 
@@ -1341,7 +1604,15 @@ function pbRender(){
   const parcaD={...pbGrafVeri, mumlar:m.slice(0,pbBar)};
   cizGrafik(parcaD,"pb-grafik");
   const t=pbTrades[pbSecili]||{};
-  $("#pb-info").textContent=`Bar ${pbBar}/${m.length} · ${(m[pbBar-1]&&new Date(m[pbBar-1][0]*1000).toLocaleString("tr-TR"))||""}`;
+  const simdi=(m[pbBar-1]?.[0]||0)*1000;
+  const acilis=Date.parse(t.acilis||"");
+  const kapanis=Date.parse(t.kapanis||"");
+  const asama=Number.isFinite(kapanis)&&simdi>=kapanis
+    ? `SONUÇ · ${t.durum||""}`
+    : (Number.isFinite(acilis)&&simdi<=acilis ? "SETUP OLUŞUMU" : "FİYAT SÜRECİ");
+  $("#pb-info").textContent=`${asama} · Bar ${pbBar}/${m.length} · ${(m[pbBar-1]&&new Date(simdi).toLocaleString("tr-TR"))||""}`;
+  pbKaliteCiz(t, simdi);
+  pbHarmonikCiz(t, simdi);
 }
 
 function pbAdim(n){
@@ -1371,7 +1642,53 @@ function pbHafizaGoster(t){
       <div>Durum: <b class="${t.durum==="TP"?"pos":"neg"}">${t.durum}</b></div>
       <div>Entry: <b>${fmt(t.giris)}</b></div>
       <div>Sonuç: <b class="${rCls(t.r_sonuc||0)}">${sgn(t.r_sonuc||0)}</b></div>
+      <div style="margin-top:8px;color:var(--soluk)">SETUP OLUŞUMU → FİYAT SÜRECİ → SONUÇ</div>
+      <div class="pb-quality-title">KALİTE ZAMAN ÇİZELGESİ · ${t.kalite_degisim_sayisi||0} DEĞİŞİM</div>
+      <div id="pb-quality-lines"></div>
+      ${t.pattern?`<div class="pb-quality-title">HARMONİK / PRZ OLAYLARI</div>
+      <div id="pb-harmonic-lines"></div>
+      <div style="margin-top:3px;color:var(--soluk);font-size:10px">ENTRY ZAMANI: ${t.entry_zaman||"JOURNAL'DA KAYITLI DEĞİL"}</div>`:""}
+      <div style="margin-top:4px;color:var(--soluk);font-size:10px">Kanıt: tweet ${t.playback_kanit?.tweet_id||"2056806486127346084"} · Arşivde açıklanmayan kararsızlık kuralı üretilmez.</div>
     </div>`;
+}
+
+function pbKaliteCiz(t, simdi){
+  const el=document.getElementById("pb-quality-lines");
+  if(!el) return;
+  const tum=(t.kalite_gecmisi||[]).filter(x=>{
+    const z=Date.parse(x.zaman||"");
+    return !Number.isFinite(simdi)||!Number.isFinite(z)||z<=simdi;
+  });
+  if(!tum.length){el.innerHTML=`<div class="pb-quality-line">kayıtlı değişim yok</div>`;return;}
+  el.innerHTML=tum.map((x,i)=>{
+    const once=i?tum[i-1]:null;
+    const fark=once?(+x.guven)-(+once.guven):0;
+    const cls=fark>0?"up":(fark<0?"down":"");
+    const hareket=i===0?"İLK PUAN":(fark>0?`GÜÇLENDİ +${fark}`:(fark<0?`ZAYIFLADI ${fark}`:"DEĞİŞMEDİ"));
+    const zaman=x.zaman?new Date(x.zaman).toLocaleString("tr-TR"):"";
+    return `<div class="pb-quality-line ${cls}"><span class="qmain">${x.kalite} · ${Math.round(+x.guven||0)} PUAN</span><br>${hareket} · ${x.kategori||"—"} · ${x.lifecycle||"—"}<span class="qtime">${zaman}</span></div>`;
+  }).join("");
+}
+
+function pbHarmonikCiz(t, simdi){
+  const el=document.getElementById("pb-harmonic-lines");
+  if(!el) return;
+  const olaylar=(t.harmonik_gecmisi||[]).filter(x=>{
+    const z=Date.parse(x.zaman||"");
+    return !Number.isFinite(simdi)||!Number.isFinite(z)||z<=simdi;
+  });
+  if(!olaylar.length){
+    el.innerHTML=`<div class="pb-quality-line">legacy / kayıtlı harmonik olay yok</div>`;
+    return;
+  }
+  el.innerHTML=olaylar.map(x=>{
+    const z=x.zaman?new Date(x.zaman).toLocaleString("tr-TR"):"";
+    const pat=x.pattern||x.onceki_pattern||"—";
+    const yeni=x.yeni_pattern===null?"KAYBOLDU":(x.yeni_pattern||"");
+    const prz=x.prz?.merkez!==undefined?` · PRZ ${x.prz.merkez}`:"";
+    const q=x.motor_kalite!==null&&x.motor_kalite!==undefined?` · Q ${x.motor_kalite}`:"";
+    return `<div class="pb-quality-line"><span class="qmain">${x.olay} · ${pat}</span>${yeni?` → ${yeni}`:""}${prz}${q}<span class="qtime">${z}</span></div>`;
+  }).join("");
 }
 
 // ── POLLING ──

@@ -131,6 +131,7 @@ class Senaryo:
     mavi_daire: float | None = None       # harmonik D ∩ destek = en yüksek güven
     mavi_daire_idx: int | None = None     # D barı (grafikte daire konumu)
     mavi_daire_isim: str | None = None    # harmonik pattern adı
+    harmonik_detay: dict | None = None     # tespit anındaki XABCD/oran/kalite snapshot'ı
     pamonic: bool = False                 # harmonik D ∩ GÜÇLÜ PA kutusu (PaMonic)
     ara_hedef: float | None = None        # 🟣 mor çizgi — ilk kâr-alma seviyesi
     mtf_yapi: str | None = None           # üst zaman dilimi yapısı
@@ -228,6 +229,7 @@ def senaryo_uret(
 
     # Mavi daire: destek bölgesinde tamamlanan bullish harmonik D = en yüksek güven
     mavi_daire = mavi_daire_idx = mavi_daire_isim = None
+    harmonik_detay = None
     pamonic = False
     if bolge_alt is not None:
         md = _mavi_daire_bul(df, n, bolge_alt, bolge_ust)
@@ -235,6 +237,13 @@ def senaryo_uret(
             mavi_daire = round(md.D, 4)
             mavi_daire_idx = md.D_idx
             mavi_daire_isim = md.isim
+            harmonik_detay = {
+                "yon": md.yon, "X": md.X, "A": md.A, "B": md.B,
+                "C": md.C, "D": md.D, "entry": md.entry, "sl": md.sl,
+                "tp1": md.tp1, "tp2": md.tp2, "rr": md.rr,
+                "oranlar": dict(md.oranlar), "motor_kalite": md.kalite,
+                "prz": {"merkez": md.D, "kaynak": "completed-D"},
+            }
             # PaMonic: harmonik D, GÜÇLÜ bir PA destek kutusu (OrderBlock) ile
             # çakışıyorsa (her ikisi de kaliteli) — nadir ama güçlü birleşim.
             if destek_kutu is not None and getattr(destek_kutu, "guc", 0) >= 70 \
@@ -305,6 +314,7 @@ def senaryo_uret(
         trend=trend_cizgi, gelis_hacim=hacim_orani,
         kirilma_riski=kirilma_riski, mavi_daire=mavi_daire,
         mavi_daire_idx=mavi_daire_idx, mavi_daire_isim=mavi_daire_isim,
+        harmonik_detay=harmonik_detay,
         pamonic=pamonic,
         ara_hedef=ara_hedef, mtf_yapi=mtf, goreceli_guc=gguc,
         market_yapisi=myapi, flama=flama, ikili=ikili, fib=fib,

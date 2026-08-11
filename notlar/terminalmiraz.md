@@ -314,14 +314,16 @@ kullanır. Canlı: BNB short girişi band kenarı (629.6) yerine **D=632.94**'e 
 @tradermiraz'ın terminalMiraz tweetlerini (Xquik ile çekildi) okuyup 5 fark
 kapatıldı:
 
-1. **Intraday zaman dilimleri (M15/M30/H1/H2).** Tweet: *"yaklaşık 75 parite;
-   M15, M30, H1 ve H2 zaman dilimlerinde taranıyor"*. MEXC 2h sunmadığı için
-   `veri.py` 1h→2h **resample** ediyor (`_TUREV`). `radar.TERMINALMIRAZ_TF` +
-   tüm CLI'larda `--mtf` bayrağı. HTF eşlemesi: 15m→1h, 30m→2h, 1h→4h, 2h→4h.
+1. **Zaman dilimleri.** Tweet `2064005426710986769`, 118 enstrümanın aynı anda
+   **4 farklı TF** ile tarandığını kanıtlıyor fakat TF adlarını vermiyor. Arşiv
+   ekranlarında 15m/30m/1h/2h/4h; geniş scanner'da ayrıca 8h/12h/1d/3d/1w
+   gözleniyor. `TERMINALMIRAZ_TF` içindeki beşli bu nedenle BigE canlı tarama
+   seçimi; açıklanmış özel Miraz TF tablosu değildir. HTF eşlemesi de BigE'nin
+   uygulanmış yorumudur.
 2. **Late (geç kalmış) filtresi.** Tweet: *"Geç kalmış setuplarda 12 setup
    filtrelendi, 9 stop'tan korunuldu"*. `_gec_kalmis`: fiyat giriş→hedef
-   yolunun ≥%50'sini katettiyse Trade/Watch → **Elenen** ("Late"). Hareketin
-   çoğu gittiyse kovalamayı engeller.
+   yolunun ≥%50'sini katettiyse Trade/Watch → karar katmanında **Elenen**;
+   lifecycle nedeni ayrıca **Late** olarak korunur. Eşik BigE yorumudur.
 3. **Expired filtresi.** Bekliyor bir limit emir `max_bekleme` (vars. 24) bar
    içinde dolmazsa → **Expired** (`portfoy.guncelle`). Giriş gelmeyen emirler
    otomatik iptal.
@@ -329,8 +331,8 @@ kapatıldı:
    neden Price Action aramıyoruz? Gartley D'de OrderBlock..."*. `senaryo.pamonic`
    = harmonik D, **güçlü** bir PA destek kutusuyla (güç≥70, harmonik kalite≥60)
    çakışınca True → karar motoruna **+15 güven**, kartta 🔷 PaMonic rozeti.
-5. **3 risk modu.** Tweet: *"Aşırı Güvenli / Dengeli / Tamamen Riskli... şu an
-   1:1 RR"*. `RISK_MODLARI` = güvenli 1R · dengeli 1.5R · riskli 2R; tüm
+5. **3 risk modu.** Tweet `2062336764656677002` doğrudan hedefleri verir:
+   `RISK_MODLARI` = güvenli 1R · dengeli 2R · riskli 3.5R; tüm
    CLI'larda `--risk-mod`. `mesafe_hedef(rr_hedef)` ve short hedefi buna uyar.
 
 Ayrıca tweet verileri: terminalMiraz **92 parite + 26 hisse = 118 enstrüman ×
@@ -453,6 +455,10 @@ Mode. Risk standardı **R = 25$ (last 10$)**, Binance **TestFutures** 5000$.
 
 ### Gerçek RESULT JOURNAL kategorileri (ekran t3 + tweet [14])
 
+Kalite motorunun kanıt/uygulama sınırı için `notlar/kalite_motoru_kanit.md`.
+Scanner Memory/parite karakter sınırı için `notlar/parite_hafiza_kanit.md`.
+Entry/stop/invalidasyon kanıtı için `notlar/entry_stop_invalidasyon_kanit.md`.
+
 Strateji motorları (her biri ayrı WR): **Price Action · Harmonik · Late ·
 TradeFi PA · TradeFi Harmonik**. (Bizde TradeFi=hisse verisi yok → 0.)
 
@@ -504,7 +510,8 @@ Butterfly / Deep Crab**. Highest RR = 1R → TP=1R doğrulandı (yine).
 - **`kaynak` etiketleri gerçek isimlere çevrildi:** `Scanner` → **Price Action**;
   `Harmonik`, `Late` korunur. Bucket WR'leri Price Action / Harmonik / Late.
 - **Lifecycle sayaçları:** `Defter.ozet()` artık No-Entry / Cancelled / Shelved /
-  Expired / Filtered'ı ayrı sayar (RESULT JOURNAL satırı).
+  Expired / Filtered'ı ayrı sayar. Radar kararı ve lifecycle nedeni ayrıldı;
+  Late/Cancelled/No-Entry/Filtered API ve panelde kaybolmadan gösterilir.
 - **Dashboard execution başlığı:** durum çubuğu (Kiraz / SQL Memory) + Wallet
   Balance / Aktif Pozisyon / Bekleyen Emir / Günlük PNL / **Open Risk %** +
   **KIRAZ STATUS** (gerçek WATCHLIST/EXECUTION semantiğiyle).

@@ -21,14 +21,16 @@ from backtest.sagla import sagla_kayit, SaglaSonuc
 # ---------------------------------------------------------------------------
 
 def _df(rows: list[tuple]) -> pd.DataFrame:
-    """(low, high) listesinden basit OHLCV DataFrame üretir (UTC, saatlik)."""
+    """(low, high) veya (low, high, close) OHLCV verisi üretir."""
     idx = pd.date_range("2026-01-01 00:00", periods=len(rows), freq="1h", tz="UTC")
-    lows, highs = zip(*rows)
+    lows = [r[0] for r in rows]
+    highs = [r[1] for r in rows]
+    closes = [r[2] if len(r) > 2 else (r[0] + r[1]) / 2 for r in rows]
     return pd.DataFrame({
-        "open":  [(l + h) / 2 for l, h in rows],
+        "open":  closes,
         "high":  list(highs),
         "low":   list(lows),
-        "close": [(l + h) / 2 for l, h in rows],
+        "close": closes,
         "volume": [1.0] * len(rows),
     }, index=idx)
 
@@ -68,7 +70,7 @@ def test_long_stop_dogru():
     mock_df = _df([
         (99, 101),    # bar 0: giriş dolar
         (97, 103),    # bar 1: açık
-        (93, 99),     # bar 2: low=93≤95 → STOP ✅
+        (93, 99, 94), # bar 2: close=94<95 → STOP ✅
         (91, 97),     # bar 3: (erişilmemeli)
     ])
     with patch("backtest.sagla._ohlcv", return_value=mock_df):
@@ -109,7 +111,7 @@ def test_short_stop_dogru():
     """Short: giriş dolar (bar 0), stop yukarıda (bar 1: high≥stop=105)."""
     mock_df = _df([
         (99, 101),    # giriş dolar
-        (100, 106),   # high=106≥105 → STOP ✅
+        (100, 106, 105.5), # close=105.5>105 → STOP ✅
     ])
     with patch("backtest.sagla._ohlcv", return_value=mock_df):
         s = sagla_kayit(_kayit(taraf="Short", giris=100, stop=105, hedef=90,
@@ -129,17 +131,16 @@ def test_giris_gelmiyor_expired():
     assert s.eslesme is True
 
 
-def test_ayni_bar_stop_ve_tp_muhafazakar():
-    """Aynı barda hem stop hem TP → muhafazakâr STOP."""
+def test_ayni_bar_stop_fitili_ve_tp_kapanis_icerideyse_tp():
+    """Stop fitili ama kapanış içerideyse hedef teması TP."""
     mock_df = _df([
         (99, 101),    # giriş dolar
         (91, 115),    # low≤stop=95 VE high≥hedef=110 → STOP (muhafazakâr)
     ])
     with patch("backtest.sagla._ohlcv", return_value=mock_df):
         s = sagla_kayit(_kayit(taraf="Long", giris=100, stop=95, hedef=110,
-                               durum="STOP"))
-    assert s.gercek_durum == "STOP"
-    assert "muhafazakâr" in s.not_
+                               durum="TP"))
+    assert s.gercek_durum == "TP"
 
 
 def test_veri_yok_acilis_zaman_bos():

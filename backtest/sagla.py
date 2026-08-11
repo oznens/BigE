@@ -173,9 +173,9 @@ def sagla_kayit(k: dict, max_bekleme: int = 24) -> SaglaSonuc:
                 return bos
             continue
 
-        # Long: stop aşağıda, hedef yukarıda.
-        # Short: stop yukarıda, hedef aşağıda.
-        stop_vurdu = (high[j] >= stop) if short else (low[j] <= stop)
+        # Stop fitille değil, invalidasyon seviyesi ötesi kapanışla.
+        kapanis = float(df["close"].iloc[j])
+        stop_vurdu = (kapanis > stop) if short else (kapanis < stop)
         tp_vurdu = (low[j] <= hedef) if short else (high[j] >= hedef)
 
         if stop_vurdu and tp_vurdu:
@@ -189,7 +189,7 @@ def sagla_kayit(k: dict, max_bekleme: int = 24) -> SaglaSonuc:
             bos.cikis_bari = cikis_bari
             bos.bekleme_bar = bekleme_bar
             bos.surec_bar = surec_bar
-            bos.not_ = "aynı bar stop+TP → muhafazakâr STOP"
+            bos.not_ = "aynı bar kapanış invalidasyonu + TP → muhafazakâr STOP"
             return bos
         if stop_vurdu:
             gercek = "STOP"

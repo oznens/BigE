@@ -69,6 +69,7 @@ class KisaSenaryo:
     harmonik_d: float | None = None    # bearish harmonik D ∩ direnç = en yüksek güven
     harmonik_idx: int | None = None    # D barı
     harmonik_isim: str | None = None   # harmonik pattern adı (ör. "Deep Crab")
+    harmonik_detay: dict | None = None # tespit anındaki XABCD/oran/kalite snapshot'ı
     market_yapisi: object = None
     divergence: object = None
     ikili: object = None
@@ -80,7 +81,11 @@ class KisaSenaryo:
 
 
 def _short_karar(ks: KisaSenaryo, rr: float | None) -> KisaKarar:
-    """Bearish sinyallerden Trade/Watch/Skip + kalite + güven (short bakışı)."""
+    """Bearish sinyallerden Trade/Watch/Skip + kalite + güven (short bakışı).
+
+    Sayısal katkılar BigE heuristic değerleridir; arşiv bunları Miraz'ın özel
+    ağırlıkları olarak açıklamaz. Radar/API bu kökeni `skor_modeli` ile taşır.
+    """
     if ks.direnc_kutu is None:
         return KisaKarar("Skip", "D", 0.0, ["Yakında satılacak direnç yok"],
                          "🚫 KARAR: Skip — direnç bölgesi yok (D).")
@@ -208,6 +213,13 @@ def kisa_senaryo(df: pd.DataFrame, n: int = 5,
             ks.harmonik_d = round(hd.D, 6)
             ks.harmonik_idx = hd.D_idx
             ks.harmonik_isim = hd.isim
+            ks.harmonik_detay = {
+                "yon": hd.yon, "X": hd.X, "A": hd.A, "B": hd.B,
+                "C": hd.C, "D": hd.D, "entry": hd.entry, "sl": hd.sl,
+                "tp1": hd.tp1, "tp2": hd.tp2, "rr": hd.rr,
+                "oranlar": dict(hd.oranlar), "motor_kalite": hd.kalite,
+                "prz": {"merkez": hd.D, "kaynak": "completed-D"},
+            }
 
         # Net giriş: harmonik D (PRZ) varsa orası — long'un mavi daire girişinin
         # aynası; stop'un altında ve hedefin üstünde geçerliyse kullanılır.

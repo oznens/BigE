@@ -1,15 +1,20 @@
 """Piyasa Radar testleri (terminalMiraz tarzı tarayıcı)."""
 
 import sys
+import pandas as pd
+from types import SimpleNamespace
 from pathlib import Path
 from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.radar import (RadarRapor, RadarSatiri, _kategori_belirle,
-                         _gec_kalmis, CEKIRDEK_EVREN, GENIS_EVREN,
+                         _gec_kalmis, _lifecycle_belirle,
+                         CEKIRDEK_EVREN, GENIS_EVREN,
                          VARSAYILAN_EVREN, TERMINALMIRAZ_TF, RISK_MODLARI,
-                         _UST_TF)
+                         KANITLI_KALITE_YAPISI, _UST_TF, _ALT_TF,
+                         _ltf_snapshot, HTF_POLICY, MTF_KALIBRASYON_POLICY,
+                         mtf_kalibrasyon_kapisi, _pa_setup_turleri)
 
 
 def test_evren_genis_ve_tekil():
@@ -20,6 +25,63 @@ def test_evren_genis_ve_tekil():
     # Çekirdek evren geniş evrenin alt kümesi
     assert set(CEKIRDEK_EVREN).issubset(set(GENIS_EVREN))
     assert VARSAYILAN_EVREN == CEKIRDEK_EVREN
+
+
+def test_ltf_esleme_gozlenen_merdivende_bir_alt_tf_ve_15m_bos():
+    assert _ALT_TF == {"30m": "15m", "1h": "30m", "2h": "1h",
+                       "4h": "2h", "1d": "4h"}
+    assert "15m" not in _ALT_TF
+    assert HTF_POLICY["ltf_mapping_origin"] == \
+        "BigE-adjacent-observed-TF-interpretation"
+    assert HTF_POLICY["ltf_decision_effect"] == "none-until-calibrated"
+
+
+def test_ltf_snapshot_long_short_aynasidir_ve_karar_uretmez(monkeypatch):
+    from miraz import yapi
+    df = pd.DataFrame({"close": [1.0]})
+    monkeypatch.setattr(yapi, "market_yapisi",
+                        lambda _df: SimpleNamespace(durum="yükseliş"))
+    assert _ltf_snapshot(df, "Long") == ("yükseliş", "trend-devam")
+    assert _ltf_snapshot(df, "Short") == ("yükseliş", "zayiflama")
+    monkeypatch.setattr(yapi, "market_yapisi",
+                        lambda _df: SimpleNamespace(durum="düşüş"))
+    assert _ltf_snapshot(df, "Short") == ("düşüş", "trend-devam")
+    assert _ltf_snapshot(None, "Long") == ("not-available", "not-available")
+
+
+def test_mtf_kalibrasyon_kapisi_esik_uydurmaz_ve_trade_etkisini_kilitler():
+    p = MTF_KALIBRASYON_POLICY
+    assert p["state"] == "locked"
+    assert p["automatic_activation"] is False
+    assert p["minimum_verified_samples"] is None
+    assert p["minimum_sample_origin"] == "undisclosed-by-archive"
+    assert p["effect_formula"] == "undisclosed-by-archive"
+    assert p["trade_effect"] == "none"
+    # Çok büyük örnek sayısı dahi açıklanmış eşik/formül olmadan kapıyı açmaz.
+    karar = mtf_kalibrasyon_kapisi("zayiflama", 1_000_000)
+    assert karar["eligible"] is False and karar["effect"] == 0
+    assert karar["state"] == "locked"
+
+
+def test_pa_setup_turleri_gercek_senaryo_nesnelerinden_cok_etiketlidir():
+    s = SimpleNamespace(
+        destek_kutu=SimpleNamespace(tip="Destek", guc=82),
+        divergence=SimpleNamespace(tip="Bullish"),
+        ikili=SimpleNamespace(tip="Çift Dip", onayli=True),
+        obo=SimpleNamespace(tip="TOBO", onayli=False),
+        fib=SimpleNamespace(aktif=True, yon="yükseliş",
+                            fiyat_golden_icinde=True,
+                            golden_alt=100, golden_ust=105),
+        market_yapisi=SimpleNamespace(kirilim="CHoCH-yukarı"))
+    turler, detay = _pa_setup_turleri(s, "Long")
+    assert turler == ["OB Proxy", "Divergence", "Double Top/Bottom",
+                      "OBO/TOBO", "Fibonacci Retracement", "Golden Pocket",
+                      "MSB"]
+    assert detay["OB Proxy"]["origin"] == \
+        "BigE-zone-heuristic-not-exact-order-block"
+    assert detay["Double Top/Bottom"]["onayli"] is True
+    assert detay["OBO/TOBO"]["onayli"] is False
+    assert detay["MSB"]["exact_signal"] == "CHoCH-yukarı"
 
 
 def _satir(kat, guven, sym="BTCUSDT"):
@@ -34,6 +96,18 @@ def test_ozet_sayar():
     o = r.ozet
     assert o["Trade"] == 1 and o["Watch"] == 1
     assert o["Skip"] == 1 and o["Elenen"] == 1 and o["toplam"] == 4
+
+
+def test_kanitli_kademe_sayisi_filtre_icerigi_diye_sunulmaz():
+    pa = _satir("Trade", 80)
+    hrm = RadarSatiri(symbol="BTCUSDT", interval="1h", fiyat=100,
+                      kategori="Trade", kalite="A", guven=80, yon="yukarı",
+                      giris=99, hedef=110, rr=1, pattern="Gartley")
+    assert pa.kalite_kademe == 3 and hrm.kalite_kademe is None
+    assert hrm.test_asamasi == 5 and hrm.asama_basi_kontrol == 4
+    assert hrm.kalite_filtre_detayi == 4
+    assert KANITLI_KALITE_YAPISI["Price Action"]["kalite_kademe"] == 3
+    assert pa.filtre_esleme == "undisclosed-by-archive"
 
 
 def test_tablo_siralama():
@@ -96,23 +170,44 @@ def test_skip_elenen_olmaz():
 # ---- Late filtresi (_gec_kalmis) ----
 
 def test_gec_kalmis_long_gec():
-    # Long: giriş 100, hedef 110; fiyat 106 → %60 katedildi (≥%50) → geç
-    assert _gec_kalmis(106, 100, 110, "Long") is True
+    # Arşiv eşiği açıklamadığı için varsayılan otomatik Miraz etiketi üretmez.
+    assert _gec_kalmis(106, 100, 110, "Long") is False
+    # %50 yalnız açıkça seçilmiş BigE deneyi olarak kullanılabilir.
+    assert _gec_kalmis(106, 100, 110, "Long", esik=.5) is True
 
 
 def test_gec_kalmis_long_taze():
     # fiyat 102 → %20 katedildi → geç değil
-    assert _gec_kalmis(102, 100, 110, "Long") is False
+    assert _gec_kalmis(102, 100, 110, "Long", esik=.5) is False
 
 
 def test_gec_kalmis_short_gec():
     # Short: giriş 100, hedef 90; fiyat 94 → %60 düştü → geç
-    assert _gec_kalmis(94, 100, 90, "Short") is True
+    assert _gec_kalmis(94, 100, 90, "Short", esik=.5) is True
 
 
 def test_gec_kalmis_eksik_veri():
     assert _gec_kalmis(None, 100, 110, "Long") is False
     assert _gec_kalmis(100, 100, 100, "Long") is False   # toplam 0
+
+
+def test_lifecycle_karardan_bagimsiz_neden_saklar():
+    assert _lifecycle_belirle("Elenen", "Late (geç kalmış)", None) == "Late"
+    assert _lifecycle_belirle(
+        "Elenen", "stop bölgesi çiğnenmiş", "Deep Crab") == "Cancelled"
+    assert _lifecycle_belirle(
+        "Elenen", "bölge çiğnenmiş (hedef zaten görüldü)", None) == "Filtered"
+    assert _lifecycle_belirle(
+        "Elenen", "Entry bölgesine gelmedi", None) == "No-Entry"
+    assert _lifecycle_belirle("Elenen", "HTF aşağı", None) == "Filtered"
+    assert _lifecycle_belirle("Trade", "", None) == "Candidate"
+
+
+def test_htf_esleme_miraz_kurali_diye_sunulmaz():
+    from miraz.radar import HTF_POLICY
+    assert HTF_POLICY["exact_tf_mapping"] == "undisclosed-by-archive"
+    assert HTF_POLICY["current_mapping_origin"] == "BigE-interpretation"
+    assert HTF_POLICY["direction_veto_origin"] == "BigE-safeguard-not-Miraz-rule"
 
 
 # ---- Bayat bölge filtresi (_hedef_zaten_gorundu) ----
@@ -170,18 +265,21 @@ def test_hedef_zaten_gorundu():
 def test_stop_zaten_vuruldu():
     import pandas as pd
     from miraz.radar import _stop_zaten_vuruldu
-    # Short: stop 1.47 (girişin üstünde); son yüksek 1.49 → stop çiğnenmiş
-    # (PENDLE vakası: stop 1.4702, fiyat 1.482-1.489 görmüş)
-    df = pd.DataFrame({"high": [1.45, 1.49, 1.46], "low": [1.42, 1.44, 1.43]})
+    # Short: fitil 1.49 olsa da ancak 1.47 üstü kapanış invalidasyon.
+    df = pd.DataFrame({"high": [1.45, 1.49, 1.46], "low": [1.42, 1.44, 1.43],
+                       "close": [1.44, 1.48, 1.45]})
     assert _stop_zaten_vuruldu(df, 1.47, "Short") is True
     # Short: yüksek hiç stopa değmemiş → geçerli
-    df2 = pd.DataFrame({"high": [1.45, 1.46], "low": [1.42, 1.43]})
+    df2 = pd.DataFrame({"high": [1.45, 1.49], "low": [1.42, 1.43],
+                        "close": [1.44, 1.46]})
     assert _stop_zaten_vuruldu(df2, 1.47, "Short") is False
-    # Long: stop 95 (girişin altında); son düşük 93 → stop çiğnenmiş
-    df3 = pd.DataFrame({"high": [105, 104], "low": [98, 93]})
+    # Long: stop 95 altında kapanış invalidasyon.
+    df3 = pd.DataFrame({"high": [105, 104], "low": [98, 93],
+                        "close": [101, 94]})
     assert _stop_zaten_vuruldu(df3, 95, "Long") is True
     # Long: düşük stopun üstünde kalmış → geçerli
-    df4 = pd.DataFrame({"high": [105, 104], "low": [98, 97]})
+    df4 = pd.DataFrame({"high": [105, 104], "low": [98, 93],
+                        "close": [101, 97]})
     assert _stop_zaten_vuruldu(df4, 95, "Long") is False
     # eksik veri
     assert _stop_zaten_vuruldu(None, 95, "Long") is False
@@ -265,5 +363,5 @@ def test_terminalmiraz_tf():
 
 def test_risk_modlari():
     assert RISK_MODLARI["guvenli"] == 1.0
-    assert RISK_MODLARI["dengeli"] == 1.5
-    assert RISK_MODLARI["riskli"] == 2.0
+    assert RISK_MODLARI["dengeli"] == 2.0
+    assert RISK_MODLARI["riskli"] == 3.5

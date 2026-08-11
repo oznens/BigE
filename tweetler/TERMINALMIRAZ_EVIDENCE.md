@@ -1,7 +1,16 @@
 # terminalMiraz Kanıt Raporu
 
-Kaynak: `tweetler/tweetler.json` — **5054 tweet**.
-Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayrıca doğrulanmalıdır.
+Kaynak: `tweetler\tweetler.json` — **5054 tweet**.
+Medya: **7731 referans / 7730 benzersiz dosya**.
+Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayrıca doğrulanmalıdır. Doğrulanmamış görseller manifestte `visual_review.status=pending` kalır.
+
+## Arşiv bütünlüğü
+
+- Eksik dosya: **0**
+- Sahipsiz dosya: **0**
+- Birden fazla kez referanslanan dosya: **1**
+- Aynı içeriğe sahip dosya grubu: **409**
+- Tam görsel manifesti: `tweetler\terminalmiraz_image_manifest.json`
 
 ## terminal
 
@@ -207,31 +216,19 @@ Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayr�
 
 ## risk_modes
 
-- Eşleşen tweet: **9**
-- Görselli tweet: **9**
-- Yüzde ifadeleri: `%9`×3, `%7`×1, `%8`×1, `%10`×1
-- R/R ifadeleri: `1:1`×1, `1r`×1, `2r`×1, `3.5r`×1, `1.90r`×1
+- Eşleşen tweet: **3**
+- Görselli tweet: **3**
+- Yüzde ifadeleri: `%9`×2, `%7`×1, `%8`×1
+- R/R ifadeleri: `1r`×1, `2r`×1, `3.5r`×1
 
 ### En güçlü örnekler
 
 - **Fri May 08 12:13:11 +0000 2026 · 2052723485437198502 · skor 32** — USDT Dominance | Güvenli - Dengeli - Riskli 📊 %9 üzeri USDT Dominance, vatanımıza milletimize hayırlı olsun. 😄 Bu seviyelerde piyasaya bakarken tek soru şu olmalı: “Aldığım işlem gerçekten güvenli mi?” Çünkü böyle dönemlerde piyasa yükseliyor gibi görünse bile içeride risk dağılımı değişmiş olabilir. Güvenli mi? Dengeli mi? Yoksa gereksiz riskli mi? İşlem almadan önce mutlaka bunu sorgulayın. ⚠️Bazen en iyi işlem, en çok kazandıran değil; sermayeyi en iyi koruyan işlemdir.
   - Görsel: `tweetler/gorseller/HHy9HlCXwAUDGMW.png`
-- **Mon Apr 20 13:22:59 +0000 2026 · 2046218068255236383 · skor 31** — terminalMiraz’a yeni özellikler ekledim 🚀 📡 Piyasa Radar Sistemi Artık ana ekranda aynı anda 30 pariteyi takip edebiliyorum. Fiyatlar her saniye güncelleniyor ⚡️ Yani piyasa artık tek grafik değil, komple önümde akıyor. 🖼️ Telegram Mesaj Upgrade Artık gönderilen mesajlar kör setup değil. Her sinyal, ilgili Harmonik veya Price Action konseptinin görseliyle birlikte geliyor 🎯 Görmeden işlem yok. 🤖 X (Twitter) Otomasyon Süreci Şu an en kritik geliştirme bu. terminalMiraz’ın kendi başına paylaşım...
-  - Görsel: `tweetler/gorseller/HGWbGeUa8AAV-1F.png`, `tweetler/gorseller/HGWbi7absAE_1Fb.png`, `tweetler/gorseller/HGWf_kxWwAAGNC-.png`
 - **Mon May 04 17:59:56 +0000 2026 · 2051361199044882495 · skor 28** — Piyasaya Bakış Açım | Güvenli - Dengeli - Riskli 📊 Gerçekten tüm detayları hesaplayıp yukarıyı hedefliyorsak, ben tercihini güvenli olandan yana kullananlardanım. 🧠 Çünkü; • Dengeli ve riskli senaryolar, piyasanın birçok şartında ezilmeye daha yatkın ⚠️ • Özellikle riskli taraf, bugün Bitcoin analizimde anlattığım timeframe karışıklığına çok daha yakın. Bu da şu demek: Ne kadar iyi analiz yaparsan yap, yanlış zaman dilimi → yanlış karar. ❗ Ben bu yüzden: 👉 Önce güvenli olmayı, sonra kazanmayı...
   - Görsel: `tweetler/gorseller/HHfk5qNXMAEEcKT.png`
-- **Sat Jul 12 12:24:38 +0000 2025 · 1944010008703746462 · skor 25** — Sert yükselişlerin başladığı anlarda insanlar alt zamanlara inip fiyatın hiç düzeltme vermediğini iddia ederler. Bir kısım trendle inatlaşıp (Trend yukarıya ikinci resimde dönmüştür.) sürekli olarak short pozisyon açmaya başlar. Diğer bir kısım ise alt zamanda bir düzeltme bekler ve dahil olmanın yolunu arar. Bu anlattığım kısım düzeltme gelmediği zaman genel çerçevede böyle dönemlerde tekniğin çalışmadığını iddia eder. İşte Trade olayında en ehemmiyetli durum budur. -Tümdengelim Çoğu trader ...
-  - Görsel: `tweetler/gorseller/Gvp_bNdXQAA7e5W.jpg`, `tweetler/gorseller/Gvp_cJRX0AAewq5.png`, `tweetler/gorseller/GvqCxtkXgAASOrK.jpg`
 - **Thu Jun 04 00:52:55 +0000 2026 · 2062336764656677002 · skor 24** — USDT Dominance | Güncelleme “%9 üzeri vatana millete hayırlı olsun” demiştim. %7 seviyelerinden %8.5 bölgesine kadar geldik. Bitcoin yaklaşık 20.000$ düştü! Ben bu senaryoda güvenli işlem tarafını tercih ettim: Güvenli: +1R Dengeli: +2R Riskli: +3.5R Peki gerçekten aramızda bu işlemi değerlendiren oldu mu? Belki de trade hayatım boyunca nadiren bu kadar net bir set-up paylaştım. Aynı görüntüyü son 2 haftada 3-4 kez, farklı analizlerle tekrar tekrar anlattım. Bazen piyasa bağırır; önemli olan ...
   - Görsel: `tweetler/gorseller/HJ7joS4WQAAZTLf.png`, `tweetler/gorseller/HJ7jq3qWUAABnEH.png`
-- **Fri Jun 05 20:52:00 +0000 2026 · 2063000910108803447 · skor 21** — USDT Dominance | Güncelleme ve 1.90R kar alımı %9.00 üzeri geldi ve USDT resmen ralli yaptı. İşin garip tarafı bütün setuplar stop olmadan çalıştı. Ben bir nebze Bitcoin Riskliyi zorlar dedim ancak Bugün Riskli işlem alan , dengeli işlem alan ve güvenli işlem alan herkes TP oldu.
-  - Görsel: `tweetler/gorseller/HKFATu5WQAAJkuq.png`, `tweetler/gorseller/HKFAU8GWIAAZHLb.png`
-- **Wed Mar 25 01:48:02 +0000 2026 · 2036621094635946464 · skor 20** — 📢 Kripto Varlık Vergi Düzenlemesine İlişkin Görüş @DrOmerileri, Yaklaşık 6-7 yıldır finansal piyasalarda tam zamanlı olarak işlem yapan bir Trader olarak, kamuoyuna yansıyan kripto varlık vergilendirme modeline ilişkin bir hususu dikkatlerinize sunmak isterim. 📉 Ocak – Şubat – Mart dönemi Toplam: -500.000 TL zarar Bu aşamada vergi doğmaması, mevcut sistem çerçevesinde anlaşılabilir bir durumdur. 📈 Nisan – Mayıs – Haziran dönemi Toplam: +500.000 TL kazanç Bu durumda yatırımcı, yılın ilk yarısı...
-  - Görsel: `tweetler/gorseller/HEOFnFuWgAAVLaV.png`
-- **Mon Nov 03 15:41:24 +0000 2025 · 1985371743641280541 · skor 12** — USDT Dominance | 4 saatlik Bitcoin bugün 105.500 seviyelerini gördü. Ben de uzun süredir taşıdığım Short pozisyonundan bir miktar kar aldım. Zaten aşırı güvenli yani yeterince kar alınmış bir şekilde taşıyordum. Son aldığım kar oranı da baya yeterli oldu. Giriş stoplu nereye kadar gidiyorsa gitsin :) Sabah USDT Dominance de verdiğim bölgeler kısmi olarak geldi. Son 5.33 bölgesi kaldı. Yine de kar alınarak gidilmesi gerekiyor. Körü körüne pozisyon tutulmasına karşıyım.
-  - Görsel: `tweetler/gorseller/G410_tkWMAAELQ6.jpg`, `tweetler/gorseller/G411AbUXEAAkz5d.jpg`, `tweetler/gorseller/G411BEqXcAAEvX3.jpg`, `tweetler/gorseller/G411B5WWgAAfoOu.png`
-- **Sun Jul 13 18:39:38 +0000 2025 · 1944466769139167467 · skor 9** — Psikoloji Grafiği | 1 saatlik (Güncelleme) -Tümdengelim Dün neler yazdık hadi gelin hep beraber hatırlayalım. "Fakat bizim genel çerçevede yani ikinci resimdeki shortçuların ezildiği bölgeye baktığımız zaman bu alanın aslında günler önce trendin yukarıya dönmüş bölge olduğunu ve shortçulara özel bir operasyon çekilmesinin düğmesine basıldığı alan olduğunu gözlemliyoruz. Tümdengelim olayına işte bu yüzden önem veriyoruz. Fiyat içerisinde Lower Time aralıklarında işlem almadan önce fiyatın High...
-  - Görsel: `tweetler/gorseller/GvwiDjHXwAAyAm2.jpg`, `tweetler/gorseller/GvwiEuqXIAAfAJo.jpg`
 
 ## harmonic
 
@@ -299,3 +296,165 @@ Bu rapor otomatik metin eşlemesidir; chart yorumu için bağlı görseller ayr�
   - Görsel: `tweetler/gorseller/GZ2Dhe5XoAERPxO.jpg`, `tweetler/gorseller/GZ2DibnXQAIdbFu.png`
 - **Thu Jun 12 13:44:36 +0000 2025 · 1933158495366324693 · skor 16** — BTC | 4 saatlik Market kırılım re-test Dün yayında neler olabileceğini tek tek anlattım. Detayları öğrenmek istiyorsanız alıntıladığım paylaşımdan yayını dinleyebilirsiniz. https://t.co/lITz5DvPzD
   - Görsel: `tweetler/gorseller/GtP1PDwXsAAp4YR.png`, `tweetler/gorseller/GtP1PyPWAAAbRN9.png`
+
+## terminal_statuses
+
+- Eşleşen tweet: **9**
+- Görselli tweet: **7**
+- R/R ifadeleri: `1r`×1, `7r`×1, `0:0`×1, `106r`×1
+
+### En güçlü örnekler
+
+- **Mon Jun 01 16:51:56 +0000 2026 · 2061490944713601191 · skor 27** — Haziran ayı, @terminalMiraz için başladı. Güne -1R ile başlamıştık (1 STOP). Piyasalardaki hareketlilikle birlikte setuplar sonuçlandı. Güncel tabloda; 78 setup sonuçlandı ve TerminalMiraz bu setuplar içerisinden yalnızca işleme girilebilir kalitede olanları ayırdı. • 12 TP • 5 STOP • +7R Korunan Risk / Reward tarafında ise; • 12 Setup → Geç Kalındı filtresi • 5 Setup → Rafakalkan filtresi • 2 Setup → Expired filtresi • 28 Setup → Cancelled Harmonic filtresi • 14 Setup → Entry bölgesine gelme...
+  - Görsel: `tweetler/gorseller/HJvbCa9XkAAUWJL.jpg`, `tweetler/gorseller/HJvbQHEXgAAMHUu.jpg`, `tweetler/gorseller/HJvdz32WQAATSKB.png`, `tweetler/gorseller/HJvi_7TW4AAF-oq.jpg`
+- **Mon Jun 08 15:23:35 +0000 2026 · 2064005426710986769 · skor 23** — Bu gördüğünüz ekran, @terminalMiraz 'ın sadece küçük bir bölümü. Bu bölümde 92 parite ve 26 hisse senedi, 4 farklı zaman diliminde eş zamanlı olarak taranıyor. Toplamda 118 enstrümanda 472 ayrı tarama gerçekleştiriliyor. Dün bu 472 taramanın içerisinden 146 SETUP tespit edildi. Fakat bir SETUP bulunması, işleme uygun olduğu anlamına gelmiyor. Tespit edilen tüm SETUP'lar; • Rafakalkan • Expired • Cancelled • Late • No Entry - Result filtrelerinden geçiriliyor. Bu aşamaları başarıyla geçen aday...
+- **Tue May 26 17:26:24 +0000 2026 · 2059325292926148742 · skor 21** — Yapay zekâ desteğiyle @terminalMiraz için Mobile Server oluşturdum. 📱 Bu server sayesinde artık terminalMiraz verilerini telefondan takip edebileceğim. Şimdilik ekranda; güncel aday pozisyonlar, yaklaşan pozisyonlar ve sonuçlanmış pozisyonlar yer alıyor. Zamanla bu ekrana daha fazla özellik ekleyeceğim. Ek olarak terminalMiraz’a setup kalitesini artırmak için 2 yeni özellik getirdim: 🔹 Geç Kalmış Setuplar 🔹 Filtrelenen Setuplar Bu setuplar, 6-7 senelik bilgi birikimime göre “ceza almış” ve st...
+  - Görsel: `tweetler/gorseller/HJQvb_tXwAAM3mZ.jpg`, `tweetler/gorseller/HJQwm-xWwAAYoUJ.jpg`
+- **Mon Mar 09 22:44:13 +0000 2026 · 2031139019539755305 · skor 18** — USDT | Kısa vade güncel plan Biliyorsunuz USDT tarafında Gartley harmoniğini takip ediyorduk. Özellikle Sol taraftaki Fraktal alanını noktasal bir şekilde belirttik. Fiyat Fraktal alanına dokundu ve kripto da 74.000$ seviyelerinden 65.000$ seviyelerine kadar satış gördük.. Güncel planda takip ettiğim Deep Crab harmoniği mevcut. Bu harmonik ayrıca USDC Tarafındaki Çift tepe ile uyumlu. Yani USDC tarafındaki Çift tepe olayını kaybedersek bu harmonik de iptal olacak. Güncel konumunda şartları ko...
+  - Görsel: `tweetler/gorseller/HDANgabXQAEKgqR.jpg`, `tweetler/gorseller/HDANh1PWgAAU9Rm.png`
+- **Fri Jun 12 08:31:52 +0000 2026 · 2065351363828003079 · skor 14** — Haziran ayında Late Setup'lar dahil toplam +106R kazanç elde ettik. Late Setup'ları çıkardığımızda bu performans neredeyse yarı yarıya düşüyor. Haziran sonuçlarında Late Setup'ların etkisi oldukça belirgin. 📈 https://t.co/ydGw4wqJwQ
+  - Görsel: `tweetler/gorseller/HKmXYXzXYAA7fv-.png`
+- **Fri Jun 12 08:31:53 +0000 2026 · 2065351367544181110 · skor 12** — Bugüne kadar @terminalMiraz toplamda 2200 Setup taradı. Bu veriler yalnızca 2 aylık bir süreci kapsıyor. 📊 Sonuçlanan İşlemler Price Action 283 TP 195 STOP Harmonik 76 TP 71 STOP Late Setup 203 TP 138 STOP TradeFiPA 19 TP 15 STOP TradeFiHarmonic 1 TP 3 STOP ✅ Toplam Sonuçlanan İşlem 590 TP 430 STOP 📋 Diğer Sonuçlar 154 Setup → Filtrelendi 34 Kayıt → Rafa Kalktı 337 Setup → Entry Olmadı 30 Setup → Expired 641 Setup → Cancelled
+  - Görsel: `tweetler/gorseller/HKmQdKAXIAA_aAP.jpg`
+- **Thu Oct 16 17:42:02 +0000 2025 · 1978879119866695840 · skor 11** — Ben burada kısa vadede short açmanın mantıklı olduğunu düşünmüyorum fiyat 107 geldi. Orta ve uzun vadede düşüncem belli fakat 115 de kaçtı 110 da kaçtı baya düştük biz. Burada late short yani geç kalan shortçuları elemeye yönelik hareketler olabilir. Bu harekette gel gel olması açısından mor kutu(BTC | 1 Günlük) içerisinde gezinip öyle gerçekleşebilir..
+- **Thu Jun 04 03:57:13 +0000 2026 · 2062383146415333550 · skor 8** — KOD içerisinde yine bir hata buldum. Bu hataları öyle tesadüfen bulmuyorum. Her gün yüzlerce setupı tek tek inceleyerek buluyorum. İşin zor kısmı da burada başlıyor. terminalMiraz sadece Haziran ayında, yani 4 günlük süreçte 400'den fazla setup buldu. Ben ise bu kayıtların önemli bir kısmını tek tek açıp kontrol ediyorum. • Filtreli mi? • TP mi? • STOP mu? • İptal mi? • Rafa mı kalkmış? • Statü geçişleri doğru çalışıyor mu? Bunların hepsini kontrol etmeye çalışıyorum. Son bulduğum hata Harmon...
+  - Görsel: `tweetler/gorseller/HJ8GqU6W8AAA0n7.png`, `tweetler/gorseller/HJ8KoTLWIAAHcBQ.png`
+- **Mon Jun 08 15:23:38 +0000 2026 · 2064005437192565118 · skor 1** — Late Setuplar dahil sistemin toplam geçmişi https://t.co/L3uHyGfTZO
+  - Görsel: `tweetler/gorseller/HKTRBLsXwAAeEnC.png`
+
+## quality_engine
+
+- Eşleşen tweet: **4**
+- Görselli tweet: **2**
+
+### En güçlü örnekler
+
+- **Mon Jun 08 15:23:35 +0000 2026 · 2064005426710986769 · skor 23** — Bu gördüğünüz ekran, @terminalMiraz 'ın sadece küçük bir bölümü. Bu bölümde 92 parite ve 26 hisse senedi, 4 farklı zaman diliminde eş zamanlı olarak taranıyor. Toplamda 118 enstrümanda 472 ayrı tarama gerçekleştiriliyor. Dün bu 472 taramanın içerisinden 146 SETUP tespit edildi. Fakat bir SETUP bulunması, işleme uygun olduğu anlamına gelmiyor. Tespit edilen tüm SETUP'lar; • Rafakalkan • Expired • Cancelled • Late • No Entry - Result filtrelerinden geçiriliyor. Bu aşamaları başarıyla geçen aday...
+- **Sat Jun 13 23:49:01 +0000 2026 · 2065944561180942467 · skor 14** — TAO 200$ seviyelerinden 270$ seviyelerine yükselirken @terminalMiraz toplamda 4 farklı SETUP filtreledi. Bu filtrelerin ortak noktası şu: Normal şartlarda birçok trader, fiyat yükselirken duygularına yenik düşüp bu işlemlere girebilir. Ancak sistemin görevi fırsat bulmak kadar, uzak durulması gereken işlemleri de tespit etmektir. Sonuç olarak SETUP filtreye alındı ve işlem dışı bırakıldı.
+  - Görsel: `tweetler/gorseller/HKup1W6XUAAoVPv.png`
+- **Mon Jun 15 00:48:18 +0000 2026 · 2066321868605296657 · skor 10** — Son olarak terminalMiraz, sadece 3 saat içerisinde Trump'ın barış manipülasyonuna rağmen rotasını bozmadı ve piyasayı doğru okumayı başardı. Güne 11 TP / 6 STOP ile başladık. Toplam 31 SETUP tarandı, bunların 17'si işleme değer bulundu. @terminalMiraz gerekeni yaptı. https://t.co/JscMmp8qz0
+  - Görsel: `tweetler/gorseller/HK0MoiaWAAAdQxv.jpg`
+- **Mon Jun 15 00:44:06 +0000 2026 · 2066320810545910019 · skor 9** — Bütün bu işlemler terminalMiraz tarafından saniyeler içerisinde gerçekleştiriliyor. Kalite kontrol sürecinde Price Action tarafında 3 kademe, Harmonik tarafta ise 4 özel filtre detayı inceleniyor. Bir SETUP bulunmuş olması işlem alması için yeterli değil. Sürekli sorgulanıyor, filtreleniyor ve yeniden değerlendiriliyor. Bu sistemin arkasında 7 yıllık bir emek var. Ve artık bu emek sahnede...
+
+## pa_harmonic_split
+
+- Eşleşen tweet: **14**
+- Görselli tweet: **12**
+- Yüzde ifadeleri: `%100`×3
+- R/R ifadeleri: `1:1`×1
+
+### En güçlü örnekler
+
+- **Sun Apr 05 16:02:30 +0000 2026 · 2040822394990858425 · skor 74** — Öğrencim terminalMiraz ’a, bugüne kadar Price Action metodolojisinde bildiğim her şeyi tek tek anlattım. Yaklaşık 1 aydır ona eğitim veriyorum. Ama şunu net söyleyebilirim: Price Action, harmonikler gibi belirli ölçülerle trade edilen bir sistem değil. Bu iş: → Marketi okumayı gerektirir → Davranışı anlamayı gerektirir → Akışa hakim olmayı gerektirir Yani ezber değil… hakimiyet işidir. 🧠 terminalMiraz’a eklediğim bu yeni alanla birlikte artık: 📊 21.600 mum tarıyor 🧪 Her setup’ı tek tek inceli...
+  - Görsel: `tweetler/gorseller/HFJusJuWUAAaxKL.png`, `tweetler/gorseller/HFJ1JdEWUAAVNMS.png`
+- **Sun Jan 11 18:22:09 +0000 2026 · 2010416960450748701 · skor 44** — Harmonik Yapılar | tradermiraz Harmonikler bir çok konsept ve trade stiline göre daha zor görünüyor. Hatta bir çok kesim hayvan isimleriyle trade mi atılır diye kendi çapında espriler yapıyor.. Ancak her konseptin ve planın arkasında ciddi back-testler vardır. Sizin onu başaramıyor olmanız hayvan isminden kaynaklandığı gerekçesiyle değildir. Yaklaşık 3-4 yıldır Harmonikleri düzenli olarak back-test ediyorum. Hadi gelin sizlerle biraz bu konu üzerinde konuşalım. Burada sizi korkutan ezberlemen...
+  - Görsel: `tweetler/gorseller/G-Zu7t0WgAAkFzk.jpg`, `tweetler/gorseller/G-ZvOLwWgAA0fa6.jpg`
+- **Sat Apr 18 02:10:31 +0000 2026 · 2045324061207576694 · skor 32** — Bir süredir arka planda terminalMiraz ile ciddi bir çalışma yürütüyoruz. Bu fikrin temeli ise uzun zamandır @traderberna ile yaptığımız tartışmalara dayanıyor. Karşınızda PaMonic (Price Action + Harmonic) Kendimize Sorduğumuz soru netti: Harmoniklerin D bölgesinde neden Price Action aramıyoruz? Özellikle Gartley D bölgesinde OrderBlock kullanıp, pozisyon yönetimini buna göre neden şekillendirmiyoruz? Bu yaklaşımı zaten bir süredir manuel kullanıyorduk. Şimdi ise terminalMiraz’a bunu öğrettik ...
+  - Görsel: `tweetler/gorseller/HGJuNO4WcAAP4JS.png`, `tweetler/gorseller/HGJwQWtWkAATrfA.png`
+- **Mon Apr 20 13:22:59 +0000 2026 · 2046218068255236383 · skor 31** — terminalMiraz’a yeni özellikler ekledim 🚀 📡 Piyasa Radar Sistemi Artık ana ekranda aynı anda 30 pariteyi takip edebiliyorum. Fiyatlar her saniye güncelleniyor ⚡️ Yani piyasa artık tek grafik değil, komple önümde akıyor. 🖼️ Telegram Mesaj Upgrade Artık gönderilen mesajlar kör setup değil. Her sinyal, ilgili Harmonik veya Price Action konseptinin görseliyle birlikte geliyor 🎯 Görmeden işlem yok. 🤖 X (Twitter) Otomasyon Süreci Şu an en kritik geliştirme bu. terminalMiraz’ın kendi başına paylaşım...
+  - Görsel: `tweetler/gorseller/HGWbGeUa8AAV-1F.png`, `tweetler/gorseller/HGWbi7absAE_1Fb.png`, `tweetler/gorseller/HGWf_kxWwAAGNC-.png`
+- **Mon Apr 06 23:09:25 +0000 2026 · 2041292219060015595 · skor 24** — 🎯 terminalMiraz | Bitcoin Analizi terminalMiraz, sabah saatlerinde Bitcoin paritesinde Gartley harmonik yapısını nokta atışı tespit etti. 📊 Küçük bir sapma potansiyeli oluşsa da 🧠 öngörü doğruydu, yapı çalıştı. Bu da bize şunu gösteriyor: terminalMiraz sadece veri okumuyor… 👉 Piyasanın niyetini anlamaya başlıyor. Harmonik + Price Action + Structure birleşimiyle ⚡️ daha gelmeden ihtimali gösteriyor
+  - Görsel: `tweetler/gorseller/HFQfSg3bYAALsoX.jpg`, `tweetler/gorseller/HFQfTnDbQAAEObi.png`
+- **Fri May 29 15:19:13 +0000 2026 · 2060380448685990066 · skor 24** — Bugünün sonuçları gelmeye başlıyor. Az önceki yazıda Harmoniklere çok ciddi filtreleme yaptığımı belirtmiştim. Son paylaşımda 1 TP ile güne başladığımızı belirtmiştim. 8 TP - 1 STOP ile devam ediyoruz ve Filtrelerin ne kadarda ciddi çalıştığını artık fark edebiliyorum.. Bu Harmonikleri sizlerinde kontrol edebilmesi için aşağıda kanıt resmi belirttim. Harmonik resmi çalışan arkadaşlar bunları kontrol edebilirler. Price Action tarafında öncesi ve sonrası resimleri mevcut fakat Harmonik tarafınd...
+  - Görsel: `tweetler/gorseller/HJfvRHRXQAg7Q9F.png`, `tweetler/gorseller/HJfwZg8W0AMiEGG.png`, `tweetler/gorseller/HJfwvuzW8AIJ0I_.png`
+- **Mon Jun 08 15:23:35 +0000 2026 · 2064005426710986769 · skor 23** — Bu gördüğünüz ekran, @terminalMiraz 'ın sadece küçük bir bölümü. Bu bölümde 92 parite ve 26 hisse senedi, 4 farklı zaman diliminde eş zamanlı olarak taranıyor. Toplamda 118 enstrümanda 472 ayrı tarama gerçekleştiriliyor. Dün bu 472 taramanın içerisinden 146 SETUP tespit edildi. Fakat bir SETUP bulunması, işleme uygun olduğu anlamına gelmiyor. Tespit edilen tüm SETUP'lar; • Rafakalkan • Expired • Cancelled • Late • No Entry - Result filtrelerinden geçiriliyor. Bu aşamaları başarıyla geçen aday...
+- **Mon Apr 06 22:50:09 +0000 2026 · 2041287374013915415 · skor 23** — terminalMiraz | Güncelleme Artık öğrencim terminalMiraz, piyasayı sadece izlemiyor… 📊 Veriyi okuyup anlamlandırıyor, setup’a dönüştürüyor. terminalMiraz, Piyasadaki yapıları güncel olarak trade_scanner bölümünden veri çekerek her 3 dakika bir set-up şeklinde paylaşıyor. Bunu sadece uygulama açık olduğu takdirde yapıyor. Henüz geliştirme aşamasındayım.. ⚡️ Bu ne demek? → Anlık yapı analizi → Hazır Set-up ve piyasa analizi → Duygusuz & disiplinli kararlar 🧠 Harmonik + Price Action + Structure b...
+  - Görsel: `tweetler/gorseller/HFQbSVea0AA2_wY.jpg`
+- **Mon Apr 06 05:29:16 +0000 2026 · 2041025423438381095 · skor 22** — Çok Teşekkür ederim. 😇 Sevgili öğrencim terminalMiraz, sadece bana değil; zamanla belki de herkese yardımcı olacak. terminalMiraz’ın içerisinde bulunan yapay zekâ modeli Kiraz ile sohbet ettim. Zaman içerisinde birlikte X (Twitter) üzerinden paylaşımlar yapabileceğimizi belirtti. Yani uygulama, ilerleyen süreçlerde X’te otomatik olarak gönderi paylaşabilecek. Birçok insana fayda sağlaması adına; günlük Harmonik analizler ve Price Action traderlarının rutin görevlerini kolaylaştırmak için, piy...
+  - Görsel: `tweetler/gorseller/HFMtyYka8AAIiuo.jpg`
+- **Tue Jan 06 21:40:39 +0000 2026 · 2008654972188045491 · skor 17** — USDC Dominance | Price Action | 4 saatlik Harmonikler de analiz yaparken fiyatı ön görüyorduk. Fiyatın neler yapabileceğini konuşuyorduk. Price action tarafında yapacağım analizlerde fiyat sadece o bölgeye gelirse pozisyon kurgulayacağım. Bu konuda harmoniklerde biliyorsunuz C bölgesinden D bölgesine kadar işlem taşıdığımız oluyordu. Yani Riskli işlem stratejilerini kullanıyorduk. Ancak burada sadece güvenli olabilecek pozisyonlar kurgulamayı ve belirttiğim bölgelerde işlem almayı planlıyorum...
+  - Görsel: `tweetler/gorseller/G-AtCbhX0AAGKr3.png`
+- **Wed Jan 21 11:41:20 +0000 2026 · 2013939970960962047 · skor 16** — USDC Dominance | Harmonikler ve Price Action USDC Dominance güncellemesini daha önce mavi kutuda takip edeceğim harmonikle güncellemek istedim. Hatırlarsanız mavi kutuya gelirsek bu harmonikle takip edeceğimi söylemiştim. Price Action ve Harmonik yapıları birlikte nasıl kullandığımı göstermek istedim. Güncel olarak (Üçüncü grafik) trendimiz yukarıya döndü stratejiye göre geriye düşüşler piyasa da short fırsatı olarak değerlendirilir. Geriye düşüşlerde iki kutuyu takip edebiliriz. Piyasa da öz...
+  - Görsel: `tweetler/gorseller/G_Ly6D7WwAAXTry.png`, `tweetler/gorseller/G_Ly9BMWcAAkypL.jpg`, `tweetler/gorseller/G_LzhmJW0AEFcgL.png`
+- **Sat Apr 04 02:45:29 +0000 2026 · 2040259433247166884 · skor 16** — Kiraz, Bana setup verir misin? Ethereum paritesinde, Setup' u hangi modele göre istiyorsun? Price action ' a göre mi? Harmoniklere göre mi? Harmoniklere göre olsun lütfen.. Mevcut paritede en güçlü emareyi gösteren harmoniği getirdi ve ENTRY,TP,STOP mantığıyla yazdı. Bir de bunları RR olarak belirtti. Şu an bunları gizliyorum çünkü %100 tamamlanmamış bir sistemin SETUP' ını vermek istemiyorum. Hata payı olabilir. Kiraz, Bunu nasıl yaptı? terminalMiraz' ın Trade_Scanner özelliğini kullandı ve ...
+  - Görsel: `tweetler/gorseller/HFB1I1AWAAAUoq3.png`
+
+## result_journal
+
+- Eşleşen tweet: **11**
+- Görselli tweet: **11**
+- Yüzde ifadeleri: `%85`×1, `%15`×1, `%62`×1
+- R/R ifadeleri: `8r`×2, `42r`×1, `11r`×1, `3r`×1
+
+### En güçlü örnekler
+
+- **Tue Feb 03 10:32:22 +0000 2026 · 2018633656747819285 · skor 30** — Bitcoin | Orta vade plan - Güncelleme Fiyat hareketinde 80.000$ altında mor kutudan dönüş arayacağımızı belirtmiştik. Dönüş arayacağımız iki aralık 78.500$ - 74.500$ Fiyat hareketi bu iki aralıkta dinlenmeye başladı. Bu iyi bir durum. Özellikle bu bölgede yeni bir dip gelmezse Fraktal oluşumu gözlemlenebilir. Stop belli, risk belli, gideceği yer belli. Stopsa stop, TP ise TP... Sabırla bekliyoruz..
+  - Görsel: `tweetler/gorseller/HAOgE_sXQAA3u3j.jpg`, `tweetler/gorseller/HAOgG6eXIAA7dSg.jpg`
+- **Sat Feb 28 22:37:40 +0000 2026 · 2027875880496992564 · skor 21** — Ethereum | Kısa vade plan - Güncelleme Zor bir gündü. Sabah kalktığımda grafikte ilk baktığım yer mavi kutunun kaybedilip kaybedilmediği idi.. Gerçekten çok estetik bir kutu çizmişiz. Fiyatlar tekrar yukarıya çekildi. Analizimizi zaten olaylardan önce yaptık. Biz sadece tekniğiyle ilgileniyoruz. Nasibimizde ne varsa onu alacağız. Stop ise stop, TP ise TP.. CME Kapanış 1925$ seviyelerindeydi. Bu yüzden yukarıya çıkışlarda kar almayı unutmayalım. Şu an fiyat içerisinde güncel olarak maliyet in ...
+  - Görsel: `tweetler/gorseller/HCR1fT2WoAAC8rJ.jpg`, `tweetler/gorseller/HCR2TXEWUAA_Ukk.png`
+- **Tue Jun 02 20:19:14 +0000 2026 · 2061905500111827068 · skor 20** — Herhangi bir kapalı grubum yok. Görmüş olduğunuz ekran, @terminalMiraz Yazılımına ait. Yazılımın gelişimini, test sürecini ve sonuçlarını her hafta şeffaf bir şekilde paylaşmaya devam ediyorum. Mayıs ayını +42R ile tamamlayan terminalMiraz, Haziran ayına da güçlü bir başlangıç yaptı. Şu an itibarıyla Haziran performansı: • +8R Kâr Sadece iki gün içerisinde 227 SETUP tarandı. Bu setupların yalnızca 36 tanesi giriş kriterlerine uygun bulundu. Sonuçlar: • 22 TP • 14 STOP • +8R Detaylı dağılım: P...
+  - Görsel: `tweetler/gorseller/HJ1XlZrWgAA4Tb9.jpg`, `tweetler/gorseller/HJ1Xt3XWYAAtzwD.jpg`
+- **Fri May 29 16:10:40 +0000 2026 · 2060393397026750644 · skor 20** — ARB | Orta vade plan Bir süredir ARB' yi takip ediyorum yukarıdaki mavi alandan fiyatın baskılanacağını, Kırmızı alanın ise güzel bir Long bölgesi olduğunu düşünüyordum. Bugün güncel durumuna baktım. Kırmızı kutuya henüz dokunmamış. Ancak terminalMiraz benden önce davranmış. Benden bağımsız benim ona öğrettiğim teknik analiz ile işleme girmiş. Gerçekten bu işlem TP olacak mı? Hep beraber izleyeceğiz. Stop ise Stop, TP ise TP..
+  - Görsel: `tweetler/gorseller/HJf8yd6XYAAggrL.jpg`, `tweetler/gorseller/HJf8zv-XIAQd9lJ.jpg`, `tweetler/gorseller/HJf81ZBWkAIB0W6.png`
+- **Thu Jun 11 09:38:11 +0000 2026 · 2065005666968784914 · skor 14** — terminalMiraz'ın günlerdir üzerinde çalıştığım Finans Takip bölümü yavaş yavaş tamamlanıyor. Bu zamana kadar alınan test işlemleri benim onayımdan geçiyordu. Bugünden sonra ise @terminalMiraz işlemleri kendi kuralları çerçevesinde otomatik olarak yönetecek. Ayrıca tüm işlemlerde standart risk modeli olarak R = 25$ (last 10$) kullanılacak. Açık pozisyonlar, bekleyen emirler, günlük PNL, işlem geçmişi, risk yönetimi, API bağlantıları ve Kiraz karar motoru artık tek merkezden takip edilebiliyor.
+  - Görsel: `tweetler/gorseller/HKhaP_mWUAEK7fk.jpg`
+- **Fri Jun 12 08:31:53 +0000 2026 · 2065351367544181110 · skor 12** — Bugüne kadar @terminalMiraz toplamda 2200 Setup taradı. Bu veriler yalnızca 2 aylık bir süreci kapsıyor. 📊 Sonuçlanan İşlemler Price Action 283 TP 195 STOP Harmonik 76 TP 71 STOP Late Setup 203 TP 138 STOP TradeFiPA 19 TP 15 STOP TradeFiHarmonic 1 TP 3 STOP ✅ Toplam Sonuçlanan İşlem 590 TP 430 STOP 📋 Diğer Sonuçlar 154 Setup → Filtrelendi 34 Kayıt → Rafa Kalktı 337 Setup → Entry Olmadı 30 Setup → Expired 641 Setup → Cancelled
+  - Görsel: `tweetler/gorseller/HKmQdKAXIAA_aAP.jpg`
+- **Mon Oct 07 15:47:42 +0000 2024 · 1843317283944534331 · skor 9** — BTC | 4 saatlik Belirlediğimiz bölgeden noktasal bir tepki var. Buradan net döndü mü bunu bilmemiz için 62.640 altında h1-2 kapanışlar görmemiz lazım. Küçük pozisyona kafi ol. Stratejine bağlı kal. Stopsa stop, TP ise TP Aç gözlülük yapma. #BTCUSDT #Bitcoin #Ethereum https://t.co/YHM8TaCfPc
+  - Görsel: `tweetler/gorseller/GZTHI0PWkAAhZC8.jpg`, `tweetler/gorseller/GZTHNyNXsAABPqn.png`
+- **Wed Oct 09 18:22:01 +0000 2024 · 1844080895613075645 · skor 5** — BTC | 4 saatlik 2 Ekim tarihinde fiyatın yukarıda bizi Libra stratejisi ile beklediğini özellikle mor kutudan bir satışla 66 geçilmediği sürece tekrar aşağı gelebileceğimizi belirttim. Yukarıya çıkarken de ufak bir long pozisyon da inşa edip güzel bir kar aldık. Pozisyonun %85 lik kısmını burada kapatıyorum. %15 lik kısmını girişe stop koyuyorum. Daha önce de söyledim... Aç gözlü olma! Stratejine sadık kal! Stopsa stop! TP ise TP! #bitcoin #fed #Ethereum
+  - Görsel: `tweetler/gorseller/GZd8QDYXkAEert1.png`, `tweetler/gorseller/GZd9Ew4XEAAmDu7.png`, `tweetler/gorseller/GZd9w07W4AAGsEG.jpg`
+- **Sat Jun 13 23:49:03 +0000 2026 · 2065944568986804516 · skor 5** — Yıllardır grafikleri öncesi ve sonrası ile paylaşırım. Bu zamana kadar tek bir grafik silmedim. @terminalMiraz ' ı da buna göre yetiştirdim. Bütün grafiklerin bir öncesi, bir nedeni ve bir kaydı var. Sadece TP olan işlemler değil, STOP olan işlemler de kayıt altında. Çünkü kendini kandıran bir sistem gelişemez. STOP ise STOP. TP ise TP. Gerisi sadece istatistik. 🤖📊
+  - Görsel: `tweetler/gorseller/HKuvvGXXIAAacNP.jpg`
+- **Tue Jun 16 14:53:34 +0000 2026 · 2066896973072883889 · skor 3** — Bu zamana kadar TradeFi tarafında 35 TP - 21 STOP gerçekleşti. Yabancı piyasalarda, özellikle tek bir borsadan alınan hacimsiz verilerle bile önemli bir ilerleme kaydettik. Elde edilen her sonuç parite hafızasına işleniyor, kayıt altına alınıyor ve gelecekteki karar mekanizmasını besliyor.
+  - Görsel: `tweetler/gorseller/HK8U3CsWwAA6MoL.jpg`
+- **Thu Jun 11 09:38:13 +0000 2026 · 2065005676565303419 · skor 2** — Trade Geçmişi Bu zamana kadar terminalMiraz'ın aldığı hiçbir işlem otomatik değildi. Sistemin ürettiği yüzlerce setup içerisinden seçimleri ben yaptım. Bazılarını eledim, bazılarını beklettim, bazılarını ise işleme dönüştürdüm. Bu süreçte toplam 40 manuel işlem alındı. 📈 25 Take Profit 📉 15 Stop Loss Yaklaşık %62,5 başarı oranı ile sonuçlanan bu kayıtlar aslında terminalMiraz'ın değil, benim kararlarımın performansını temsil ediyor. Şimdi ise yeni bir döneme giriyoruz. Artık terminalMiraz sad...
+  - Görsel: `tweetler/gorseller/HKhe0BZXEAA-SBh.png`
+
+## timeframes_htf
+
+- Eşleşen tweet: **153**
+- Görselli tweet: **147**
+- Yüzde ifadeleri: `%7`×5, `%100`×2, `%30`×2, `%6`×2, `%25`×2, `%60`×1, `%40`×1, `%67`×1, `%9`×1, `%24`×1
+- R/R ifadeleri: `1:1`×1, `000.000/1`×1
+
+### En güçlü örnekler
+
+- **Tue Apr 28 16:11:40 +0000 2026 · 2049159622800318808 · skor 66** — Bitcoin | Kısa Vade Plan Yukarıda satış stratejisi oluşturabilecek net bir alan bulunuyor. 📍 Fiyat, çift tepe yapısı sonrası trend kırılımını gerçekleştirmiş durumda. Bu tarz senaryolarda ana beklenti nettir: 👉 Olası yükselişlerde satış fırsatı aranır. Mor alan, bu doğrultuda short için takip edilecek bölge olarak öne çıkıyor. ❗ Geçersizlik senaryosu: Kırmızı alan üzerinde gelecek kapanışlar, bu yapıyı tamamen iptal eder. 📉 Mevcut zaman diliminde trend aşağı yönlü. Yükselişi destekleyen net b...
+  - Görsel: `tweetler/gorseller/HHATuhXawAA2ddp.png`
+- **Sat Jan 03 15:52:26 +0000 2026 · 2007480180038631509 · skor 57** — Yeni yılın ilk Harmonik yapıları. Umarım bu yıl hepimiz için güzel geçer. Piyasada kararsızlık benim açımdan devam ediyor. Alt zamanda trade ediyorum ancak büyük yapıda kararsızlık mevcut. Zaten büyük zaman dilimindeki kapanış mumları da buna yönelik gerçekleşti. Piyasanın traderları aşırı ikileme düşürdüğü kanaatindeyim. Bu durum yaz aylarında sıklıkla yaşanıyordu. Belki alt zamanda çok güzel trade fırsatları sunabilir. Fakat fiyat belli bir alana sıkıştı ve adeta her iki tarafa da analizler...
+  - Görsel: `tweetler/gorseller/G9v7jR4XwAALGOl.png`, `tweetler/gorseller/G9v8KrsWMAAt4hM.png`, `tweetler/gorseller/G9v9WWyXUAASs5T.jpg`, `tweetler/gorseller/G9v9vdoWkAArIUb.png`
+- **Sun Apr 19 02:08:47 +0000 2026 · 2045686013431824453 · skor 51** — Bitcoin | Uzun vade plan - Güncelleme 📊 Biraz uzun olacak ancak büyük resimde sizlere söylemek istediğim çok şey var lütfen çok dikkatli okuyunuz ve anlamadığınız yeri muhakkak sorunuz.. Kademeli olarak resimde belirttiğim kutulardan SPOT alacağımı belirtmiştim. 🎯 İlk mavi kutunun ne kadar estetik çalıştığını görüyorsunuz 👇 Fiyat o bölge altında günlerce dolaştı ancak takip ettiğimiz zaman diliminde asla kapanış gelmedi. ⛔ Bitcoin’de ve birçok paritede daha aşağı seviyeleri beklediğim için ya...
+  - Görsel: `tweetler/gorseller/HGO5Sj9W4AAYbCU.jpg`, `tweetler/gorseller/HGO6DNYWcAA9Kjh.png`
+- **Tue Apr 28 14:38:09 +0000 2026 · 2049136091198845236 · skor 38** — Ethereum | Kısa Vade Plan 📊 Alt zaman diliminde trend aşağıya dönmüş durumda. 2250$ altında gelecek kapanış ile birlikte, 4 saatlik zaman diliminde de trendin aşağı yönlü teyit alacağını düşünüyorum. Eğer trend bu şekilde aşağıya döner ve kırmızı kutu içerisine girersek, alınacak işlemlerin trend tersi olacağını unutmayalım. Fitilli bir tepki gelmesi bizim açımızdan daha sağlıklı olur. Bu tarz hareketler genelde daha temiz fırsatlar sunar. Fiyat hareketi kısa vadede bullish bir tepki verse bi...
+  - Görsel: `tweetler/gorseller/HG_9nyybQAAZbLD.jpg`, `tweetler/gorseller/HG_9oruboAAwHBG.png`
+- **Sat Apr 19 09:10:55 +0000 2025 · 1913520674766815608 · skor 33** — Arkadaşlar bugün paylaştığım grafiklere bir yorum yapmak istiyorum. Malum bizler sinyalci değiliz fenomenler gibi uçuyoruz, kaçıyoruz laflarını kullanamayız. Bu grafiklerin hepsinin ortak özellikleri var şimdi sizlere bunlardan bahsedeceğim. 1- Bütün grafikler Günlük zaman diliminde analiz edilmiştir. Yani bu grafikler 2-3 aydan daha fazla bir periyotta gerçekleşecektir. Hatta bu 4-5 aylık süreci bile kapsayabilir. 2- Bütün grafiklerde trend hala aşağı yönlüdür. Hepsinin önce trendi yukarıya ...
+- **Sat Apr 18 02:10:31 +0000 2026 · 2045324061207576694 · skor 32** — Bir süredir arka planda terminalMiraz ile ciddi bir çalışma yürütüyoruz. Bu fikrin temeli ise uzun zamandır @traderberna ile yaptığımız tartışmalara dayanıyor. Karşınızda PaMonic (Price Action + Harmonic) Kendimize Sorduğumuz soru netti: Harmoniklerin D bölgesinde neden Price Action aramıyoruz? Özellikle Gartley D bölgesinde OrderBlock kullanıp, pozisyon yönetimini buna göre neden şekillendirmiyoruz? Bu yaklaşımı zaten bir süredir manuel kullanıyorduk. Şimdi ise terminalMiraz’a bunu öğrettik ...
+  - Görsel: `tweetler/gorseller/HGJuNO4WcAAP4JS.png`, `tweetler/gorseller/HGJwQWtWkAATrfA.png`
+- **Thu Apr 23 22:11:25 +0000 2026 · 2047438219076100121 · skor 31** — USDT Dominance | Güncelleme 📊 Fiyat mavi kutunun dibinden çok temiz bir tepki aldı. Takip ettiğimiz Gartley & Shark yapıları devam ediyor. Daha önce özellikle belirtmiştik; fiyat mavi kutunun üstünden tepki almazsa, en dipten farklı bir harmonik ile reaksiyon alma ihtimali yüksek diye. Dün tam olarak bu senaryo gerçekleşti. Ethereum tarafında yeni yapı paylaştım. Bu grafiği özellikle o yapıdan sonra paylaşıyorum ki gelen hareketler sadece kısa vadeli ara trade niteliğinde bunu unutmayın. Asıl...
+  - Görsel: `tweetler/gorseller/HGn005CW4AAcbDB.jpg`, `tweetler/gorseller/HGn1bSZXwAER7hm.jpg`, `tweetler/gorseller/HGn1cL_WYAABYbo.png`
+- **Sat Apr 11 16:05:07 +0000 2026 · 2042997381336076561 · skor 31** — Bitcoin CME Vadeliler | Kısa vade plan - Güncelleme Artık kabul etmemiz gerekiyor. Güzel bir long fırsatını yaklaşık 300$ fiyat farkıyla kaçırdık ❌ Sonradan alt zaman diliminde oluşan market kırılımlarıyla işleme dahil olunabilir miydi? ➡️ Evet, olunabilirdi. Ama bir bölgeyi strateji olarak takip ediyorsanız, o planın dışına çıkmamak gerekir 🎯 📌 Özellikle bir topluluğa hitap ediyorsanız: Strateji üzerinde sürekli değişiklik yapamazsınız. Çünkü bu durum insanların kafasını karıştırır ve güveni...
+  - Görsel: `tweetler/gorseller/HFouL26WwAAs6ti.png`, `tweetler/gorseller/HFouQlAakAEBa_S.png`
+- **Mon Apr 20 13:22:59 +0000 2026 · 2046218068255236383 · skor 31** — terminalMiraz’a yeni özellikler ekledim 🚀 📡 Piyasa Radar Sistemi Artık ana ekranda aynı anda 30 pariteyi takip edebiliyorum. Fiyatlar her saniye güncelleniyor ⚡️ Yani piyasa artık tek grafik değil, komple önümde akıyor. 🖼️ Telegram Mesaj Upgrade Artık gönderilen mesajlar kör setup değil. Her sinyal, ilgili Harmonik veya Price Action konseptinin görseliyle birlikte geliyor 🎯 Görmeden işlem yok. 🤖 X (Twitter) Otomasyon Süreci Şu an en kritik geliştirme bu. terminalMiraz’ın kendi başına paylaşım...
+  - Görsel: `tweetler/gorseller/HGWbGeUa8AAV-1F.png`, `tweetler/gorseller/HGWbi7absAE_1Fb.png`, `tweetler/gorseller/HGWf_kxWwAAGNC-.png`
+- **Thu Sep 25 16:00:31 +0000 2025 · 1971243428609429640 · skor 28** — BTC | 4 saatlik (Güncelleme - Önemli bölgedeyiz) Fiyat hareketinde iki destek bölgesi belirttik. Dün gece yayında dinleyenleriniz varsa ilk destekten 114 tepkisinden sonra fiyatın aşağıdaki mavi kutuya kadar sarkabileceğini söylemiştim. 109.300 altında kapanış yapmadığımız sürece fiyat hareketi bu destek bölgesi tekrar yukarıyı test edecektir diye düşünüyorum. Yukarıya çıkışlarda direnç seviyesi daha önce destek dediğimiz bölge 112.500 ve 114.500 alanı olacaktır. Şu etapta mavi kutudan 112.20...
+  - Görsel: `tweetler/gorseller/G1tDVtQXUAE6IO4.jpg`, `tweetler/gorseller/G1tDWrvXkAEW5s1.jpg`, `tweetler/gorseller/G1tDXWvWgAAf7EY.jpg`
+- **Sat May 24 09:01:31 +0000 2025 · 1926201885591027861 · skor 28** — ETH | 1 Günlük Ortalama 50-60 günlük bir analiz yapacağım. Tabii ki neyin ne zaman gerçekleşeceğini bilemeyiz fakat az çok trend hareketlerinden fiyatın ne kadar zamanda ne yapabileceğini tahmin edebiliriz. Bu yüzden ben de bu tahminimi bu vade aralığında yapacağım. Yukarıda GAP boşluğu ve Resistance (Direnç) alanı var. Fiyat hareketinde bu zaman diliminde aceleci bir alım yapmazdım. Zaten en son Kick yayınımız da Ethereum 1800 seviyelerindeydi ve fiyatın olumlu durduğunu herhangi bir sıkıntı...
+  - Görsel: `tweetler/gorseller/Grs8mkHWgAI5_Yr.png`
+- **Mon May 04 17:59:56 +0000 2026 · 2051361199044882495 · skor 28** — Piyasaya Bakış Açım | Güvenli - Dengeli - Riskli 📊 Gerçekten tüm detayları hesaplayıp yukarıyı hedefliyorsak, ben tercihini güvenli olandan yana kullananlardanım. 🧠 Çünkü; • Dengeli ve riskli senaryolar, piyasanın birçok şartında ezilmeye daha yatkın ⚠️ • Özellikle riskli taraf, bugün Bitcoin analizimde anlattığım timeframe karışıklığına çok daha yakın. Bu da şu demek: Ne kadar iyi analiz yaparsan yap, yanlış zaman dilimi → yanlış karar. ❗ Ben bu yüzden: 👉 Önce güvenli olmayı, sonra kazanmayı...
+  - Görsel: `tweetler/gorseller/HHfk5qNXMAEEcKT.png`
+
+## automation_execution
+
+- Eşleşen tweet: **8**
+- Görselli tweet: **7**
+- Yüzde ifadeleri: `%73`×1, `%62`×1
+- R/R ifadeleri: `2r`×1, `15r`×1
+
+### En güçlü örnekler
+
+- **Sun Jan 11 18:22:09 +0000 2026 · 2010416960450748701 · skor 44** — Harmonik Yapılar | tradermiraz Harmonikler bir çok konsept ve trade stiline göre daha zor görünüyor. Hatta bir çok kesim hayvan isimleriyle trade mi atılır diye kendi çapında espriler yapıyor.. Ancak her konseptin ve planın arkasında ciddi back-testler vardır. Sizin onu başaramıyor olmanız hayvan isminden kaynaklandığı gerekçesiyle değildir. Yaklaşık 3-4 yıldır Harmonikleri düzenli olarak back-test ediyorum. Hadi gelin sizlerle biraz bu konu üzerinde konuşalım. Burada sizi korkutan ezberlemen...
+  - Görsel: `tweetler/gorseller/G-Zu7t0WgAAkFzk.jpg`, `tweetler/gorseller/G-ZvOLwWgAA0fa6.jpg`
+- **Sat Jun 13 15:23:27 +0000 2026 · 2065817329804468736 · skor 20** — Mayıs ayında programın hatalarıyla uğraşırken, bazı günler üst üste 15-16 STOP gördüğüm oluyordu. Açık konuşmak gerekirse bazen hayalim de umudum da kırılmıştı. Ama her hatanın çözülünce sistemi daha iyi bir hale getireceğini düşünüyordum. Ve evet… bugün terminalMiraz gerçekten bambaşka bir noktaya geldi. 📊 63 sonuç 🎯 14 TP / 5 SL 📈 %73.7 Win Rate 🧠 2,328 geçmiş setup verisiyle çalışan terminalMiraz bugün piyasadan daha güçlü çıktı. Son olarak sen de artık anonim değilsin @terminalMiraz :) 🛡️...
+  - Görsel: `tweetler/gorseller/HKtA39xWsAE_j_c.jpg`
+- **Wed Jun 03 01:34:01 +0000 2026 · 2061984716970918296 · skor 17** — 5000$ Test USDT ile bir deneme yaptım. Bu USDT test bakiyesi olduğu için kendi cüzdanımdan çıkmıyor. Her bir R = 10$. Sistem işlemleri otomatik açabilecek kapasitede olsa da, bu süreci özellikle manuel yürütmek istedim. @terminalMiraz buluyor, ben ise onaylayıp işleme giriyorum. Böylece canlı piyasada sistemi daha yakından gözlemleyebiliyorum. Bugün +2R ile başladı. Haziran ayı toplam performansı ise +15R'a yükseldi. 📈 Yalan söylemeyeceğim; bir yandan duygulanıyorum. Çünkü bu sonuçların arkas...
+  - Görsel: `tweetler/gorseller/HJ2g_XWWQAAS3Yc.jpg`, `tweetler/gorseller/HJ2iwJtXcAAPDtd.png`
+- **Thu Jun 11 09:38:11 +0000 2026 · 2065005666968784914 · skor 14** — terminalMiraz'ın günlerdir üzerinde çalıştığım Finans Takip bölümü yavaş yavaş tamamlanıyor. Bu zamana kadar alınan test işlemleri benim onayımdan geçiyordu. Bugünden sonra ise @terminalMiraz işlemleri kendi kuralları çerçevesinde otomatik olarak yönetecek. Ayrıca tüm işlemlerde standart risk modeli olarak R = 25$ (last 10$) kullanılacak. Açık pozisyonlar, bekleyen emirler, günlük PNL, işlem geçmişi, risk yönetimi, API bağlantıları ve Kiraz karar motoru artık tek merkezden takip edilebiliyor.
+  - Görsel: `tweetler/gorseller/HKhaP_mWUAEK7fk.jpg`
+- **Thu Jun 18 15:41:49 +0000 2026 · 2067633891851014249 · skor 13** — terminalMiraz'ın sadece bugün pozisyonlardan elde ettiği kâr: 187$ 🚀 Şu an sistem toplam 14 aktif işlemi yönetiyor ve 9 ek işlem ise emirlerde tetiklenmeyi bekliyor. Geçtiğimiz günlerde yaklaşık 5000$ sermaye ile manuel olarak başladığımız bu süreçte, sistem tamamen otonom şekilde ilerleyerek bugün 5550$ seviyelerine ulaştı. Bir algoritmanın sadece kârlı olması değil, aynı zamanda istikrarlı bir şekilde kendi kendini sürdürebilmesi benim için çok daha değerli. Günlerdir, haftalardır test etti...
+  - Görsel: `tweetler/gorseller/HLG0Y_5W0AAlKkU.png`
+- **Mon Feb 17 22:18:15 +0000 2025 · 1891613157271142795 · skor 11** — Trade psikolojisi ve Risk analizini doğru bölgede yapmanız çok önemli. Bu iki faktörü beraber kullanmanızın sizlere çok büyük faydaları dokunacaktır. Az risk ile yeterli kazanç. Risk hepimizin göbek adı. Fakat Cahilce alınan riskler adınızı kötüye çıkartır. Riski seviyorsanız mutlaka psikolojinizi çok iyi yönetmeniz gerekiyor. Çünkü piyasanın sizlere oyunu bitmeyecek. Oyunun içerisinde kalmak istiyorsan oyunun kurallarına göre oyna. Kendi kurallarını yazarsan ya hata yapar elenirsin ya da zor...
+  - Görsel: `tweetler/gorseller/GkBbWiYXAAEMyOq.jpg`
+- **Thu Jun 18 15:41:51 +0000 2026 · 2067633901325922488 · skor 6** — Sistem her ne kadar otonom şekilde hareket etse de süreç hâlâ tamamen otomatik değil. Birçok noktada manuel müdahalelerde bulunuyorum. Özellikle işlem alma tarafında hâlâ karşılaştığımız hatalar, geliştirilmesi gereken detaylar ve test edilmesi gereken senaryolar mevcut. Live cüzdan tarafı çok yakında aktif olacak. Ancak gerçek sermayeyi içeride çalışan bir yapıya emanet ederken acele etmek istemiyorum. Amacım sadece çalışan bir sistem değil, uzun vadede güvenle sürdürülebilecek bir sistem ol...
+- **Thu Jun 11 09:38:13 +0000 2026 · 2065005676565303419 · skor 2** — Trade Geçmişi Bu zamana kadar terminalMiraz'ın aldığı hiçbir işlem otomatik değildi. Sistemin ürettiği yüzlerce setup içerisinden seçimleri ben yaptım. Bazılarını eledim, bazılarını beklettim, bazılarını ise işleme dönüştürdüm. Bu süreçte toplam 40 manuel işlem alındı. 📈 25 Take Profit 📉 15 Stop Loss Yaklaşık %62,5 başarı oranı ile sonuçlanan bu kayıtlar aslında terminalMiraz'ın değil, benim kararlarımın performansını temsil ediyor. Şimdi ise yeni bir döneme giriyoruz. Artık terminalMiraz sad...
+  - Görsel: `tweetler/gorseller/HKhe0BZXEAA-SBh.png`

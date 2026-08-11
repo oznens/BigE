@@ -27,6 +27,8 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 from . import veri
 from .radar import radar_tara
 from .portfoy import Portfoy, radar_sinyallerini_ekle
@@ -38,6 +40,20 @@ PORTFOY_DOSYA = KOK / "portfoy.json"
 
 def _simdi() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _filtered_nedeni(s, eski_guven: float | None = None) -> str:
+    """Radar kanıtından denetim alt nedeni üretir; Miraz'ın özel taksonomisi değil."""
+    n = (getattr(s, "not_", "") or "").lower()
+    if "htf" in n or "üst zaman" in n:
+        return "htf-conflict"
+    if "hedef zaten görüldü" in n or "bölge çiğnenmiş" in n:
+        return "stale-zone"
+    if "stop bölgesi çiğnenmiş" in n:
+        return "structural-invalidity"
+    if eski_guven is not None and getattr(s, "guven", eski_guven) < eski_guven:
+        return "quality-weakened"
+    return "filtered-other"
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +85,28 @@ class Kayit:
     # -1 = bağ yok (legacy / pozisyon bulunamadı). Duplikat setuplarda
     # sembol+TF+yön eşlemesi yanlış pozisyonu seçtiği için id şart.
     poz_id: int = -1
+    # Entry öncesi Kalite Motoru değişimleri. Yalnız gerçek değişimler saklanır;
+    # aynı snapshot tekrar tekrar yazılmaz (tweet 2064005426710986769).
+    kalite_gecmisi: list = field(default_factory=list)
+    durum_nedeni: str = ""
+    # Filtrelenen setup sonradan ayrıca izlenip gerçekten TP/STOP'a ulaştıysa
+    # kaydedilir. Boş değer, karşı-olgusal sonucun takip edilmediği anlamına gelir.
+    # Bu alan işlem sonucuna ve Result Journal R hesabına dahil değildir.
+    karsi_olgusal_sonuc: str = ""
+    karsi_olgusal_zaman: str = ""
+    karsi_olgusal_durum: str = ""
+    karsi_olgusal_entry_zaman: str = ""
+    karsi_olgusal_son_mum: str = ""
+    ana_tf_yapi: str = ""
+    htf_tf: str = ""
+    htf_yapi: str = ""
+    ltf_tf: str = ""
+    ltf_yapi: str = "not-implemented"
+    ltf_onay: str = "not-available"
+    setup_turleri: list = field(default_factory=list)
+    setup_tur_detaylari: dict = field(default_factory=dict)
+    harmonik_detay: dict = field(default_factory=dict)
+    harmonik_gecmisi: list = field(default_factory=list)
 
     @property
     def aktif(self) -> bool:
@@ -119,13 +157,43 @@ class Defter:
             if poz_id < 0:
                 return None
         self.id_sayac += 1
+        acilis = _simdi()
         k = Kayit(
-            id=self.id_sayac, acilis_zaman=_simdi(), sembol=satir.symbol,
+            id=self.id_sayac, acilis_zaman=acilis, sembol=satir.symbol,
             interval=satir.interval, taraf=taraf, kalite=satir.kalite,
             guven=satir.guven, giris=round(float(satir.giris), 6),
             stop=round(float(stop), 6), hedef=round(float(satir.hedef), 6),
             rr=round(float(satir.rr), 2), pattern=getattr(satir, "pattern", None),
-            kaynak=getattr(satir, "kaynak", "Price Action"), poz_id=poz_id)
+            kaynak=getattr(satir, "kaynak", "Price Action"), poz_id=poz_id,
+            ana_tf_yapi=getattr(satir, "ana_tf_yapi", ""),
+            htf_tf=getattr(satir, "htf_tf", ""),
+            htf_yapi=getattr(satir, "htf_yapi", ""),
+            ltf_tf=getattr(satir, "ltf_tf", ""),
+            ltf_yapi=getattr(satir, "ltf_yapi", "not-implemented"),
+            ltf_onay=getattr(satir, "ltf_onay", "not-available"),
+            setup_turleri=list(getattr(satir, "setup_turleri", None) or []),
+            setup_tur_detaylari=dict(
+                getattr(satir, "setup_tur_detaylari", None) or {}),
+            harmonik_detay=dict(getattr(satir, "harmonik_detay", None) or {}),
+            harmonik_gecmisi=([{
+                "zaman": acilis, "olay": "pattern-detected",
+                "pattern": getattr(satir, "pattern", None),
+                "prz": dict((getattr(satir, "harmonik_detay", None) or {})
+                            .get("prz") or {}),
+                "motor_kalite": (getattr(satir, "harmonik_detay", None) or {})
+                                .get("motor_kalite"),
+            }] if getattr(satir, "pattern", None) else []),
+            kalite_gecmisi=[{
+                "zaman": acilis, "kalite": satir.kalite,
+                "guven": satir.guven, "kategori": satir.kategori,
+                    "lifecycle": getattr(satir, "lifecycle", "Candidate"),
+                    "ana_tf_yapi": getattr(satir, "ana_tf_yapi", ""),
+                    "htf_tf": getattr(satir, "htf_tf", ""),
+                    "htf_yapi": getattr(satir, "htf_yapi", ""),
+                    "ltf_tf": getattr(satir, "ltf_tf", ""),
+                    "ltf_yapi": getattr(satir, "ltf_yapi", "not-implemented"),
+                    "ltf_onay": getattr(satir, "ltf_onay", "not-available"),
+                }])
         self.kayitlar.append(k)
         return k
 
@@ -139,7 +207,10 @@ class Defter:
         pozisyonun sonucu yanlışlıkla yeni kayda kopyalanmaz (eski bug buydu).
         """
         durum_map = {"Bekliyor": "Aday", "Açık": "Açık", "TP": "TP",
-                     "STOP": "STOP", "Expired": "Expired", "Manuel": "Manuel"}
+                     "STOP": "STOP", "Expired": "Expired", "Manuel": "Manuel",
+                     "Cancelled": "Cancelled", "Filtered": "Filtered",
+                     "Late": "Late", "No-Entry": "No-Entry",
+                     "Shelved": "Shelved"}
         poz_idx = {p.id: p for p in portfoy.pozisyonlar}
         # poz_id ile bağlı kayıtların sahip olduğu pozisyonlar — legacy eşleme
         # bunları "claimed" sayıp atlar (iki kayıt aynı pozisyonu kapamasın).
@@ -169,6 +240,133 @@ class Defter:
                 k.kapanis_zaman = p.kapanis_zaman or _simdi()
                 k.r_sonuc = p.r_sonuc
 
+    def rafa_kaldir(self, kayit_id: int, portfoy: Portfoy,
+                    neden: str = "explicit-shelve") -> Kayit | None:
+        """Bekleyen setup'ı açık kararla Shelved yapar; otomatik kriter üretmez.
+
+        Arşiv yalnız Shelved/Rafa Kalktı sonucunun varlığını kanıtlar
+        (2065351367544181110), karar koşulunu açıklamaz. Bu nedenle çağrı açık
+        olmalı ve neden denetim izi olarak saklanmalıdır.
+        """
+        k = next((x for x in self.kayitlar if x.id == kayit_id), None)
+        if k is None or k.durum != "Aday" or k.poz_id < 0:
+            return None
+        if not portfoy.bekleyen_iptal(k.poz_id, "Shelved"):
+            return None
+        p = next((x for x in portfoy.pozisyonlar if x.id == k.poz_id), None)
+        k.durum = "Shelved"
+        k.kapanis_zaman = p.kapanis_zaman if p else _simdi()
+        k.r_sonuc = 0.0
+        k.durum_nedeni = neden
+        k.kalite_gecmisi.append({
+            "zaman": k.kapanis_zaman, "kalite": k.kalite, "guven": k.guven,
+            "kategori": "Elenen", "lifecycle": "Shelved", "neden": neden,
+        })
+        return k
+
+    def entry_olmadi(self, kayit_id: int, portfoy: Portfoy,
+                     neden: str = "entry-zone-not-reached") -> Kayit | None:
+        """Bekleyen setup'ı açık gözlemle No-Entry kapatır.
+
+        Arşiv entry bölgesine gelmemeyi kanıtlar fakat gözlem ufkunu açıklamaz;
+        bu yüzden otomatik süre uydurulmaz ve çağrı açık yapılır.
+        """
+        k = next((x for x in self.kayitlar if x.id == kayit_id), None)
+        if k is None or k.durum != "Aday" or k.poz_id < 0:
+            return None
+        if not portfoy.bekleyen_iptal(k.poz_id, "No-Entry"):
+            return None
+        p = next((x for x in portfoy.pozisyonlar if x.id == k.poz_id), None)
+        k.durum = "No-Entry"
+        k.kapanis_zaman = p.kapanis_zaman if p else _simdi()
+        k.r_sonuc = 0.0
+        k.durum_nedeni = neden
+        k.kalite_gecmisi.append({
+            "zaman": k.kapanis_zaman, "kalite": k.kalite, "guven": k.guven,
+            "kategori": "Elenen", "lifecycle": "No-Entry", "neden": neden,
+        })
+        return k
+
+    def adaylari_yeniden_degerlendir(self, rapor, portfoy: Portfoy) -> list[Kayit]:
+        """Bekleyen setup'ları yeni radar kalitesiyle güncelle veya filtrele.
+
+        Arşiv kanıtı: tweet 2064005426710986769. Puan entry'ye kadar değişir;
+        zayıflayan yapı elenir, güçlenen takip edilir. Açılmış pozisyona dokunulmaz.
+        Radar hatası/yokluğu iptal sebebi değildir; yalnız eşleşen satırın yeni
+        kararı uygulanır.
+        """
+        idx = {(s.symbol, s.interval, getattr(s, "taraf", "Long")): s
+               for s in rapor.satirlar}
+        poz_idx = {p.id: p for p in portfoy.pozisyonlar}
+        degisen = []
+        izinli = {"Filtered", "Late", "Cancelled", "No-Entry"}
+        for k in self.kayitlar:
+            if k.durum != "Aday":
+                continue
+            p = poz_idx.get(k.poz_id)
+            if p is None or p.durum != "Bekliyor":
+                continue
+            s = idx.get((k.sembol, k.interval, k.taraf))
+            if s is None:
+                continue
+            eski = (k.kalite, k.guven)
+            k.kalite, k.guven = s.kalite, s.guven
+            p.kalite, p.guven = s.kalite, s.guven
+            k.ana_tf_yapi = getattr(s, "ana_tf_yapi", k.ana_tf_yapi)
+            k.htf_tf = getattr(s, "htf_tf", k.htf_tf)
+            k.htf_yapi = getattr(s, "htf_yapi", k.htf_yapi)
+            k.ltf_tf = getattr(s, "ltf_tf", k.ltf_tf)
+            k.ltf_yapi = getattr(s, "ltf_yapi", k.ltf_yapi)
+            k.ltf_onay = getattr(s, "ltf_onay", k.ltf_onay)
+            k.setup_turleri = list(
+                getattr(s, "setup_turleri", None) or k.setup_turleri)
+            k.setup_tur_detaylari = dict(
+                getattr(s, "setup_tur_detaylari", None) or k.setup_tur_detaylari)
+            if eski != (s.kalite, s.guven):
+                k.kalite_gecmisi.append({
+                    "zaman": _simdi(), "kalite": s.kalite, "guven": s.guven,
+                    "kategori": s.kategori,
+                    "lifecycle": getattr(s, "lifecycle", "Candidate"),
+                    "ana_tf_yapi": getattr(s, "ana_tf_yapi", ""),
+                    "htf_tf": getattr(s, "htf_tf", ""),
+                    "htf_yapi": getattr(s, "htf_yapi", ""),
+                    "ltf_tf": getattr(s, "ltf_tf", ""),
+                    "ltf_yapi": getattr(s, "ltf_yapi", "not-implemented"),
+                    "ltf_onay": getattr(s, "ltf_onay", "not-available"),
+                })
+            # Harmonik setup kimliği C/D yapısına bağlıdır. Sonraki başarılı
+            # taramada aynı pattern artık yoksa veya başka pattern'e döndüyse
+            # eski PRZ emri taşınamaz (tweet 2062383146415333550).
+            yeni_pattern = getattr(s, "pattern", None)
+            if k.pattern and yeni_pattern != k.pattern:
+                if portfoy.bekleyen_iptal(p.id, "Cancelled"):
+                    k.durum = "Cancelled"
+                    k.kapanis_zaman = p.kapanis_zaman
+                    k.r_sonuc = 0.0
+                    k.durum_nedeni = "harmonic-pattern-changed-or-disappeared"
+                    k.harmonik_gecmisi.append({
+                        "zaman": k.kapanis_zaman,
+                        "olay": "pattern-changed-or-disappeared",
+                        "onceki_pattern": k.pattern,
+                        "yeni_pattern": yeni_pattern,
+                    })
+                    degisen.append(k)
+                continue
+            if s.kategori == "Trade":
+                continue
+            neden = getattr(s, "lifecycle", "Filtered")
+            if neden not in izinli:
+                neden = "Filtered"
+            if portfoy.bekleyen_iptal(p.id, neden):
+                k.durum = neden
+                k.kapanis_zaman = p.kapanis_zaman
+                k.r_sonuc = 0.0
+                if neden == "Filtered":
+                    k.durum_nedeni = _filtered_nedeni(s, eski_guven=eski[1])
+                    k.karsi_olgusal_durum = "Bekliyor"
+                degisen.append(k)
+        return degisen
+
     # --- istatistik ---
 
     def ozet(self) -> dict:
@@ -178,9 +376,9 @@ class Defter:
              "Shelved": 0, "Filtered": 0, "Manuel": 0}
         # strateji motoru bucket'ları (Result Journal üst satırı)
         buckets: dict[str, dict] = {
-            "Price Action": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-            "Harmonik":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
-            "Late":         {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0},
+            "Price Action": {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0},
+            "Harmonik":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0},
+            "Late":         {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0},
         }
         for k in self.kayitlar:
             o[k.durum] = o.get(k.durum, 0) + 1
@@ -189,6 +387,7 @@ class Defter:
             b = getattr(k, "kaynak", "Price Action")
             if b in buckets and k.durum in ("TP", "STOP"):
                 buckets[b]["tp" if k.durum == "TP" else "stop"] += 1
+                buckets[b]["r"] += k.r_sonuc
         bitti = o["TP"] + o["STOP"]
         o["wr"] = round(100 * o["TP"] / bitti, 1) if bitti else 0.0
         o["toplam_r"] = round(sum(k.r_sonuc for k in self.kayitlar
@@ -197,8 +396,559 @@ class Defter:
             done = bkt["tp"] + bkt["stop"]
             bkt["toplam"] = done
             bkt["wr"] = round(100 * bkt["tp"] / done, 1) if done else 0.0
+            bkt["r"] = round(bkt["r"], 2)
         o["buckets"] = buckets
+        # Tweet 2065351363828003079 performansı Late dahil/hariç ayrı kıyaslar.
+        o["toplam_r_late_haric"] = round(
+            o["toplam_r"] - buckets["Late"]["r"], 2)
+        o["late_katki_r"] = buckets["Late"]["r"]
         return o
+
+    def filtered_neden_ozeti(self) -> dict[str, int]:
+        """Kalıcı Filtered kayıtlarını denetim alt nedenlerine göre sayar."""
+        out: dict[str, int] = {}
+        for k in self.kayitlar:
+            if k.durum != "Filtered":
+                continue
+            neden = k.durum_nedeni or "legacy-unknown"
+            out[neden] = out.get(neden, 0) + 1
+        return out
+
+    def karsi_olgusal_sonuc_kaydet(self, kayit_id: int, sonuc: str) -> bool:
+        """Filtered setup için sonradan doğrulanmış TP/STOP sonucunu kaydet."""
+        sonuc = (sonuc or "").upper()
+        if sonuc not in ("TP", "STOP"):
+            return False
+        kayit = next((k for k in self.kayitlar if k.id == kayit_id), None)
+        if kayit is None or kayit.durum != "Filtered":
+            return False
+        kayit.karsi_olgusal_sonuc = sonuc
+        kayit.karsi_olgusal_durum = sonuc
+        kayit.karsi_olgusal_zaman = _simdi()
+        return True
+
+    def filtered_karsi_olgusal_guncelle(self, df_sozluk: dict) -> list[Kayit]:
+        """Filtered setup'ları yalnız filtre kararından sonraki mumlarla izle.
+
+        İlk görülen son mum başlangıç çizgisidir ve sonuç hesabına katılmaz.
+        Entry/TP temasla, STOP invalidasyon ötesi mum kapanışıyla çalışır.
+        Arşiv takip penceresini açıklamadığı için burada otomatik expiry yoktur.
+        """
+        degisen: list[Kayit] = []
+        for k in self.kayitlar:
+            if k.durum != "Filtered" or k.karsi_olgusal_sonuc:
+                continue
+            df = df_sozluk.get((k.sembol, k.interval))
+            if df is None or df.empty:
+                continue
+            if not k.karsi_olgusal_durum:
+                k.karsi_olgusal_durum = "Bekliyor"
+            if not k.karsi_olgusal_son_mum:
+                # Aynı taramadaki geçmişi karşı-olgusal başarı/zarar sayma.
+                k.karsi_olgusal_son_mum = df.index[-1].isoformat()
+                continue
+            baslangic = pd.Timestamp(k.karsi_olgusal_son_mum)
+            if baslangic.tzinfo is None:
+                baslangic = baslangic.tz_localize("UTC")
+            else:
+                baslangic = baslangic.tz_convert("UTC")
+            alt_df = df[df.index > baslangic]
+            if alt_df.empty:
+                continue
+            short = k.taraf == "Short"
+            for idx, mum in alt_df.iterrows():
+                if k.karsi_olgusal_durum == "Bekliyor":
+                    doldu = mum["high"] >= k.giris if short else mum["low"] <= k.giris
+                    if not doldu:
+                        continue
+                    k.karsi_olgusal_durum = "Açık"
+                    k.karsi_olgusal_entry_zaman = idx.isoformat()
+                    degisen.append(k)
+                if k.karsi_olgusal_durum == "Açık":
+                    stop = mum["close"] > k.stop if short else mum["close"] < k.stop
+                    tp = mum["low"] <= k.hedef if short else mum["high"] >= k.hedef
+                    sonuc = "STOP" if stop else "TP" if tp else ""
+                    if sonuc:
+                        k.karsi_olgusal_durum = sonuc
+                        k.karsi_olgusal_sonuc = sonuc
+                        k.karsi_olgusal_zaman = idx.isoformat()
+                        degisen.append(k)
+                        break
+            k.karsi_olgusal_son_mum = alt_df.index[-1].isoformat()
+        return degisen
+
+    def filtered_etki_ozeti(self) -> dict:
+        """Filtre hacmi ile doğrulanmış karşı-olgusal sonucu ayrı raporlar."""
+        nedenler = self.filtered_neden_ozeti()
+        filtreli = [k for k in self.kayitlar if k.durum == "Filtered"]
+        izlenen = [k for k in filtreli if
+                   k.karsi_olgusal_sonuc in ("TP", "STOP")]
+        bekleyen = sum(k.durum == "Filtered" and
+                       k.karsi_olgusal_durum == "Bekliyor" for k in self.kayitlar)
+        acik = sum(k.durum == "Filtered" and
+                   k.karsi_olgusal_durum == "Açık" for k in self.kayitlar)
+        stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in izlenen)
+        tp = sum(k.karsi_olgusal_sonuc == "TP" for k in izlenen)
+        toplam = sum(nedenler.values())
+
+        def kirilim(alan: str) -> list[dict]:
+            gruplar: dict[str, list[Kayit]] = {}
+            for kayit in filtreli:
+                varsayilan = "legacy-unknown" if alan == "durum_nedeni" else "Bilinmiyor"
+                ad = str(getattr(kayit, alan, "") or varsayilan)
+                gruplar.setdefault(ad, []).append(kayit)
+            out = []
+            for ad, kayitlar in gruplar.items():
+                dogrulanmis = [k for k in kayitlar if
+                               k.karsi_olgusal_sonuc in ("TP", "STOP")]
+                n_stop = sum(k.karsi_olgusal_sonuc == "STOP"
+                             for k in dogrulanmis)
+                n_tp = sum(k.karsi_olgusal_sonuc == "TP"
+                           for k in dogrulanmis)
+                n = len(dogrulanmis)
+                out.append({
+                    "ad": ad, "setup_sayisi": len(kayitlar),
+                    "dogrulanmis_n": n,
+                    "engellenen_stop": n_stop if n else None,
+                    "olasi_tp": n_tp if n else None,
+                    "stop_payi_yuzde": round(100 * n_stop / n, 1) if n else None,
+                    "kapsama_yuzde": round(100 * n / len(kayitlar), 1),
+                    "claim_allowed": bool(n),
+                })
+            return sorted(out, key=lambda x: (-x["setup_sayisi"], x["ad"]))
+
+        return {
+            "setup_sayisi": toplam,
+            "nedenler": nedenler,
+            "dogrulanmis_n": len(izlenen),
+            "karsi_olgusal_bekliyor": bekleyen,
+            "karsi_olgusal_acik": acik,
+            "engellenen_stop": stop if izlenen else None,
+            "olasi_tp": tp if izlenen else None,
+            "kapsama_yuzde": round(100 * len(izlenen) / toplam, 1) if toplam else 0.0,
+            "durum": "verified-counterfactual" if izlenen else "not-tracked",
+            "claim_allowed": bool(izlenen),
+            "kirilimlar": {
+                "motor": kirilim("kaynak"),
+                "timeframe": kirilim("interval"),
+                "kalite": kirilim("kalite"),
+                "neden": kirilim("durum_nedeni"),
+            },
+        }
+
+    def filtered_kalite_gecis_ozeti(self) -> dict:
+        """Filtered setup'lardaki gerçek, ardışık kalite değişimlerini özetle.
+
+        Aynı setup'ta aynı geçiş tekrarlanırsa o geçiş için bir kez sayılır.
+        Bir setup farklı geçişlerde ayrı ayrı görünebilir; bu nedensellik iddiası
+        değil, kalıcı snapshot geçmişinin betimsel dökümüdür.
+        """
+        sira = {"A+": 0, "A": 1, "B": 2, "C": 3, "D": 4}
+        gruplar: dict[str, list[Kayit]] = {}
+        kapsanan: set[int] = set()
+        for k in self.kayitlar:
+            if k.durum != "Filtered" or len(k.kalite_gecmisi) < 2:
+                continue
+            kaliteler = [str(x.get("kalite", "") or "")
+                         for x in k.kalite_gecmisi]
+            gorulen: set[str] = set()
+            for onceki, sonraki in zip(kaliteler, kaliteler[1:]):
+                if not onceki or not sonraki or onceki == sonraki:
+                    continue
+                ad = f"{onceki}→{sonraki}"
+                if ad in gorulen:
+                    continue
+                gorulen.add(ad)
+                gruplar.setdefault(ad, []).append(k)
+                kapsanan.add(k.id)
+
+        satirlar = []
+        for ad, kayitlar in gruplar.items():
+            onceki, sonraki = ad.split("→", 1)
+            dogrulanmis = [k for k in kayitlar if
+                           k.karsi_olgusal_sonuc in ("TP", "STOP")]
+            stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in dogrulanmis)
+            tp = sum(k.karsi_olgusal_sonuc == "TP" for k in dogrulanmis)
+            if onceki in sira and sonraki in sira:
+                yon = ("zayifladi" if sira[sonraki] > sira[onceki]
+                       else "guclendi")
+            else:
+                yon = "siniflandirilmadi"
+            n = len(dogrulanmis)
+            satirlar.append({
+                "gecis": ad, "yon": yon, "setup_sayisi": len(kayitlar),
+                "dogrulanmis_n": n,
+                "engellenen_stop": stop if n else None,
+                "olasi_tp": tp if n else None,
+                "kapsama_yuzde": round(100 * n / len(kayitlar), 1),
+                "claim_allowed": bool(n),
+            })
+        satirlar.sort(key=lambda x: (-x["setup_sayisi"], x["gecis"]))
+        filtreli = sum(k.durum == "Filtered" for k in self.kayitlar)
+        return {
+            "gecisler": satirlar,
+            "gecisli_setup_sayisi": len(kapsanan),
+            "filtered_setup_sayisi": filtreli,
+            "gecmis_kapsama_yuzde": round(100 * len(kapsanan) / filtreli, 1)
+            if filtreli else 0.0,
+            "tekrar_politikasi": "same-transition-on-same-setup-counted-once",
+            "causality_claim": "not-made",
+        }
+
+    def htf_denetim_ozeti(self) -> dict:
+        """BigE HTF çatışma filtresini snapshot ve sonuçlarla denetlenebilir yap."""
+        kayitlar = [k for k in self.kayitlar if k.durum == "Filtered" and
+                    k.durum_nedeni == "htf-conflict"]
+
+        def istatistik(secici) -> list[dict]:
+            gruplar: dict[str, list[Kayit]] = {}
+            for k in kayitlar:
+                ad = str(secici(k) or "Bilinmiyor")
+                gruplar.setdefault(ad, []).append(k)
+            out = []
+            for ad, grup in gruplar.items():
+                dogrulanmis = [k for k in grup if
+                               k.karsi_olgusal_sonuc in ("TP", "STOP")]
+                stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in dogrulanmis)
+                tp = sum(k.karsi_olgusal_sonuc == "TP" for k in dogrulanmis)
+                n = len(dogrulanmis)
+                out.append({
+                    "ad": ad, "setup_sayisi": len(grup), "dogrulanmis_n": n,
+                    "engellenen_stop": stop if n else None,
+                    "olasi_tp": tp if n else None,
+                    "kapsama_yuzde": round(100 * n / len(grup), 1),
+                    "claim_allowed": bool(n),
+                })
+            return sorted(out, key=lambda x: (-x["setup_sayisi"], x["ad"]))
+
+        def gecisler(k: Kayit) -> list[str]:
+            kalite = [str(x.get("kalite", "") or "") for x in k.kalite_gecmisi]
+            return list(dict.fromkeys(
+                f"{a}→{b}" for a, b in zip(kalite, kalite[1:])
+                if a and b and a != b))
+
+        dogrulanmis_n = sum(k.karsi_olgusal_sonuc in ("TP", "STOP")
+                            for k in kayitlar)
+        return {
+            "setup_sayisi": len(kayitlar),
+            "dogrulanmis_n": dogrulanmis_n,
+            "kapsama_yuzde": round(100 * dogrulanmis_n / len(kayitlar), 1)
+            if kayitlar else 0.0,
+            "kirilimlar": {
+                "tf_esleme": istatistik(
+                    lambda k: f"{k.interval}→{k.htf_tf or 'Bilinmiyor'}"),
+                "ana_tf_yapi": istatistik(lambda k: k.ana_tf_yapi),
+                "htf_yapi": istatistik(lambda k: k.htf_yapi),
+                "ltf_yapi": istatistik(lambda k: k.ltf_yapi),
+                "ltf_onay": istatistik(lambda k: k.ltf_onay),
+                "motor": istatistik(lambda k: k.kaynak),
+                "kalite": istatistik(lambda k: k.kalite),
+            },
+            "kayitlar": [{
+                "id": k.id, "sembol": k.sembol, "interval": k.interval,
+                "taraf": k.taraf, "motor": k.kaynak, "kalite": k.kalite,
+                "ana_tf_yapi": k.ana_tf_yapi or "Bilinmiyor",
+                "htf_tf": k.htf_tf or "Bilinmiyor",
+                "htf_yapi": k.htf_yapi or "Bilinmiyor",
+                "ltf_tf": k.ltf_tf or "Bilinmiyor", "ltf_yapi": k.ltf_yapi,
+                "ltf_onay": k.ltf_onay,
+                "kalite_gecisleri": gecisler(k),
+                "karsi_olgusal_durum": k.karsi_olgusal_durum or "Takip Başlamadı",
+                "karsi_olgusal_sonuc": k.karsi_olgusal_sonuc or None,
+            } for k in list(reversed(kayitlar))[:30]],
+            "mapping_origin": "BigE-interpretation",
+            "current_implementation": "upper-veto-plus-lower-observation",
+            "ltf_status": "observation-only",
+            "miraz_exact_mapping": "undisclosed-by-archive",
+            "causality_claim": "not-made",
+        }
+
+    def ltf_gozlem_ozeti(self) -> dict:
+        """Filtered setuplarda karar-dışı LTF gözlemi ile sonucu eşleştir."""
+        filtreli = [k for k in self.kayitlar if k.durum == "Filtered"]
+        gecerli_onay = {"trend-devam", "zayiflama", "notr"}
+        gozlemli = [k for k in filtreli if k.ltf_onay in gecerli_onay]
+
+        def istatistik(secici, havuz=None) -> list[dict]:
+            kayit_havuzu = gozlemli if havuz is None else havuz
+            gruplar: dict[str, list[Kayit]] = {}
+            for k in kayit_havuzu:
+                ad = str(secici(k) or "Bilinmiyor")
+                gruplar.setdefault(ad, []).append(k)
+            out = []
+            for ad, grup in gruplar.items():
+                dogrulanmis = [k for k in grup if
+                               k.karsi_olgusal_sonuc in ("TP", "STOP")]
+                stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in dogrulanmis)
+                tp = sum(k.karsi_olgusal_sonuc == "TP" for k in dogrulanmis)
+                n = len(dogrulanmis)
+                out.append({
+                    "ad": ad, "setup_sayisi": len(grup), "dogrulanmis_n": n,
+                    "counterfactual_stop": stop if n else None,
+                    "counterfactual_tp": tp if n else None,
+                    # Bu bir WR değil; yalnız doğrulanmış gözlem dağılımıdır.
+                    "tp_payi_yuzde": round(100 * tp / n, 1) if n else None,
+                    "sonuc_kapsama_yuzde": round(100 * n / len(grup), 1),
+                    "claim_allowed": bool(n),
+                })
+            return sorted(out, key=lambda x: (-x["setup_sayisi"], x["ad"]))
+
+        dogrulanmis_n = sum(k.karsi_olgusal_sonuc in ("TP", "STOP")
+                            for k in gozlemli)
+        return {
+            "filtered_setup_sayisi": len(filtreli),
+            "gozlemli_setup_sayisi": len(gozlemli),
+            "gozlem_kapsama_yuzde": round(100 * len(gozlemli) / len(filtreli), 1)
+            if filtreli else 0.0,
+            "dogrulanmis_n": dogrulanmis_n,
+            "sonuc_kapsama_yuzde": round(100 * dogrulanmis_n / len(gozlemli), 1)
+            if gozlemli else 0.0,
+            "siniflar": istatistik(lambda k: k.ltf_onay),
+            "kirilimlar": {
+                "tf_esleme": istatistik(
+                    lambda k: f"{k.interval}→{k.ltf_tf or 'Bilinmiyor'}"),
+                "motor": istatistik(lambda k: k.kaynak),
+                "kalite": istatistik(lambda k: k.kalite),
+            },
+            "karar_etkisi": "none-observation-only",
+            "metric_name": "verified-counterfactual-distribution-not-win-rate",
+            "mapping_origin": "BigE-adjacent-observed-TF-interpretation",
+            "miraz_exact_mapping": "undisclosed-by-archive",
+            "causality_claim": "not-made",
+        }
+
+    def harmonik_pattern_ozeti(self) -> dict:
+        """Harmonik kayıtları desen bazında; gerçek ve karşı-olgusal ayrı denetle."""
+        harm = [k for k in self.kayitlar if k.pattern]
+        gruplar: dict[str, list[Kayit]] = {}
+        for k in harm:
+            gruplar.setdefault(k.pattern or "Unknown", []).append(k)
+        satirlar = []
+        for pattern, kayitlar in gruplar.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            j_tp = sum(k.durum == "TP" for k in journal)
+            j_stop = sum(k.durum == "STOP" for k in journal)
+            cf = [k for k in kayitlar
+                  if k.karsi_olgusal_sonuc in ("TP", "STOP")]
+            cf_tp = sum(k.karsi_olgusal_sonuc == "TP" for k in cf)
+            cf_stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in cf)
+            detayli = [k for k in kayitlar if k.harmonik_detay]
+            kaliteler = [float(k.harmonik_detay.get("motor_kalite"))
+                         for k in detayli
+                         if k.harmonik_detay.get("motor_kalite") is not None]
+            satirlar.append({
+                "pattern": pattern, "setup_sayisi": len(kayitlar),
+                "journal_n": len(journal), "journal_tp": j_tp,
+                "journal_stop": j_stop,
+                "journal_wr": round(j_tp / len(journal) * 100, 1) if journal else 0.0,
+                "counterfactual_n": len(cf), "counterfactual_tp": cf_tp,
+                "counterfactual_stop": cf_stop,
+                "detayli_snapshot_n": len(detayli),
+                "motor_kalite_ortalama": round(sum(kaliteler) / len(kaliteler), 1)
+                if kaliteler else None,
+                "cancelled_cd": sum(
+                    k.durum == "Cancelled" and
+                    k.durum_nedeni == "harmonic-pattern-changed-or-disappeared"
+                    for k in kayitlar),
+            })
+        satirlar.sort(key=lambda x: (-x["setup_sayisi"], x["pattern"]))
+        return {
+            "patternler": satirlar, "harmonik_setup_sayisi": len(harm),
+            "detayli_snapshot_sayisi": sum(bool(k.harmonik_detay) for k in harm),
+            "desteklenen_patternler": [
+                "Gartley", "Bat", "Butterfly", "Crab", "Deep Crab",
+                "AB=CD", "Shark", "Cypher"],
+            "snapshot_scope": "new-records-only-no-legacy-backfill",
+            "ratio_origin": "BigE-harmonic-engine-not-Miraz-hidden-filters",
+            "minimum_sample": None,
+            "recommendation_status": "locked-undisclosed-threshold",
+            "causality_claim": "not-made",
+        }
+
+    def pa_alt_tur_ozeti(self) -> dict:
+        """Price Action kayıtlarını çok-etiketli setup türlerine göre denetle."""
+        pa = [k for k in self.kayitlar if k.kaynak == "Price Action"]
+        gruplar: dict[str, list[Kayit]] = {}
+        for k in pa:
+            turler = list(dict.fromkeys(k.setup_turleri or ["Unclassified"]))
+            for tur in turler:
+                gruplar.setdefault(tur, []).append(k)
+        satirlar = []
+        for tur, kayitlar in gruplar.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            j_tp = sum(k.durum == "TP" for k in journal)
+            j_stop = sum(k.durum == "STOP" for k in journal)
+            filtreli = [k for k in kayitlar if k.durum == "Filtered"]
+            cf = [k for k in filtreli if k.karsi_olgusal_sonuc in ("TP", "STOP")]
+            cf_tp = sum(k.karsi_olgusal_sonuc == "TP" for k in cf)
+            cf_stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in cf)
+            satirlar.append({
+                "tur": tur, "setup_sayisi": len(kayitlar),
+                "journal_n": len(journal), "journal_tp": j_tp,
+                "journal_stop": j_stop,
+                "journal_wr": round(100 * j_tp / len(journal), 1)
+                if journal else None,
+                "filtered_n": len(filtreli), "counterfactual_n": len(cf),
+                "counterfactual_tp": cf_tp if cf else None,
+                "counterfactual_stop": cf_stop if cf else None,
+                "counterfactual_kapsama_yuzde": round(
+                    100 * len(cf) / len(filtreli), 1) if filtreli else 0.0,
+            })
+        satirlar.sort(key=lambda x: (-x["setup_sayisi"], x["tur"]))
+        etiketli = sum(bool(k.setup_turleri) for k in pa)
+        return {
+            "pa_setup_sayisi": len(pa), "etiketli_setup_sayisi": etiketli,
+            "etiket_kapsama_yuzde": round(100 * etiketli / len(pa), 1)
+            if pa else 0.0,
+            "turler": satirlar,
+            "multi_label": True,
+            "rows_are_not_additive": True,
+            "ob_label": "OB Proxy",
+            "ob_origin": "BigE-zone-heuristic-not-exact-order-block",
+            "classification_origin": "BigE-detectors-mapped-to-archive-concepts",
+            "miraz_exact_subtype_classifier": "undisclosed-by-archive",
+            "causality_claim": "not-made",
+        }
+
+    def harmonik_capraz_ozeti(self) -> dict:
+        """Pattern × TF/yön/kalite/PRZ/C→D hücrelerini açıklayıcı denetle."""
+        harm = [k for k in self.kayitlar if k.pattern]
+        hucreler: dict[tuple[str, str, str], list[Kayit]] = {}
+
+        def motor_kalite(k: Kayit) -> str:
+            q = k.harmonik_detay.get("motor_kalite") if k.harmonik_detay else None
+            return "legacy-unknown" if q is None else f"{round(float(q), 1)}"
+
+        for k in harm:
+            cd = ("cancelled-pattern-changed-or-disappeared"
+                  if k.durum == "Cancelled" and
+                  k.durum_nedeni == "harmonic-pattern-changed-or-disappeared"
+                  else "no-recorded-cd-cancellation")
+            prz = ((k.harmonik_detay.get("prz") or {}).get("kaynak")
+                   if k.harmonik_detay else None) or "legacy-unknown"
+            boyutlar = {
+                "timeframe": k.interval or "Unknown",
+                "side": k.taraf or "Unknown",
+                "journal-quality": k.kalite or "Unknown",
+                "motor-quality-exact": motor_kalite(k),
+                "prz-snapshot": prz,
+                "cd-status": cd,
+            }
+            for boyut, deger in boyutlar.items():
+                hucreler.setdefault((k.pattern, boyut, deger), []).append(k)
+
+        rows = []
+        for (pattern, boyut, deger), kayitlar in hucreler.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            j_tp = sum(k.durum == "TP" for k in journal)
+            j_stop = sum(k.durum == "STOP" for k in journal)
+            filtreli = [k for k in kayitlar if k.durum == "Filtered"]
+            cf = [k for k in filtreli
+                  if k.karsi_olgusal_sonuc in ("TP", "STOP")]
+            cf_tp = sum(k.karsi_olgusal_sonuc == "TP" for k in cf)
+            cf_stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in cf)
+            kapsam = round(100 * len(cf) / len(filtreli), 1) if filtreli else 0.0
+            if filtreli and len(cf) < len(filtreli):
+                kilit = "locked-incomplete-counterfactual-coverage"
+            elif not journal and not cf:
+                kilit = "locked-no-verified-outcomes"
+            else:
+                kilit = "locked-minimum-threshold-undisclosed"
+            rows.append({
+                "pattern": pattern, "boyut": boyut, "deger": deger,
+                "setup_sayisi": len(kayitlar), "journal_n": len(journal),
+                "journal_tp": j_tp, "journal_stop": j_stop,
+                "journal_wr": round(100 * j_tp / len(journal), 1)
+                if journal else None,
+                "filtered_n": len(filtreli), "counterfactual_n": len(cf),
+                "counterfactual_tp": cf_tp if cf else None,
+                "counterfactual_stop": cf_stop if cf else None,
+                "counterfactual_kapsama_yuzde": kapsam,
+                "claim_state": kilit, "recommendation_allowed": False,
+            })
+        rows.sort(key=lambda x: (-x["setup_sayisi"], x["pattern"],
+                                 x["boyut"], x["deger"]))
+        return {
+            "hucreler": rows, "hucre_sayisi": len(rows),
+            "dimensions": ["timeframe", "side", "journal-quality",
+                           "motor-quality-exact", "prz-snapshot", "cd-status"],
+            "minimum_sample": None,
+            "minimum_sample_origin": "undisclosed-by-archive",
+            "motor_quality_origin": "BigE-engine-exact-value-no-bucketing",
+            "legacy_backfill": False, "automatic_recommendation": False,
+            "causality_claim": "not-made",
+        }
+
+    def pa_capraz_ozeti(self) -> dict:
+        """PA alt türlerini TF/yön/MTF/kalite geçişiyle çapraz denetle."""
+        pa = [k for k in self.kayitlar if k.kaynak == "Price Action"]
+        hucreler: dict[tuple[str, str, str], list[Kayit]] = {}
+
+        def kalite_gecisleri(k: Kayit) -> list[str]:
+            kalite = [str(x.get("kalite", "") or "") for x in k.kalite_gecmisi]
+            out = list(dict.fromkeys(
+                f"{a}→{b}" for a, b in zip(kalite, kalite[1:])
+                if a and b and a != b))
+            return out or ["No Transition History"]
+
+        for k in pa:
+            turler = list(dict.fromkeys(k.setup_turleri or ["Unclassified"]))
+            htf = ("conflict-filtered" if k.durum_nedeni == "htf-conflict"
+                   else k.htf_yapi or "Unknown")
+            boyutlar = {
+                "timeframe": [k.interval or "Unknown"],
+                "side": [k.taraf or "Unknown"],
+                "htf": [htf],
+                "ltf": [k.ltf_onay or "not-available"],
+                "quality-transition": kalite_gecisleri(k),
+            }
+            for tur in turler:
+                for boyut, degerler in boyutlar.items():
+                    for deger in degerler:
+                        hucreler.setdefault((tur, boyut, deger), []).append(k)
+
+        rows = []
+        for (tur, boyut, deger), kayitlar in hucreler.items():
+            journal = [k for k in kayitlar if k.durum in ("TP", "STOP")]
+            j_tp = sum(k.durum == "TP" for k in journal)
+            j_stop = sum(k.durum == "STOP" for k in journal)
+            filtreli = [k for k in kayitlar if k.durum == "Filtered"]
+            cf = [k for k in filtreli if k.karsi_olgusal_sonuc in ("TP", "STOP")]
+            cf_tp = sum(k.karsi_olgusal_sonuc == "TP" for k in cf)
+            cf_stop = sum(k.karsi_olgusal_sonuc == "STOP" for k in cf)
+            cf_kapsama = round(100 * len(cf) / len(filtreli), 1) if filtreli else 0.0
+            if filtreli and len(cf) < len(filtreli):
+                kilit = "locked-incomplete-counterfactual-coverage"
+            elif not journal and not cf:
+                kilit = "locked-no-verified-outcomes"
+            else:
+                kilit = "locked-minimum-threshold-undisclosed"
+            rows.append({
+                "tur": tur, "boyut": boyut, "deger": deger,
+                "setup_sayisi": len(kayitlar),
+                "journal_n": len(journal), "journal_tp": j_tp,
+                "journal_stop": j_stop,
+                "journal_wr": round(100 * j_tp / len(journal), 1)
+                if journal else None,
+                "filtered_n": len(filtreli), "counterfactual_n": len(cf),
+                "counterfactual_tp": cf_tp if cf else None,
+                "counterfactual_stop": cf_stop if cf else None,
+                "counterfactual_kapsama_yuzde": cf_kapsama,
+                "claim_state": kilit, "recommendation_allowed": False,
+            })
+        rows.sort(key=lambda x: (-x["setup_sayisi"], x["tur"],
+                                 x["boyut"], x["deger"]))
+        return {
+            "hucreler": rows, "hucre_sayisi": len(rows),
+            "dimensions": ["timeframe", "side", "htf", "ltf",
+                           "quality-transition"],
+            "minimum_sample": None,
+            "minimum_sample_origin": "undisclosed-by-archive",
+            "incomplete_counterfactual_claim": "locked",
+            "automatic_recommendation": False,
+            "multi_label": True, "rows_are_not_additive": True,
+            "causality_claim": "not-made",
+        }
 
     def pnl_analitik(self) -> dict:
         """terminalMiraz PNL ANALYTICS ekranının verisi: profit factor, açık/
@@ -247,8 +997,37 @@ class Defter:
             "en_iyi_gun": round(en_iyi, 1), "en_kotu_gun": round(en_kotu, 1),
             "kazanc_gun": kazanc_gun, "zarar_gun": zarar_gun,
             "parite": _kir("sembol"), "tf": _kir("interval"),
+            "parite_karakter": self.parite_hafiza(),
             "konsept": o_buckets if (o_buckets := self.ozet()["buckets"]) else {},
         }
+
+    def parite_hafiza(self) -> dict:
+        """Scanner Memory için pariteye özel Price Action performansı.
+
+        Tweet 2061490944713601191 UNI 11/3 → 77 skor, XLM 5/8 → 38 skor
+        örneklerini ve 20+ kaydın daha sağlıklı olacağını açıklar. Kesin skor ve
+        delist formülü açıklanmadığından yalnız ampirik metrik/olgunluk üretilir;
+        otomatik delist kararı verilmez.
+        """
+        d: dict[str, dict] = {}
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP"):
+                continue
+            if getattr(k, "kaynak", "Price Action") != "Price Action":
+                continue
+            e = d.setdefault(k.sembol, {"tp": 0, "stop": 0, "r": 0.0})
+            e["tp" if k.durum == "TP" else "stop"] += 1
+            e["r"] += k.r_sonuc
+        for e in d.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            e["ornek_durumu"] = "mature" if n >= 20 else "learning"
+            e["miraz_score"] = None
+            e["score_model"] = "terminalMiraz-formula-undisclosed"
+            e["auto_delist"] = False
+        return d
 
     def takvim_veri(self) -> dict:
         """Günlük agregat: her kapanış günü için TP/STOP/R + PA/Harmonik ayrımı.
@@ -328,6 +1107,9 @@ class Defter:
             "taraf": k.taraf, "kaynak": getattr(k, "kaynak", "Price Action"),
             "r_sonuc": round(k.r_sonuc, 2), "guven": round(k.guven, 0),
             "kalite": k.kalite, "giris": k.giris,
+            "kalite_gecmisi": list(getattr(k, "kalite_gecmisi", [])),
+            "kalite_degisim_sayisi": max(
+                0, len(getattr(k, "kalite_gecmisi", [])) - 1),
             "kapanis": (k.kapanis_zaman or "")[:16],
         } for k in kapali]
 
@@ -403,15 +1185,23 @@ class Gozlemci:
             goreceli=self.goreceli, taraf=self.taraf, rr_hedef=self.rr_hedef,
             max_bar=self.max_bar, ilerleme=ilerleme)
 
-        # 2. Trade sinyallerini portföye + deftere ekle
+        # 2. Bekleyen adayları yeni kaliteyle yeniden değerlendir.
+        self.defter.adaylari_yeniden_degerlendir(rapor, self.portfoy)
+
+        # 3. Trade sinyallerini portföye + deftere ekle
         #    (önce portföy → pozisyon id'leri oluşsun, sonra defter onları bağlasın)
         eklenen = radar_sinyallerini_ekle(self.portfoy, rapor)
         for satir in rapor.satirlar:
             if satir.kategori == "Trade":
                 self.defter.setup_ekle(satir, self.portfoy)
 
-        # 3. Açık/bekleyen pozisyonları taze veriyle güncelle
+        # 4. Açık/bekleyen pozisyonları taze veriyle güncelle
         aktif_sem = {(p.sembol, p.interval) for p in self.portfoy.aktif}
+        # Filtered karşı-olgusal izleme aynı taze OHLCV havuzunu kullanır; gerçek
+        # portföye pozisyon eklemez ve Result Journal sonucunu değiştirmez.
+        aktif_sem.update((k.sembol, k.interval) for k in self.defter.kayitlar
+                         if k.durum == "Filtered" and
+                         not k.karsi_olgusal_sonuc)
         df_sozluk = {}
         for (sem, ivl) in aktif_sem:
             try:
@@ -422,11 +1212,13 @@ class Gozlemci:
                 continue
         degisenler = self.portfoy.guncelle_hepsi(
             df_sozluk, max_bekleme=self.max_bekleme) if df_sozluk else []
+        if df_sozluk:
+            self.defter.filtered_karsi_olgusal_guncelle(df_sozluk)
 
-        # 4. Defteri portföyden senkronize et
+        # 5. Defteri portföyden senkronize et
         self.defter.senkronize(self.portfoy)
 
-        # 5. Sayaçlar + kalıcılık
+        # 6. Sayaçlar + kalıcılık
         self.defter.tarama_turu += 1
         self.defter.toplam_tarama += len(rapor.satirlar)
         self.defter.son_dongu = _simdi()

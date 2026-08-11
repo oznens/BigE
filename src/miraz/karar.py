@@ -1,8 +1,10 @@
-"""Karar motoru (Setup Intelligence) — terminalMiraz "PriceActionLab" katmanı.
+"""Karar motoru (Setup Intelligence) — terminalMiraz benzeri karar katmanı.
 
 Miraz'ın yazılım ekranında (PriceActionLab) her setup'a bir KARAR etiketi
 (Trade / Watch / Skip), bir KALİTE notu (A+/A/B/C/D) ve bir GÜVEN yüzdesi
-atanıyor. Bu modül aynı mantığı mekanikleştirir: senaryoda zaten hesaplanan
+atanıyor. Arşiv sayısal ağırlıkları ve eşikleri açıklamaz. Bu modül gözlenen
+arayüzü, BigE'ye ait kalibre edilmemiş bir heuristic skorla mekanikleştirir:
+senaryoda zaten hesaplanan
 tüm sinyalleri (mavi daire, MTF, market yapısı, hacim riski, RR, çift tepe/dip,
 trend) tek bir güven skoruna ve karara bağlar.
 
@@ -17,6 +19,36 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+SKOR_MODELI = "BigE heuristic v1"
+SKOR_KANIT_DURUMU = "weights-unverified"
+
+# Bu sayılar tweetlerden çıkarılmış Miraz kuralları değildir. Davranışı geriye
+# dönük uyumlu tutmak ve ileride backtest ile kalibre etmek için tek yerde
+# açıkça tutulurlar. Kanıtlanan kısım yalnız kalite/güven çıktısının varlığıdır.
+BIGE_SKOR_AGIRLIKLARI = {
+    "taban": 50.0,
+    "destek_olcek": 15.0,
+    "mavi_daire": 15.0,
+    "pamonic": 15.0,
+    "mtf_saglikli": 10.0,
+    "mtf_problemli": -15.0,
+    "yapi_yukselis": 10.0,
+    "yapi_dusus": -15.0,
+    "hacim_riski": -12.0,
+    "trend": 6.0,
+    "cift_dip": 10.0,
+    "cift_tepe": -12.0,
+    "bull_div": 8.0,
+    "bear_div": -10.0,
+    "rr_2": 10.0,
+    "rr_1": 3.0,
+    "rr_zayif": -5.0,
+    "hedef": 4.0,
+    "trade_esik": 70.0,
+    "watch_esik": 50.0,
+}
+
+
 @dataclass
 class KararSonuc:
     karar: str           # "Trade" / "Watch" / "Skip"
@@ -24,6 +56,8 @@ class KararSonuc:
     guven: float         # 0–100 güven yüzdesi
     gerekceler: list = field(default_factory=list)  # +/− katkı açıklamaları
     metin: str = ""
+    skor_modeli: str = SKOR_MODELI
+    skor_kanit_durumu: str = SKOR_KANIT_DURUMU
 
 
 def _kalite(guven: float) -> str:
@@ -43,14 +77,15 @@ def karar_uret(senaryo, rr: float | None = None,
                ) -> KararSonuc:
     """Senaryoyu Trade/Watch/Skip kararına ve A-D kalitesine bağlar.
 
-    Güven skoru 50 tabanından başlar; her sinyal +/− katkı yapar. Sert
+    Güven skoru BigE heuristic tabanından başlar; her sinyal +/− katkı yapar. Sert
     engeller (destek yok / hacimli kırılma riski) kararı sınırlar.
 
     ek_guven: dışarıdan (ör. cluster hafızası) gelen güven düzeltmesi. İki-geçişli
     akış için: önce ek_guven=0 ile temel karar üretilir, imzaya göre cluster
     bulunur, sonra ek_guven verilerek nihai karar üretilir.
     """
-    guven = 50.0
+    w = BIGE_SKOR_AGIRLIKLARI
+    guven = w["taban"]
     ger: list[str] = []
 
     if getattr(senaryo, "destek_kutu", None) is None:
@@ -62,53 +97,53 @@ def karar_uret(senaryo, rr: float | None = None,
     # Destek gücü
     d = senaryo.destek_kutu
     g = getattr(d, "guc", 50)
-    katki = (g - 50) / 50 * 15
+    katki = (g - 50) / 50 * w["destek_olcek"]
     guven += katki
     ger.append(f"Destek gücü {g:.0f} ({katki:+.0f})")
 
     # Mavi daire (harmonik D ∩ destek)
     if getattr(senaryo, "mavi_daire", None) is not None:
-        guven += 15
+        guven += w["mavi_daire"]
         ger.append("Mavi daire (harmonik D ∩ destek) (+15)")
 
     # PaMonic (Price Action + Harmonic): harmonik D, GÜÇLÜ bir PA destek kutusuyla
     # (OrderBlock) çakışıyorsa nadir ama güçlü kombinasyon — ekstra güven.
     if getattr(senaryo, "pamonic", False):
-        guven += 15
+        guven += w["pamonic"]
         ger.append("🔷 PaMonic (harmonik D ∩ güçlü PA kutusu) (+15)")
 
     # MTF üst zaman dilimi
     mtf = getattr(senaryo, "mtf_yapi", None)
     if mtf == "sağlıklı":
-        guven += 10; ger.append("Üst zaman dilimi sağlıklı (+10)")
+        guven += w["mtf_saglikli"]; ger.append("Üst zaman dilimi sağlıklı (+10)")
     elif mtf == "problemli":
-        guven -= 15; ger.append("Üst zaman dilimi problemli (−15)")
+        guven += w["mtf_problemli"]; ger.append("Üst zaman dilimi problemli (−15)")
 
     # Market yapısı (bu TF)
     my = getattr(senaryo, "market_yapisi", None)
     if my is not None:
         durum = getattr(my, "durum", None)
         if durum == "yükseliş":
-            guven += 10; ger.append("Market yapısı yükseliş (+10)")
+            guven += w["yapi_yukselis"]; ger.append("Market yapısı yükseliş (+10)")
         elif durum == "düşüş":
-            guven -= 15; ger.append("Market yapısı düşüş (−15)")
+            guven += w["yapi_dusus"]; ger.append("Market yapısı düşüş (−15)")
 
     # Hacimli geliş = kırılma riski
     hacim_riski = bool(getattr(senaryo, "kirilma_riski", False))
     if hacim_riski:
-        guven -= 12; ger.append("Hacimli geliş — kırılma riski (−12)")
+        guven += w["hacim_riski"]; ger.append("Hacimli geliş — kırılma riski (−12)")
 
     # Trend çizgisi desteği
     if getattr(senaryo, "trend", None) is not None:
-        guven += 6; ger.append("Yükselen trend çizgisi (+6)")
+        guven += w["trend"]; ger.append("Yükselen trend çizgisi (+6)")
 
     # Çift tepe/dip
     ik = getattr(senaryo, "ikili", None)
     if ik is not None:
         if ik.tip == "Çift Dip" and ik.onayli:
-            guven += 10; ger.append("Onaylı çift dip (+10)")
+            guven += w["cift_dip"]; ger.append("Onaylı çift dip (+10)")
         elif ik.tip == "Çift Tepe" and ik.onayli:
-            guven -= 12; ger.append("Onaylı çift tepe — long aleyhine (−12)")
+            guven += w["cift_tepe"]; ger.append("Onaylı çift tepe — long aleyhine (−12)")
 
     # Temas davranışı (bölge geçmişte tepki mi verdi, kırıldı mı?)
     tm = getattr(senaryo, "temas", None)
@@ -128,22 +163,22 @@ def karar_uret(senaryo, rr: float | None = None,
     dv = getattr(senaryo, "divergence", None)
     if dv is not None:
         if dv.tip == "Bullish":
-            guven += 8; ger.append("Bullish divergence — long lehine (+8)")
+            guven += w["bull_div"]; ger.append("Bullish divergence — long lehine (+8)")
         elif dv.tip == "Bearish":
-            guven -= 10; ger.append("Bearish divergence — long aleyhine (−10)")
+            guven += w["bear_div"]; ger.append("Bearish divergence — long aleyhine (−10)")
 
     # Risk/Ödül
     if rr is not None:
         if rr >= 2.0:
-            guven += 10; ger.append(f"R/R {rr:.1f} ≥ 2 (+10)")
+            guven += w["rr_2"]; ger.append(f"R/R {rr:.1f} ≥ 2 (+10)")
         elif rr >= 1.0:
-            guven += 3; ger.append(f"R/R {rr:.1f} (+3)")
+            guven += w["rr_1"]; ger.append(f"R/R {rr:.1f} (+3)")
         else:
-            guven -= 5; ger.append(f"R/R {rr:.1f} < 1 (−5)")
+            guven += w["rr_zayif"]; ger.append(f"R/R {rr:.1f} < 1 (−5)")
 
     # Hedef tanımlı
     if getattr(senaryo, "hedef_kutu", None) is not None:
-        guven += 4; ger.append("Ana hedef tanımlı (+4)")
+        guven += w["hedef"]; ger.append("Ana hedef tanımlı (+4)")
 
     # Dışarıdan gelen düzeltme (cluster hafızası — geçmiş benzer setup başarısı)
     if ek_guven:
@@ -154,9 +189,9 @@ def karar_uret(senaryo, rr: float | None = None,
     kalite = _kalite(guven)
 
     # Karar: güven + sert engeller
-    if guven >= 70 and not hacim_riski:
+    if guven >= w["trade_esik"] and not hacim_riski:
         karar = "Trade"
-    elif guven >= 50:
+    elif guven >= w["watch_esik"]:
         karar = "Watch"
     else:
         karar = "Skip"

@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.karar import karar_uret, _kalite
+from miraz.karar import (karar_uret, _kalite, BIGE_SKOR_AGIRLIKLARI,
+                         SKOR_MODELI, SKOR_KANIT_DURUMU)
 
 
 @dataclass
@@ -43,6 +44,14 @@ def test_kalite_esikleri():
     assert _kalite(68) == "B"
     assert _kalite(55) == "C"
     assert _kalite(40) == "D"
+
+
+def test_sayisal_skor_miraz_kurali_diye_etiketlenmez():
+    s = _Sen(destek_kutu=_Kutu(guc=70))
+    k = karar_uret(s, rr=1.0)
+    assert k.skor_modeli == SKOR_MODELI == "BigE heuristic v1"
+    assert k.skor_kanit_durumu == SKOR_KANIT_DURUMU == "weights-unverified"
+    assert BIGE_SKOR_AGIRLIKLARI["trade_esik"] == 70.0
 
 
 def test_destek_yoksa_skip():
