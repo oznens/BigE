@@ -169,6 +169,8 @@ def test_senkronize_portfoyden():
     p.entry_hacim_oran = 1.6
     p.entry_hacim_pencere = 20
     p.entry_kapanis = 101
+    p.entry_bekleme_bar = 3
+    p.entry_bekleme_limiti = 24
     p.r_sonuc = 1.0
     p.kapanis_zaman = "2025-01-01T00:00:00+00:00"
     d.senkronize(pf)
@@ -180,6 +182,8 @@ def test_senkronize_portfoyden():
     assert (d.kayitlar[0].entry_hacim, d.kayitlar[0].entry_hacim_oran,
             d.kayitlar[0].entry_hacim_pencere,
             d.kayitlar[0].entry_kapanis) == (2400, 1.6, 20, 101)
+    assert (d.kayitlar[0].entry_bekleme_bar,
+            d.kayitlar[0].entry_bekleme_limiti) == (3, 24)
     assert d.kayitlar[0].kalite_gecmisi[-1]["olay"] == \
         "entry-quality-snapshot"
     assert d.kayitlar[0].harmonik_gecmisi[-1]["olay"] == "entry-filled"
@@ -744,6 +748,26 @@ def test_adaydan_entry_kalite_hafiza_gercek_yolu_sonucla_esler():
     assert {(x["motor"], x["ad"]) for x in o["guven_yonu"]} == {
         ("Price Action", "YÜKSELDİ"), ("Harmonik", "DÜŞTÜ")}
     assert o["auto_filter"] is False
+
+
+def test_entry_bekleme_hafiza_kovasiz_kesin_bar_sayar():
+    d = Defter(kayitlar=[
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action",
+              entry_bekleme_bar=3, entry_bekleme_limiti=24),
+        Kayit(2, "", "ETHUSDT", "4h", "Long", "B", 70, 1, .9, 1.1, 1,
+              durum="STOP", r_sonuc=-1, kaynak="Harmonik",
+              entry_bekleme_bar=3, entry_bekleme_limiti=12),
+        Kayit(3, "", "SOLUSDT", "1h", "Long", "A", 90, 1, .9, 1.1, 1,
+              durum="TP", r_sonuc=1, kaynak="Price Action"),
+    ])
+    o = d.entry_bekleme_hafiza()
+    assert o["snapshot_kapsami"] == 2 and o["bucketing"] is False
+    assert {(x["motor"], x["interval"], x["bekleme_bar"],
+             x["bekleme_limiti"]) for x in o["kesin_bar"]} == {
+        ("Price Action", "1h", 3, 24), ("Harmonik", "4h", 3, 12)}
+    assert o["miraz_expiry_duration"] == "undisclosed-by-archive"
+    assert o["legacy_backfill"] is False and o["auto_filter"] is False
 
 
 def test_ozet_lifecycle_sayar():

@@ -52,6 +52,8 @@ class Pozisyon:
     entry_hacim_oran: float | None = None
     entry_hacim_pencere: int | None = None
     entry_kapanis: float | None = None
+    entry_bekleme_bar: int | None = None
+    entry_bekleme_limiti: int | None = None
     kapanis_zaman: str = ""
     son_kontrol_zaman: str = ""   # güncelleme sırasında işlenen son barın zamanı
     r_sonuc: float = 0.0          # +rr (TP) / -1.0 (STOP) / 0.0
@@ -201,6 +203,7 @@ class Portfoy:
             for j in range(len(alt_df)):
                 if poz.durum == "Bekliyor":
                     # Bu bara kadar açılıştan beri kaç bar geçti?
+                    gecen_j = None
                     if acilis_ts is not None:
                         gecen_j = int(((df.index > acilis_ts)
                                        & (df.index <= idx[j])).sum())
@@ -216,6 +219,8 @@ class Portfoy:
                     if doldu:
                         poz.durum = "Açık"
                         poz.entry_zaman = idx[j].isoformat()
+                        poz.entry_bekleme_bar = gecen_j
+                        poz.entry_bekleme_limiti = max_bekleme
                         poz.entry_kapanis = float(close[j])
                         if "volume" in df.columns:
                             hacim = float(alt_df["volume"].iloc[j])

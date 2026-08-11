@@ -579,6 +579,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     <div class="grid g2"><div id="m-kalite-yolu"></div><div id="m-guven-yonu"></div></div>
     <div id="m-kalite-yolu-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
   </div>
+  <div class="panel blok">
+    <h2>ADAY → ENTRY BEKLEME MEMORY</h2>
+    <div id="m-entry-bekleme"></div>
+    <div id="m-entry-bekleme-not" style="font-size:9px;color:var(--soluk);margin-top:6px"></div>
+  </div>
 </section>
 
 <!-- ════════════ SCANNER (canlı tarama) ════════════ -->
@@ -1222,6 +1227,10 @@ function memoryEkran(d){
   $("#m-guven-yonu").innerHTML = tabloEntryKalite(ky.guven_yonu,"GÜVEN YÖNÜ");
   $("#m-kalite-yolu-not").textContent =
     `Kapsam ${ky.snapshot_kapsami||0} sonuç · ilk aday → gerçek entry · yön yalnız puan farkının işareti · eşik/filtre yok · legacy backfill yok`;
+  const eb=m.entry_bekleme||{};
+  $("#m-entry-bekleme").innerHTML = tabloEntryKalite(eb.kesin_bar,"TF · KESİN BAR");
+  $("#m-entry-bekleme-not").textContent =
+    `Kapsam ${eb.snapshot_kapsami||0} sonuç · kova yok · Expired süresi arşivde açıklanmıyor · kullanılan limit BigE çalışma ayarıdır · filtre yok`;
   $("#m-entry-kalite-not").textContent=
     `Gerçek entry snapshot kapsamı: ${ek.snapshot_kapsami||0}. Eski kayıtlar doldurulmaz; güven bantları BigE gözlem kovasıdır, Miraz eşiği değildir.`;
   $("#m-tf").innerHTML = tabloPerf(m.tf,"TF");

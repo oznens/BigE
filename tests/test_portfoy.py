@@ -100,6 +100,8 @@ def test_guncelle_giris_doldu():
     assert pf.pozisyonlar[0].entry_hacim_oran == 3
     assert pf.pozisyonlar[0].entry_hacim_pencere == 1
     assert pf.pozisyonlar[0].entry_kapanis == 101
+    assert pf.pozisyonlar[0].entry_bekleme_bar == 2
+    assert pf.pozisyonlar[0].entry_bekleme_limiti == 24
 
 
 def test_guncelle_tp():

@@ -84,6 +84,8 @@ class Kayit:
     entry_hacim_oran: float | None = None
     entry_hacim_pencere: int | None = None
     entry_kapanis: float | None = None
+    entry_bekleme_bar: int | None = None
+    entry_bekleme_limiti: int | None = None
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
     # Result Journal motoru: Price Action / Harmonik / Late
@@ -261,6 +263,9 @@ class Defter:
                 k.entry_hacim_oran = getattr(p, "entry_hacim_oran", None)
                 k.entry_hacim_pencere = getattr(p, "entry_hacim_pencere", None)
                 k.entry_kapanis = getattr(p, "entry_kapanis", None)
+                k.entry_bekleme_bar = getattr(p, "entry_bekleme_bar", None)
+                k.entry_bekleme_limiti = getattr(
+                    p, "entry_bekleme_limiti", None)
                 k.kalite_gecmisi.append({
                     "zaman": k.entry_zaman, "kalite": k.kalite,
                     "guven": k.guven, "kategori": "Trade",
@@ -1330,6 +1335,47 @@ class Defter:
             "snapshot_kapsami": kapsam,
             "basis": "first-candidate-snapshot-to-real-entry-snapshot",
             "direction_origin": "exact-delta-sign-no-Miraz-threshold",
+            "legacy_backfill": False, "auto_filter": False,
+        }
+
+    def entry_bekleme_hafiza(self) -> dict:
+        """Gerçek entry'ye kadar gözlenen kesin bar sayısını sonuçla eşle."""
+        gruplar: dict[tuple[str, str, int, int | None], dict] = {}
+        kapsam = 0
+        for k in self.kayitlar:
+            if k.durum not in ("TP", "STOP"):
+                continue
+            if k.entry_bekleme_bar is None:
+                continue
+            kapsam += 1
+            anahtar = (k.kaynak, k.interval, k.entry_bekleme_bar,
+                       k.entry_bekleme_limiti)
+            e = gruplar.setdefault(anahtar, {
+                "motor": k.kaynak,
+                "ad": f"{k.interval} · {k.entry_bekleme_bar} bar",
+                "interval": k.interval,
+                "bekleme_bar": k.entry_bekleme_bar,
+                "bekleme_limiti": k.entry_bekleme_limiti,
+                "tp": 0, "stop": 0, "r": 0.0,
+            })
+            e["tp" if k.durum == "TP" else "stop"] += 1
+            e["r"] += k.r_sonuc
+        rows = []
+        for e in gruplar.values():
+            n = e["tp"] + e["stop"]
+            e["n"] = n
+            e["wr"] = round(100 * e["tp"] / n, 1) if n else 0.0
+            e["r"] = round(e["r"], 2)
+            rows.append(e)
+        rows.sort(key=lambda x: (
+            x["motor"], x["interval"], x["bekleme_bar"],
+            x["bekleme_limiti"] if x["bekleme_limiti"] is not None else -1))
+        return {
+            "kesin_bar": rows, "snapshot_kapsami": kapsam,
+            "basis": "bars-observed-after-candidate-open-through-entry-bar",
+            "bucketing": False,
+            "expiry_limit_origin": "BigE-runtime-setting-not-Miraz-duration",
+            "miraz_expiry_duration": "undisclosed-by-archive",
             "legacy_backfill": False, "auto_filter": False,
         }
 
