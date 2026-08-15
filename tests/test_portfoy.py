@@ -221,6 +221,33 @@ def test_short_stop():
     assert p.durum == "STOP" and p.r_sonuc == pytest.approx(-1.0)
 
 
+def test_sonuc_mumu_ve_denetim_zinciri_kalici():
+    pf = Portfoy()
+    p = _ekle(pf)
+    df = _df([(99, 101, 100), (108, 111, 110)])
+    pf.guncelle("BTC", "4h", df)
+    assert p.durum == "TP"
+    assert p.entry_zaman == df.index[0].isoformat()
+    assert p.kapanis_zaman == df.index[1].isoformat()
+    assert p.sonuc_mum_zaman == df.index[1].isoformat()
+    assert p.sonuc_tetik == "target-touch"
+    assert p.sonuc_mum_ohlc == {
+        "open": 110.0, "high": 111.0, "low": 108.0, "close": 110.0}
+    assert p.denetim_durumu == "verified-entry-to-result"
+
+
+def test_entry_zamani_olmayan_acik_legacy_sonuc_dogrulanmaz():
+    pf = Portfoy(pozisyonlar=[Pozisyon(
+        id=1, sembol="BTC", interval="4h", yon="Long", giris=100,
+        stop=95, hedef=110, rr=2, durum="Açık",
+        acilis_zaman="2024-12-31T20:00:00+00:00")])
+    p = pf.pozisyonlar[0]
+    df = _df([(108, 111, 110)])
+    pf.guncelle("BTC", "4h", df)
+    assert p.durum == "TP"
+    assert p.denetim_durumu == "legacy-limited-no-entry-time"
+
+
 def test_short_stop_fitili_hedef_temasinda_tp():
     """Short stop fitili invalidasyon değildir; hedef teması TP olur."""
     pf = Portfoy()

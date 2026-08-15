@@ -55,6 +55,10 @@ class Pozisyon:
     entry_bekleme_bar: int | None = None
     entry_bekleme_limiti: int | None = None
     kapanis_zaman: str = ""
+    sonuc_mum_zaman: str = ""
+    sonuc_tetik: str = ""
+    sonuc_mum_ohlc: dict = field(default_factory=dict)
+    denetim_durumu: str = ""
     son_kontrol_zaman: str = ""   # güncelleme sırasında işlenen son barın zamanı
     r_sonuc: float = 0.0          # +rr (TP) / -1.0 (STOP) / 0.0
     son_fiyat: float = 0.0
@@ -189,6 +193,7 @@ class Portfoy:
 
             low = alt_df["low"].to_numpy()
             high = alt_df["high"].to_numpy()
+            open_ = alt_df["open"].to_numpy()
             close = alt_df["close"].to_numpy()
             idx = alt_df.index
             short = poz.yon == "Short"
@@ -244,14 +249,32 @@ class Portfoy:
                     if stop_vurdu:        # aynı bar stop+tp → muhafazakâr STOP
                         poz.durum = "STOP"
                         poz.r_sonuc = -1.0
-                        poz.kapanis_zaman = _simdi()
+                        poz.kapanis_zaman = idx[j].isoformat()
+                        poz.sonuc_mum_zaman = idx[j].isoformat()
+                        poz.sonuc_tetik = "candle-close"
+                        poz.sonuc_mum_ohlc = {
+                            "open": float(open_[j]), "high": float(high[j]),
+                            "low": float(low[j]), "close": float(close[j]),
+                        }
+                        poz.denetim_durumu = (
+                            "verified-entry-to-result" if poz.entry_zaman
+                            else "legacy-limited-no-entry-time")
                         degisenler.append(poz)
                         kapanis_oldu = True
                         break
                     if tp_vurdu:
                         poz.durum = "TP"
                         poz.r_sonuc = poz.rr
-                        poz.kapanis_zaman = _simdi()
+                        poz.kapanis_zaman = idx[j].isoformat()
+                        poz.sonuc_mum_zaman = idx[j].isoformat()
+                        poz.sonuc_tetik = "target-touch"
+                        poz.sonuc_mum_ohlc = {
+                            "open": float(open_[j]), "high": float(high[j]),
+                            "low": float(low[j]), "close": float(close[j]),
+                        }
+                        poz.denetim_durumu = (
+                            "verified-entry-to-result" if poz.entry_zaman
+                            else "legacy-limited-no-entry-time")
                         degisenler.append(poz)
                         kapanis_oldu = True
                         break

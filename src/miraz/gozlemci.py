@@ -88,6 +88,10 @@ class Kayit:
     entry_bekleme_limiti: int | None = None
     kapanis_zaman: str = ""
     r_sonuc: float = 0.0
+    sonuc_mum_zaman: str = ""
+    sonuc_tetik: str = ""
+    sonuc_mum_ohlc: dict = field(default_factory=dict)
+    denetim_durumu: str = ""
     # Result Journal motoru: Price Action / Harmonik / Late
     kaynak: str = "Price Action"
     # Bağlı portföy pozisyonunun id'si — senkronize() bununla eşler.
@@ -280,6 +284,13 @@ class Defter:
             if not k.aktif:
                 k.kapanis_zaman = p.kapanis_zaman or _simdi()
                 k.r_sonuc = p.r_sonuc
+                k.sonuc_mum_zaman = getattr(p, "sonuc_mum_zaman", "")
+                k.sonuc_tetik = getattr(p, "sonuc_tetik", "")
+                k.sonuc_mum_ohlc = dict(
+                    getattr(p, "sonuc_mum_ohlc", {}) or {})
+                k.denetim_durumu = getattr(p, "denetim_durumu", "") or (
+                    "legacy-limited-no-entry-time"
+                    if k.durum in ("TP", "STOP") and not k.entry_zaman else "")
 
     def rafa_kaldir(self, kayit_id: int, portfoy: Portfoy,
                     neden: str = "explicit-shelve") -> Kayit | None:
@@ -426,13 +437,25 @@ class Defter:
             if k.aktif:
                 o["aktif"] += 1
             b = getattr(k, "kaynak", "Price Action")
-            if b in buckets and k.durum in ("TP", "STOP"):
+            if (b in buckets and k.durum in ("TP", "STOP")
+                    and self._dogrulanmis_sonuc(k)):
                 buckets[b]["tp" if k.durum == "TP" else "stop"] += 1
                 buckets[b]["r"] += k.r_sonuc
-        bitti = o["TP"] + o["STOP"]
-        o["wr"] = round(100 * o["TP"] / bitti, 1) if bitti else 0.0
-        o["toplam_r"] = round(sum(k.r_sonuc for k in self.kayitlar
-                                  if not k.aktif), 2)
+        dogrulanmis = [k for k in self.kayitlar if self._dogrulanmis_sonuc(k)]
+        legacy = [k for k in self.kayitlar
+                  if k.durum in ("TP", "STOP") and k not in dogrulanmis]
+        tp_v = sum(k.durum == "TP" for k in dogrulanmis)
+        bitti = len(dogrulanmis)
+        o["wr"] = round(100 * tp_v / bitti, 1) if bitti else 0.0
+        o["toplam_r"] = round(sum(k.r_sonuc for k in dogrulanmis), 2)
+        o["sonuc_denetim"] = {
+            "dogrulanmis": len(dogrulanmis), "dogrulanmis_tp": tp_v,
+            "dogrulanmis_stop": bitti - tp_v,
+            "legacy_sinirli": len(legacy),
+            "legacy_tp": sum(k.durum == "TP" for k in legacy),
+            "legacy_stop": sum(k.durum == "STOP" for k in legacy),
+            "legacy_r": round(sum(k.r_sonuc for k in legacy), 2),
+        }
         for b, bkt in buckets.items():
             done = bkt["tp"] + bkt["stop"]
             bkt["toplam"] = done
@@ -444,6 +467,14 @@ class Defter:
             o["toplam_r"] - buckets["Late"]["r"], 2)
         o["late_katki_r"] = buckets["Late"]["r"]
         return o
+
+    @staticmethod
+    def _dogrulanmis_sonuc(k: Kayit) -> bool:
+        """Entry ve sonuç mumu birlikte kalıcıysa sonucu performansa al."""
+        return bool(
+            k.durum in ("TP", "STOP") and k.entry_zaman
+            and k.sonuc_mum_zaman and k.sonuc_tetik
+            and k.denetim_durumu == "verified-entry-to-result")
 
     def filtered_neden_ozeti(self) -> dict[str, int]:
         """Kalıcı Filtered kayıtlarını denetim alt nedenlerine göre sayar."""
@@ -1058,7 +1089,7 @@ class Defter:
     def pnl_analitik(self) -> dict:
         """terminalMiraz PNL ANALYTICS ekranının verisi: profit factor, açık/
         kapalı PNL, en iyi/kötü gün, parite & TF performansı."""
-        kapali = [k for k in self.kayitlar if k.durum in ("TP", "STOP")]
+        kapali = [k for k in self.kayitlar if self._dogrulanmis_sonuc(k)]
         kazanc = sum(k.r_sonuc for k in kapali if k.r_sonuc > 0)
         zarar = -sum(k.r_sonuc for k in kapali if k.r_sonuc < 0)
         kapali_r = round(sum(k.r_sonuc for k in kapali), 2)
@@ -1431,7 +1462,8 @@ class Defter:
         bugun_str = simdi.strftime("%Y-%m-%d")
         dun_str = (simdi - timedelta(days=1)).strftime("%Y-%m-%d")
 
-        kapali = [k for k in self.kayitlar if k.durum in ("TP", "STOP") and k.kapanis_zaman]
+        kapali = [k for k in self.kayitlar
+                  if self._dogrulanmis_sonuc(k) and k.kapanis_zaman]
 
         def _stats(liste):
             tp = sum(1 for k in liste if k.durum == "TP")
@@ -1457,6 +1489,11 @@ class Defter:
             "taraf": k.taraf, "kaynak": getattr(k, "kaynak", "Price Action"),
             "r_sonuc": round(k.r_sonuc, 2), "guven": round(k.guven, 0),
             "kalite": k.kalite, "giris": k.giris,
+            "denetim_durumu": (k.denetim_durumu or
+                                ("legacy-limited-no-entry-time"
+                                 if k.durum in ("TP", "STOP") else "")),
+            "sonuc_mum_zaman": k.sonuc_mum_zaman,
+            "sonuc_tetik": k.sonuc_tetik,
             "kalite_gecmisi": list(getattr(k, "kalite_gecmisi", [])),
             "kalite_degisim_sayisi": max(
                 0, len(getattr(k, "kalite_gecmisi", [])) - 1),

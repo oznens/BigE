@@ -570,9 +570,13 @@ def test_ozet_sayar():
     d = Defter()
     d.kayitlar = [
         Kayit(1, "", "A", "1h", "Long", "A", 80, 100, 95, 110, 1.0, durum="TP",
-              r_sonuc=1.0),
+              r_sonuc=1.0, entry_zaman="2026-01-01T00:00:00+00:00",
+              sonuc_mum_zaman="2026-01-01T01:00:00+00:00",
+              sonuc_tetik="target-touch", denetim_durumu="verified-entry-to-result"),
         Kayit(2, "", "B", "1h", "Long", "B", 70, 100, 95, 110, 1.0, durum="STOP",
-              r_sonuc=-1.0),
+              r_sonuc=-1.0, entry_zaman="2026-01-01T00:00:00+00:00",
+              sonuc_mum_zaman="2026-01-01T01:00:00+00:00",
+              sonuc_tetik="candle-close", denetim_durumu="verified-entry-to-result"),
         Kayit(3, "", "C", "1h", "Long", "C", 60, 100, 95, 110, 1.0, durum="Açık"),
     ]
     o = d.ozet()
@@ -587,13 +591,21 @@ def test_ozet_bucket_kaynak():
     d = Defter()
     d.kayitlar = [
         Kayit(1, "", "A", "1h", "Long", "A", 80, 100, 95, 110, 1.0, durum="TP",
-              r_sonuc=1.0, kaynak="Harmonik"),
+              r_sonuc=1.0, kaynak="Harmonik", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(2, "", "B", "1h", "Long", "B", 70, 100, 95, 110, 1.0, durum="STOP",
-              r_sonuc=-1.0, kaynak="Harmonik"),
+              r_sonuc=-1.0, kaynak="Harmonik", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="candle-close",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(3, "", "C", "1h", "Long", "C", 60, 100, 95, 110, 1.0, durum="TP",
-              r_sonuc=1.0, kaynak="Price Action"),
+              r_sonuc=1.0, kaynak="Price Action", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(4, "", "D", "1h", "Long", "C", 60, 100, 95, 110, 1.0, durum="TP",
-              r_sonuc=1.0, kaynak="Late"),
+              r_sonuc=1.0, kaynak="Late", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
     ]
     b = d.ozet()["buckets"]
     assert b["Harmonik"] == {"tp": 1, "stop": 1, "toplam": 2, "wr": 50.0, "r": 0.0}
@@ -794,13 +806,19 @@ def test_pnl_analitik():
     d.kayitlar = [
         Kayit(1, "2026-06-01T10:00", "BTCUSDT", "1h", "Long", "A", 80,
               100, 95, 110, 1.0, durum="TP", r_sonuc=2.0, kaynak="Harmonik",
-              kapanis_zaman="2026-06-01T12:00"),
+              kapanis_zaman="2026-06-01T12:00", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(2, "2026-06-01T10:00", "ETHUSDT", "4h", "Long", "B", 70,
               100, 95, 110, 1.0, durum="STOP", r_sonuc=-1.0,
-              kaynak="Price Action", kapanis_zaman="2026-06-01T13:00"),
+              kaynak="Price Action", kapanis_zaman="2026-06-01T13:00",
+              entry_zaman="e", sonuc_mum_zaman="s", sonuc_tetik="candle-close",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(3, "2026-06-02T10:00", "BTCUSDT", "1h", "Long", "A", 80,
               100, 95, 110, 1.0, durum="TP", r_sonuc=1.0, kaynak="Harmonik",
-              kapanis_zaman="2026-06-02T12:00"),
+              kapanis_zaman="2026-06-02T12:00", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(4, "2026-06-02T10:00", "SOLUSDT", "1h", "Long", "C", 60,
               100, 95, 110, 1.0, durum="Açık", r_sonuc=0.5),
     ]
@@ -840,7 +858,8 @@ def test_yukle_kaynaksiz_eski_kayit(tmp_path):
     }), encoding="utf-8")
     d = Defter.yukle(dosya)
     assert d.kayitlar[0].kaynak == "Price Action"
-    assert d.ozet()["buckets"]["Price Action"]["tp"] == 1
+    assert d.ozet()["buckets"]["Price Action"]["tp"] == 0
+    assert d.ozet()["sonuc_denetim"]["legacy_sinirli"] == 1
 
 
 

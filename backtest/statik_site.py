@@ -261,6 +261,11 @@ def _duzelt_kapanis_zamanlari(goz: Gozlemci, degisenler: list,
     duzeltilen = 0
     kayit_idx = {getattr(k, "poz_id", -1): k for k in goz.defter.kayitlar}
     for pid, p in kapanan.items():
+        # Yeni motor TP/STOP mumunu, tetik türünü ve OHLC kanıtını atomik olarak
+        # kaydeder. Bu zincirin yalnız zaman alanını sonradan yeniden yazmak
+        # kanıtı tutarsızlaştırır; düzeltme yalnız legacy/Expired içindir.
+        if p.durum in ("TP", "STOP") and getattr(p, "sonuc_mum_zaman", ""):
+            continue
         onceki_durum, onceki_kontrol = onceki.get(pid, ("Bekliyor", p.son_kontrol_zaman))
         anahtar = (p.sembol, p.interval)
         if anahtar not in cache:

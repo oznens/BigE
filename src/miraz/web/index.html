@@ -312,6 +312,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       </div>
       <div id="pi-tarih" style="font-size:10px;color:#4a8a8a"></div>
     </div>
+    <div id="pi-audit" class="readout" style="margin-bottom:10px"></div>
     <div class="grid g6">
       <div class="pi-engine">
         <div class="k">BUGÜN</div>
@@ -729,6 +730,10 @@ function piEkran(d){
   const b=pc.bugun, du=pc.dun, tm=pc.tum;
 
   $("#pi-tarih").textContent = new Date().toLocaleDateString("tr-TR",{day:"2-digit",month:"long",year:"numeric"});
+  const audit=d.sonuc_denetim||{};
+  $("#pi-audit").innerHTML=`DOĞRULANMIŞ SONUÇ <b>${audit.dogrulanmis||0}</b> · `+
+    `LEGACY / SINIRLI DOĞRULAMA <b>${audit.legacy_sinirli||0}</b> `+
+    `(TP ${audit.legacy_tp||0} · STOP ${audit.legacy_stop||0})`;
   $("#pi-bugun-n").textContent = b.sonuc;
   $("#pi-wr").textContent = "%"+b.wr;
   $("#pi-tpsl-b").textContent = "TP "+b.tp+" · SL "+b.sl;
@@ -1019,6 +1024,10 @@ function piEkran(d){
         </div>
         <span class="${t.durum==="TP"?"pos":"neg"}" style="font-size:10px;font-weight:700">${t.durum}</span>
       </div>
+      ${t.denetim_durumu==="legacy-limited-no-entry-time"
+        ? `<div style="font-size:9px;color:var(--sari);font-weight:700">LEGACY · SINIRLI DOĞRULAMA</div>`
+        : t.denetim_durumu==="verified-entry-to-result"
+          ? `<div style="font-size:9px;color:var(--yesil);font-weight:700">DOĞRULANMIŞ</div>` : ``}
       <div class="kalite">${Math.round(t.guven||0)}</div>
       <div style="font-size:10px;color:#4a8a8a">${(t.kapanis||"").slice(0,10)}</div>
       <div class="mini-bars" id="mb-${t.sembol.replace(/\W/g,"")}">

@@ -99,9 +99,13 @@ def test_pano_bucket_wr_defterden():
     d = Defter()
     d.kayitlar = [
         Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1.0,
-              durum="TP", r_sonuc=1.0, kaynak="Harmonik"),
+              durum="TP", r_sonuc=1.0, kaynak="Harmonik", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(2, "", "ETHUSDT", "1h", "Long", "B", 70, 100, 95, 110, 1.0,
-              durum="STOP", r_sonuc=-1.0, kaynak="Harmonik"),
+              durum="STOP", r_sonuc=-1.0, kaynak="Harmonik", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="candle-close",
+              denetim_durumu="verified-entry-to-result"),
     ]
     metin = _render(db.pano_olustur(rapor, defter=d))
     # Harmonik bucket: 2 kapalı, 1 TP, 1 STOP, %50
@@ -141,10 +145,14 @@ def test_pnl_analitik_pano():
     d.kayitlar = [
         Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 110, 1.0,
               durum="TP", r_sonuc=2.0, kaynak="Harmonik",
-              kapanis_zaman="2026-06-01T12:00"),
+              kapanis_zaman="2026-06-01T12:00", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="target-touch",
+              denetim_durumu="verified-entry-to-result"),
         Kayit(2, "", "ETHUSDT", "4h", "Long", "B", 70, 100, 95, 110, 1.0,
               durum="STOP", r_sonuc=-1.0, kaynak="Price Action",
-              kapanis_zaman="2026-06-01T13:00"),
+              kapanis_zaman="2026-06-01T13:00", entry_zaman="e",
+              sonuc_mum_zaman="s", sonuc_tetik="candle-close",
+              denetim_durumu="verified-entry-to-result"),
     ]
     metin = _render(db.pnl_analitik_pano(d))
     assert "PNL ANALYTICS" in metin
