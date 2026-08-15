@@ -164,6 +164,11 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "giris": k.giris, "stop": k.stop,
         "hedef": k.hedef, "r_sonuc": k.r_sonuc,
         "kapanis": (k.kapanis_zaman or "")[:16],
+        "kapanis_zaman": k.kapanis_zaman or "",
+        "sonuc_mum_zaman": getattr(k, "sonuc_mum_zaman", ""),
+        "sonuc_tetik": getattr(k, "sonuc_tetik", ""),
+        "sonuc_mum_ohlc": getattr(k, "sonuc_mum_ohlc", {}) or {},
+        "denetim_durumu": getattr(k, "denetim_durumu", ""),
     } for k in kapanan]
 
     radar_lifecycle = Counter(
@@ -364,8 +369,14 @@ def _seviye_bul(durum: dict, symbol: str, interval: str) -> dict | None:
                 return {
                     "giris": s.get("giris"), "stop": s.get("stop"),
                     "hedef": s.get("hedef"), "taraf": s.get("taraf", "Long"),
+                    "durum": s.get("durum"),
                     "pattern": s.get("pattern"), "kaynak": s.get("kaynak"),
                     "rr": s.get("rr"), "entry_zaman": s.get("entry_zaman"),
+                    "kapanis_zaman": s.get("kapanis_zaman"),
+                    "sonuc_mum_zaman": s.get("sonuc_mum_zaman"),
+                    "sonuc_tetik": s.get("sonuc_tetik"),
+                    "sonuc_mum_ohlc": s.get("sonuc_mum_ohlc", {}),
+                    "denetim_durumu": s.get("denetim_durumu"),
                     "konseptler": s.get("konseptler", []),
                     "harmonik_detay": s.get("harmonik_detay", {}),
                     "harmonik_gecmisi": s.get("harmonik_gecmisi", []),
@@ -483,7 +494,7 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
 
     # XABCD koordinatları eski kayıtta tutulmadıysa nokta uydurma; yalnız
     # gerçekten kaydedilmiş PRZ merkezini kanıtlı fallback olarak göster.
-    if not harmonik.get("tamamlanan") and seviye.get("pattern"):
+    if seviye.get("pattern"):
         detay = seviye.get("harmonik_detay") or {}
         prz = detay.get("prz") or {}
         merkez = prz.get("merkez")
@@ -532,7 +543,8 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
                 setup_bar = uygun_idx[0]
         except Exception:
             pass
-    if t and t.get("noktalar") and len(t["noktalar"]) >= 5:
+    if (not entry_zaman and t and t.get("noktalar")
+            and len(t["noktalar"]) >= 5):
         d_nokta = t["noktalar"][4]
         setup_bar = d_nokta[0] if isinstance(d_nokta, list) else int(d_nokta)
     if setup_bar is None and giris_p:
@@ -560,6 +572,34 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
         setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 1)))
     else:
         setup_bar = max(0, min(setup_bar, max(0, len(mumlar) - 25)))
+
+    def _zaman_idx(zaman):
+        if not zaman:
+            return None
+        try:
+            ts = pd.Timestamp(zaman)
+            ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+            idx_utc = df.index.tz_convert("UTC")
+            aday = [i for i, x in enumerate(idx_utc) if x >= ts]
+            return aday[0] if aday else None
+        except Exception:
+            return None
+
+    entry_idx = _zaman_idx(entry_zaman)
+    # Legacy kapanış zamanı kesin sonuç mumu değildir; yalnız yeni atomik
+    # sonuç_mum_zaman kaydı grafik durum makinesini kilitleyebilir.
+    sonuc_zaman = seviye.get("sonuc_mum_zaman")
+    sonuc_idx = _zaman_idx(sonuc_zaman)
+    olaylar = {
+        "setup_idx": setup_bar,
+        "entry_idx": entry_idx,
+        "entry_zaman": entry_zaman or "",
+        "sonuc_idx": sonuc_idx,
+        "sonuc_zaman": sonuc_zaman or "",
+        "sonuc_tetik": seviye.get("sonuc_tetik") or "",
+        "sonuc_mum_ohlc": seviye.get("sonuc_mum_ohlc") or {},
+        "denetim_durumu": seviye.get("denetim_durumu") or "",
+    }
 
     # PA konsept bölgeleri (Cavity/Root/Shade/Buffer zone kutuları + seviyeler)
     konseptler = []
@@ -594,6 +634,7 @@ def grafik_veri(symbol: str, interval: str, durum: dict | None = None,
                    "setup_bar": setup_bar},
         "harmonik": harmonik,
         "konseptler": konseptler,
+        "olaylar": olaylar,
         "miraz_yorum": m_yorum,
     }
 

@@ -114,6 +114,10 @@ def _playback_trade_memory(defter: Defter, n: int = 30) -> list[dict]:
             "harmonik_detay": dict(getattr(k, "harmonik_detay", {}) or {}),
             "harmonik_gecmisi": list(getattr(k, "harmonik_gecmisi", []) or []),
             "entry_zaman": getattr(k, "entry_zaman", "") or None,
+            "sonuc_mum_zaman": getattr(k, "sonuc_mum_zaman", "") or None,
+            "sonuc_tetik": getattr(k, "sonuc_tetik", ""),
+            "sonuc_mum_ohlc": dict(getattr(k, "sonuc_mum_ohlc", {}) or {}),
+            "denetim_durumu": getattr(k, "denetim_durumu", ""),
             "entry_zaman_durumu": ("recorded-entry-touch-bar" if
                                      getattr(k, "entry_zaman", "") else
                                      "legacy-not-recorded"),
@@ -351,8 +355,20 @@ _PLAYBACK_PATCH = r"""
         ...(pbGrafVeri.seviye||{}),
         giris:t.giris, stop:t.stop, hedef:t.hedef, rr:t.rr,
         taraf:t.taraf||"Long", pattern:t.pattern||null,
-        kaynak:t.kaynak||"Price Action",
+        kaynak:t.kaynak||"Price Action", durum:t.durum,
         setup_bar:setup>=0?setup:Math.max(0,Math.floor(m.length*.35))
+      };
+      const entry=barIdx(m,t.entry_zaman);
+      const sonuc=barIdx(m,t.sonuc_mum_zaman);
+      pbGrafVeri.olaylar={
+        setup_idx:setup>=0?setup:null,
+        entry_idx:entry>=0?entry:null,
+        entry_zaman:t.entry_zaman||"",
+        sonuc_idx:sonuc>=0?sonuc:null,
+        sonuc_zaman:t.sonuc_mum_zaman||"",
+        sonuc_tetik:t.sonuc_tetik||"",
+        sonuc_mum_ohlc:t.sonuc_mum_ohlc||{},
+        denetim_durumu:t.denetim_durumu||""
       };
       pbBar=Math.max(5, Math.min(m.length, (setup>=0?setup:0)+1));
       pbGrafVeri._playbackSon = kapanis>=0 ? Math.min(m.length,kapanis+1) : m.length;

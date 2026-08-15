@@ -1473,20 +1473,26 @@ function cizKonseptler(ctx,kons,px,Y,padL,padR,W){
   ctx.font="10px sans-serif";
   kons.forEach(k=>{
     const r=renkYon(k.yon);
+    const x0=Number.isInteger(k.idx)?Math.max(padL,px(k.idx)):padL;
     if(k.zone_alt!=null&&k.zone_ust!=null){
       const yU=Y(k.zone_ust),yL=Y(k.zone_alt);
       ctx.fillStyle=k.yon==="Long"?"rgba(38,208,124,.08)":k.yon==="Short"?"rgba(239,77,86,.08)":"rgba(61,165,255,.08)";
-      ctx.fillRect(padL,Math.min(yU,yL),W-padL-padR,Math.abs(yL-yU));
+      ctx.fillRect(x0,Math.min(yU,yL),W-padR-x0,Math.abs(yL-yU));
       ctx.strokeStyle=r;ctx.globalAlpha=.5;ctx.setLineDash([2,3]);
-      ctx.strokeRect(padL,Math.min(yU,yL),W-padL-padR,Math.abs(yL-yU));
+      ctx.strokeRect(x0,Math.min(yU,yL),W-padR-x0,Math.abs(yL-yU));
       ctx.setLineDash([]);ctx.globalAlpha=1;
-      ctx.fillStyle=r;ctx.fillText(k.isim+" ZONE",padL+4,Math.min(yU,yL)+11);
+      const orta=(k.zone_alt+k.zone_ust)/2;
+      ctx.strokeStyle=r;ctx.globalAlpha=.25;ctx.setLineDash([1,4]);
+      ctx.beginPath();ctx.moveTo(x0,Y(orta));ctx.lineTo(W-padR,Y(orta));ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1;
+      ctx.fillStyle=r;ctx.fillText(k.isim+" ZONE",x0+4,Math.min(yU,yL)+11);
+      ctx.fillText(`GÜÇ ${Math.round(k.guc||0)}`,x0+4,Math.max(yU,yL)-4);
     }else if(k.seviye!=null){
       const y=Y(k.seviye);
       ctx.strokeStyle=r;ctx.globalAlpha=.6;ctx.setLineDash([2,4]);
-      ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(W-padR,y);ctx.stroke();
       ctx.setLineDash([]);ctx.globalAlpha=1;
-      ctx.fillStyle=r;ctx.fillText(k.isim,padL+4,y-3);
+      ctx.fillStyle=r;ctx.fillText(`${k.isim} · ${Math.round(k.guc||0)}`,x0+4,y-3);
     }
   });
 }
@@ -1519,6 +1525,7 @@ function cizHarmonik(ctx,hm,px,Y,padL,padR,W){
     oran(n[1][0],n[1][1],n[2][0],n[2][1],T.oranlar.AB_XA,MOR);
     oran(n[2][0],n[2][1],n[3][0],n[3][1],T.oranlar.BC_AB,MOR);
     oran(n[3][0],n[3][1],n[4][0],n[4][1],T.oranlar.CD_BC,MOR);
+    oran(n[0][0],n[0][1],n[4][0],n[4][1],T.oranlar.XD_XA,MOR);
     n.forEach((p,k)=>nokta(p[0],p[1],et[k],MOR,et[k]==="B"||et[k]==="D"?(T.yon==="Bullish"):(T.yon!=="Bullish")));
     const x=px(D[0]),y=Y(D[1]);
     ctx.fillStyle=MOR;ctx.font="bold 11px sans-serif";
@@ -1569,7 +1576,7 @@ function cizGrafik(d, canvasId="grafik"){
   if(!m.length){ctx.fillStyle=CSS("--soluk");ctx.fillText("veri yok",10,20);return;}
   const padL=8,padR=68,padT=10;
   const mainH=canvasId==="pb-grafik"?260:300,macdH=80,macdY=padT+mainH+14;
-  const sv=d.seviye||{},hm=d.harmonik||{};
+  const sv=d.seviye||{},hm=d.harmonik||{},ev=d.olaylar||{};
   let lo=Infinity,hi=-Infinity;
   m.forEach(c=>{lo=Math.min(lo,c[3]);hi=Math.max(hi,c[2]);});
   [sv.giris,sv.stop,sv.hedef,sv.zone_alt,sv.zone_ust].forEach(v=>{
@@ -1603,17 +1610,28 @@ function cizGrafik(d, canvasId="grafik"){
   // ── Zamansal durum makinesi (sagla.py + MumGrafik.cs ile aynı mantık) ──
   // BEKLIYOR → giriş dolar → ACIK → önce SL mi TP mi vurdu?
   const longSetup=(sv.taraf!=="Short");
-  const sb=sv.setup_bar;
+  const sb=Number.isInteger(ev.setup_idx)?ev.setup_idx:sv.setup_bar;
+  const kayitliEntry=Number.isInteger(ev.entry_idx)?ev.entry_idx:null;
+  const kayitliSonuc=Number.isInteger(ev.sonuc_idx)?ev.sonuc_idx:null;
   let durum="PLAN",cozumIdx=-1;
   if(sb!=null&&sv.giris!=null){
     durum="BEKLIYOR";
-    let acik=false;
-    for(let i=sb;i<m.length;i++){
+    let acik=kayitliEntry!=null&&kayitliEntry<m.length;
+    if(acik) durum="ACIK";
+    const basla=kayitliEntry!=null?kayitliEntry:sb;
+    for(let i=basla;i<m.length;i++){
       const hi=m[i][2],lo=m[i][3];
       if(!acik){
         if(longSetup?lo<=sv.giris:hi>=sv.giris){acik=true;durum="ACIK";}
       }
       if(acik){
+        if(kayitliSonuc!=null){
+          if(i===kayitliSonuc){
+            durum=sv.durum||((ev.sonuc_tetik==="candle-close")?"STOP":"TP");
+            cozumIdx=i;break;
+          }
+          continue;
+        }
         // Journal ile aynı kural: STOP fitille değil mum kapanışıyla;
         // TP hedef bölgesine temasla sonuçlanır.
         const kapanis=m[i][4];
@@ -1636,6 +1654,13 @@ function cizGrafik(d, canvasId="grafik"){
   }
   // Entry rengi/etiketi duruma göre
   const CVURGU=CSS("--vurgu"),CK=CSS("--kirmizi"),CY=CSS("--yesil"),CSR=CSS("--sari"),CM=CSS("--metin");
+  if(kayitliEntry!=null&&kayitliEntry<m.length){
+    const ex=X(kayitliEntry)+cw/2;
+    ctx.strokeStyle=CVURGU;ctx.globalAlpha=.75;ctx.setLineDash([2,2]);
+    ctx.beginPath();ctx.moveTo(ex,padT);ctx.lineTo(ex,padT+mainH);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=CVURGU;ctx.font="bold 9px sans-serif";
+    ctx.fillText("ENTRY MUMU",Math.min(ex+3,W-padR-68),padT+22);
+  }
   let eRenk=CM,eEtk="ENTRY ",eKesik=true;
   if(durum==="ACIK"){eRenk=CVURGU;eEtk="● AKTİF ENTRY ";eKesik=false;}
   else if(durum==="STOP"){eRenk=CK;eEtk="✗ STOP · ENTRY ";eKesik=true;}
@@ -1662,7 +1687,8 @@ function cizGrafik(d, canvasId="grafik"){
       ctx.globalAlpha=1;ctx.lineWidth=1;
       ctx.fillStyle=cr;ctx.beginPath();ctx.arc(cx,cy,4,0,7);ctx.fill();
       ctx.fillStyle=cr;ctx.font="bold 11px sans-serif";
-      ctx.fillText(durum+" ✕",cx+5,cy-12);
+      const tetik=ev.sonuc_tetik==="candle-close"?"KAPANIŞ":ev.sonuc_tetik==="target-touch"?"TEMAS":"";
+      ctx.fillText(durum+(tetik?" · "+tetik:"")+" ✕",Math.min(cx+5,W-padR-95),cy-12);
     }
   }
   // PLAN/BEKLIYOR etiketi
@@ -1817,6 +1843,8 @@ function pbHafizaGoster(t){
       <div>Durum: <b class="${t.durum==="TP"?"pos":"neg"}">${t.durum}</b></div>
       <div>Entry: <b>${fmt(t.giris)}</b></div>
       <div>Sonuç: <b class="${rCls(t.r_sonuc||0)}">${sgn(t.r_sonuc||0)}</b></div>
+      <div>Kanıt: <b class="${t.denetim_durumu==="verified-entry-to-result"?"pos":""}">${t.denetim_durumu==="verified-entry-to-result"?"DOĞRULANMIŞ":"LEGACY · SINIRLI"}</b></div>
+      ${t.sonuc_tetik?`<div>Tetik: <b>${t.sonuc_tetik==="candle-close"?"STOP · MUM KAPANIŞI":"TP · HEDEF TEMASI"}</b></div>`:""}
       <div style="margin-top:8px;color:var(--soluk)">SETUP OLUŞUMU → FİYAT SÜRECİ → SONUÇ</div>
       <div class="pb-quality-title">KALİTE ZAMAN ÇİZELGESİ · ${t.kalite_degisim_sayisi||0} DEĞİŞİM</div>
       <div id="pb-quality-lines"></div>

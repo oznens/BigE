@@ -240,6 +240,32 @@ def test_grafik_veri_acik_tradei_gercek_entry_mumundan_baslatir(monkeypatch):
     }]}
     g = sv.grafik_veri("BTCUSDT", "1h", durum=durum, bar=60)
     assert g["seviye"]["setup_bar"] == 50
+    assert g["olaylar"]["entry_idx"] == 50
+
+
+def test_grafik_veri_kayitli_sonuc_mumunu_ve_tetigini_tasir(monkeypatch):
+    import numpy as np
+    import pandas as pd
+    idx = pd.date_range("2026-01-01", periods=80, freq="h", tz="UTC")
+    fiyat = np.linspace(100, 110, 80)
+    df = pd.DataFrame({"open": fiyat, "high": fiyat + 1,
+                       "low": fiyat - 1, "close": fiyat,
+                       "volume": 1.0}, index=idx)
+    monkeypatch.setattr(sv.veri, "indir", lambda *a, **k: df)
+    durum = {"bildirimler": [{
+        "sembol": "BTCUSDT", "interval": "1h", "giris": 108,
+        "stop": 104, "hedef": 112, "taraf": "Long", "durum": "TP",
+        "entry_zaman": idx[65].isoformat(),
+        "sonuc_mum_zaman": idx[72].isoformat(),
+        "sonuc_tetik": "target-touch",
+        "sonuc_mum_ohlc": {"open": 111, "high": 112, "low": 110, "close": 111},
+        "denetim_durumu": "verified-entry-to-result",
+    }]}
+    g = sv.grafik_veri("BTCUSDT", "1h", durum=durum, bar=60)
+    assert g["olaylar"]["entry_idx"] == 45
+    assert g["olaylar"]["sonuc_idx"] == 52
+    assert g["olaylar"]["sonuc_tetik"] == "target-touch"
+    assert g["seviye"]["durum"] == "TP"
 
 
 def _zigzag(pivots, seg=10):

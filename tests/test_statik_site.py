@@ -72,6 +72,30 @@ def test_playback_kanitli_sureci_tasir():
     assert trade["playback_kanit"]["kararsizlik_etiketi"] == "kayit-yoksa-uretilmez"
 
 
+def test_playback_sonuc_mumu_denetim_kanitini_tasir():
+    d = Defter(kayitlar=[Kayit(
+        1, "2026-06-01T10:00:00+00:00", "BTCUSDT", "1h", "Long",
+        "A", 90, 100, 95, 105, 1.0, durum="TP", r_sonuc=1.0,
+        entry_zaman="2026-06-01T11:00:00+00:00",
+        kapanis_zaman="2026-06-01T12:00:00+00:00",
+        sonuc_mum_zaman="2026-06-01T12:00:00+00:00",
+        sonuc_tetik="target-touch",
+        sonuc_mum_ohlc={"open": 104, "high": 105, "low": 103, "close": 104},
+        denetim_durumu="verified-entry-to-result")])
+    trade = s._playback_trade_memory(d)[0]
+    assert trade["sonuc_mum_zaman"] == "2026-06-01T12:00:00+00:00"
+    assert trade["sonuc_tetik"] == "target-touch"
+    assert trade["denetim_durumu"] == "verified-entry-to-result"
+
+
+def test_grafik_renderer_pa_ve_kayitli_olay_katmanlarini_icerir():
+    html = (s.WEB_DIZIN / "index.html").read_text(encoding="utf-8")
+    assert "GÜÇ ${Math.round(k.guc||0)}" in html
+    assert "ENTRY MUMU" in html
+    assert "ev.sonuc_tetik" in html
+    assert "T.oranlar.XD_XA" in html
+
+
 def test_harmonik_playback_yalniz_kayitli_olaylari_tasir():
     d = Defter(kayitlar=[Kayit(
         1, "2026-06-01T10:00:00+00:00", "BTCUSDT", "1h", "Long",
