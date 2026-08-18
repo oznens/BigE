@@ -175,7 +175,7 @@ def _seviyeler_uyumlu(k, p) -> bool:
 
 
 def _maliyet_ozeti(defter: Defter, portfoy: Portfoy) -> dict:
-    """Yalnız doğrulanmış TP/STOP kayıtlarında Gross/Cost/Net R üretir."""
+    """Seviyeleri pozisyonla eşleşen journal sonuçlarında maliyet özeti."""
     poz_idx = {p.id: p for p in portfoy.pozisyonlar}
     gross = cost = 0.0
     n = tp = stop_n = legacy = 0
@@ -195,8 +195,12 @@ def _maliyet_ozeti(defter: Defter, portfoy: Portfoy) -> dict:
         else:
             stop_n += 1
     net = gross - cost
+    audit = defter.ozet().get("sonuc_denetim", {})
     return {
-        "dogrulanmis_islem": n,
+        "journal_islem": n,
+        "dogrulanmis_islem": n,  # eski istemciler için geriye uyumluluk
+        "tam_dogrulanmis": audit.get("dogrulanmis", 0),
+        "legacy_sinirli": audit.get("legacy_sinirli", 0),
         "legacy_haric": legacy,
         "tp": tp,
         "stop": stop_n,
@@ -408,12 +412,13 @@ _PLAYBACK_PATCH = r"""
     const el=document.getElementById("net-r-ozet");
     if(!m||!el) return;
     const sg=v=>(v>=0?"+":"")+(+v).toFixed(2)+"R";
-    el.innerHTML=`DOĞRULANMIŞ ${m.dogrulanmis_islem} işlem · WR %${m.wr} · `+
+    el.innerHTML=`SONUÇ JOURNALI ${m.journal_islem??m.dogrulanmis_islem} işlem · WR %${m.wr} · `+
       `Gross <b style="color:var(--metin)">${sg(m.gross_r)}</b> · `+
       `Maliyet <b style="color:var(--kirmizi)">-${(+m.maliyet_r).toFixed(2)}R</b> · `+
       `Net <b style="color:${m.net_r>=0?'var(--yesil)':'var(--kirmizi)'}">${sg(m.net_r)}</b> · `+
       `Expectancy ${sg(m.net_expectancy_r)} · `+
-      `${m.legacy_haric} eski uyumsuz kayıt hariç · maliyet: ${m.fee_bps_taraf}+${m.slippage_bps_taraf} bps/side`;
+      `TAM DOĞRULANMIŞ ${m.tam_dogrulanmis||0} · LEGACY/SINIRLI ${m.legacy_sinirli||0} · `+
+      `${m.legacy_haric} seviye uyumsuz kayıt hariç · maliyet: ${m.fee_bps_taraf}+${m.slippage_bps_taraf} bps/side`;
   },1000);
 })();
 </script>

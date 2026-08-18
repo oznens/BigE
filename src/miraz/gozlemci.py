@@ -432,11 +432,18 @@ class Defter:
             "Harmonik":     {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0},
             "Late":         {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0},
         }
+        buckets_tumu: dict[str, dict] = {
+            ad: {"tp": 0, "stop": 0, "toplam": 0, "wr": 0.0, "r": 0.0}
+            for ad in buckets
+        }
         for k in self.kayitlar:
             o[k.durum] = o.get(k.durum, 0) + 1
             if k.aktif:
                 o["aktif"] += 1
             b = getattr(k, "kaynak", "Price Action")
+            if b in buckets_tumu and k.durum in ("TP", "STOP"):
+                buckets_tumu[b]["tp" if k.durum == "TP" else "stop"] += 1
+                buckets_tumu[b]["r"] += k.r_sonuc
             if (b in buckets and k.durum in ("TP", "STOP")
                     and self._dogrulanmis_sonuc(k)):
                 buckets[b]["tp" if k.durum == "TP" else "stop"] += 1
@@ -456,12 +463,23 @@ class Defter:
             "legacy_stop": sum(k.durum == "STOP" for k in legacy),
             "legacy_r": round(sum(k.r_sonuc for k in legacy), 2),
         }
-        for b, bkt in buckets.items():
-            done = bkt["tp"] + bkt["stop"]
-            bkt["toplam"] = done
-            bkt["wr"] = round(100 * bkt["tp"] / done, 1) if done else 0.0
-            bkt["r"] = round(bkt["r"], 2)
+        tum_sonuclar = dogrulanmis + legacy
+        tum_tp = sum(k.durum == "TP" for k in tum_sonuclar)
+        o["sonuc_tumu"] = {
+            "toplam": len(tum_sonuclar), "tp": tum_tp,
+            "stop": len(tum_sonuclar) - tum_tp,
+            "wr": round(100 * tum_tp / len(tum_sonuclar), 1)
+            if tum_sonuclar else 0.0,
+            "r": round(sum(k.r_sonuc for k in tum_sonuclar), 2),
+        }
+        for grup in (buckets, buckets_tumu):
+            for bkt in grup.values():
+                done = bkt["tp"] + bkt["stop"]
+                bkt["toplam"] = done
+                bkt["wr"] = round(100 * bkt["tp"] / done, 1) if done else 0.0
+                bkt["r"] = round(bkt["r"], 2)
         o["buckets"] = buckets
+        o["buckets_tumu"] = buckets_tumu
         # Tweet 2065351363828003079 performansı Late dahil/hariç ayrı kıyaslar.
         o["toplam_r_late_haric"] = round(
             o["toplam_r"] - buckets["Late"]["r"], 2)
@@ -1086,10 +1104,12 @@ class Defter:
             "causality_claim": "not-made",
         }
 
-    def pnl_analitik(self) -> dict:
+    def pnl_analitik(self, verified_only: bool = True) -> dict:
         """terminalMiraz PNL ANALYTICS ekranının verisi: profit factor, açık/
         kapalı PNL, en iyi/kötü gün, parite & TF performansı."""
-        kapali = [k for k in self.kayitlar if self._dogrulanmis_sonuc(k)]
+        kapali = [k for k in self.kayitlar
+                  if (self._dogrulanmis_sonuc(k) if verified_only
+                      else k.durum in ("TP", "STOP"))]
         kazanc = sum(k.r_sonuc for k in kapali if k.r_sonuc > 0)
         zarar = -sum(k.r_sonuc for k in kapali if k.r_sonuc < 0)
         kapali_r = round(sum(k.r_sonuc for k in kapali), 2)
@@ -1455,15 +1475,16 @@ class Defter:
                 g[alt]["r"] = round(g[alt]["r"], 2)
         return gunler
 
-    def perf_curve(self) -> dict:
+    def perf_curve(self, verified_only: bool = True) -> dict:
         """Performance Intelligence bugün/dün/tüm eğrisi."""
         from datetime import datetime, timezone, timedelta
         simdi = datetime.now(timezone.utc)
         bugun_str = simdi.strftime("%Y-%m-%d")
         dun_str = (simdi - timedelta(days=1)).strftime("%Y-%m-%d")
 
-        kapali = [k for k in self.kayitlar
-                  if self._dogrulanmis_sonuc(k) and k.kapanis_zaman]
+        kapali = [k for k in self.kayitlar if k.kapanis_zaman and
+                  (self._dogrulanmis_sonuc(k) if verified_only
+                   else k.durum in ("TP", "STOP"))]
 
         def _stats(liste):
             tp = sum(1 for k in liste if k.durum == "TP")

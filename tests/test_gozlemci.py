@@ -859,7 +859,27 @@ def test_yukle_kaynaksiz_eski_kayit(tmp_path):
     d = Defter.yukle(dosya)
     assert d.kayitlar[0].kaynak == "Price Action"
     assert d.ozet()["buckets"]["Price Action"]["tp"] == 0
+    assert d.ozet()["buckets_tumu"]["Price Action"]["tp"] == 1
+    assert d.ozet()["sonuc_tumu"] == {
+        "toplam": 1, "tp": 1, "stop": 0, "wr": 100.0, "r": 1.0}
     assert d.ozet()["sonuc_denetim"]["legacy_sinirli"] == 1
+
+
+def test_legacy_sonuclar_ui_istatistiklerine_dahil_edilebilir():
+    d = Defter()
+    d.kayitlar = [
+        Kayit(1, "", "BTCUSDT", "1h", "Long", "A", 80, 100, 95, 105, 1,
+              durum="TP", r_sonuc=1, kapanis_zaman="2026-08-18T01:00:00+00:00"),
+        Kayit(2, "", "ETHUSDT", "1h", "Long", "A", 80, 100, 95, 105, 1,
+              durum="STOP", r_sonuc=-1, kapanis_zaman="2026-08-18T02:00:00+00:00"),
+    ]
+
+    assert d.pnl_analitik()["tp"] == 0
+    assert d.pnl_analitik(verified_only=False)["tp"] == 1
+    assert d.pnl_analitik(verified_only=False)["stop"] == 1
+    assert d.perf_curve()["tum"]["sonuc"] == 0
+    assert d.perf_curve(verified_only=False)["tum"] == {
+        "sonuc": 2, "tp": 1, "sl": 1, "wr": 50.0}
 
 
 

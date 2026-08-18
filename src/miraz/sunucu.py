@@ -113,7 +113,9 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
     defter = gozlemci.defter
     portfoy = gozlemci.portfoy
     d_ozet = defter.ozet()
-    pnl = defter.pnl_analitik()
+    # Kullanıcı ekranları tüm journal sonuçlarını gösterir; kanıt seviyesi ayrıca
+    # sonuc_denetim içinde tam doğrulanmış / legacy olarak ayrılır.
+    pnl = defter.pnl_analitik(verified_only=False)
 
     # execution metrikleri — gerçek testnet varsa ondan, yoksa paper portföy
     r_dolar = getattr(portfoy, "r_dolar", 25.0) or 25.0
@@ -193,7 +195,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
             "stop_tetik": "candle-close",
             "tp_tetik": "target-touch",
         },
-        "buckets": d_ozet["buckets"],
+        "buckets": d_ozet["buckets_tumu"],
         # Result Journal kümülatiftir: yalnız Defter'e bir kez yazılmış kayıtlar.
         # Anlık radar snapshot'ı ayrı tutulur; aksi halde aynı setup her taramada
         # yeniden journal sonucu gibi sayılır.
@@ -233,7 +235,8 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
             "journal_r": 0.0,
         } for k in reversed(defter.kayitlar) if k.durum == "Filtered"][:30],
         "radar_lifecycle": dict(radar_lifecycle),
-        "wr": d_ozet["wr"], "toplam_r": d_ozet["toplam_r"],
+        "wr": d_ozet["sonuc_tumu"]["wr"],
+        "toplam_r": d_ozet["sonuc_tumu"]["r"],
         "sonuc_denetim": d_ozet["sonuc_denetim"],
         "toplam_r_late_haric": d_ozet["toplam_r_late_haric"],
         "late_katki_r": d_ozet["late_katki_r"],
@@ -255,7 +258,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
                    "entry_bekleme": defter.entry_bekleme_hafiza(),
                    "konsept": pnl["konsept"]},
         # Performance Intelligence + Journal + Aylık R ek verileri
-        "perf_curve": defter.perf_curve(),
+        "perf_curve": defter.perf_curve(verified_only=False),
         "aktif_tradeler": defter.aktif_trade_kartlari(),
         "trade_memory": defter.trade_memory(24),
         "takvim": defter.takvim_veri(),
@@ -273,7 +276,7 @@ def durum_json(gozlemci: Gozlemci, rapor, aralik: int, borsa=None) -> dict:
         "result_journal_policy": {
             "mode": "verified-entry-to-first-result-candle",
             "outcomes": ["TP", "STOP"],
-            "performance_includes": "verified-only",
+            "performance_includes": "all-journal-results-with-audit-split",
             "legacy_label": "LEGACY / SINIRLI DOĞRULAMA",
             "required_evidence": ["entry_zaman", "sonuc_mum_zaman",
                                   "sonuc_tetik", "sonuc_mum_ohlc"],
