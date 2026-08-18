@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from miraz.harmonik import (
     tara, _bullish_oranlar, _bearish_oranlar, _kontrol_et, HarmonikSonuc,
-    olusan_harmonik, OlusanHarmonik, _tamamlanmis_gecerli,
+    olusan_harmonik, OlusanHarmonik, _tamamlanmis_gecerli, _fiyat_hassas,
 )
 from miraz.pivotlar import pivot_listesi, swing_high_maske, swing_low_maske
 
@@ -83,6 +83,11 @@ def test_bearish_oranlar_bat():
     assert oranlar is not None
     assert abs(oranlar["AB_XA"] - 0.5) < 0.01
     assert abs(oranlar["XD_XA"] - 0.886) < 0.01
+
+
+def test_dusuk_fiyat_hassasiyeti_entry_stop_tp_seviyelerini_cokertmez():
+    assert _fiyat_hassas(0.00041234) == 0.00041234
+    assert len({_fiyat_hassas(x) for x in (0.00041234, 0.00041027, 0.00041981)}) == 3
 
 
 # ---------------------------------------------------------------------------

@@ -675,7 +675,7 @@ def radar_tara(semboller: list[str] | None = None,
             if df is not None and short_acik:
                 try:
                     from .kisa import kisa_senaryo
-                    from .risk import mesafe_hedef
+                    from .risk import mesafe_hedef, harmonik_stop_sec
                     ks = kisa_senaryo(df, df_ust=df_ust)
                     ltf_yapi, ltf_onay = _ltf_snapshot(df_alt, "Short")
                     setup_turleri, setup_tur_detaylari = _pa_setup_turleri(ks, "Short")
@@ -688,16 +688,21 @@ def radar_tara(semboller: list[str] | None = None,
                     # terminalMiraz tarzı short TP: girişe stop mesafesi kadar (1R)
                     # giriş = harmonik D varsa orası (kisa_senaryo çözdü), yoksa bölge altı
                     s_giris = ks.giris
+                    s_stop = (harmonik_stop_sec(
+                        s_giris, ks.fitil_seviye,
+                        getattr(ks, "harmonik_detay", None), "Short")
+                        if s_giris is not None and ks.harmonik_isim
+                        else ks.fitil_seviye)
                     s_hedef = s_rr = None
-                    if (s_giris is not None and ks.fitil_seviye is not None
-                            and ks.fitil_seviye > s_giris):
+                    if (s_giris is not None and s_stop is not None
+                            and s_stop > s_giris):
                         s_hedef = round(
-                            mesafe_hedef(s_giris, ks.fitil_seviye, rr_hedef), 6)
+                            mesafe_hedef(s_giris, s_stop, rr_hedef), 10)
                         s_rr = rr_hedef
                     # Stop çiğnenmiş (short): fitil/stop bölgesi yakın geçmişte
                     # zaten delinmiş → setup geçersiz (PENDLE: stop 1.47, fiyat 1.49)
                     if kategori in ("Trade", "Watch") and \
-                            _stop_zaten_vuruldu(df, ks.fitil_seviye, "Short"):
+                            _stop_zaten_vuruldu(df, s_stop, "Short"):
                         kategori = "Elenen"
                         notu = "stop bölgesi çiğnenmiş (setup geçersiz)" + (
                             f" · {notu}" if notu else "")
@@ -730,7 +735,7 @@ def radar_tara(semboller: list[str] | None = None,
                         kalite=ks.karar.kalite if ks.karar else "D",
                         guven=ks.karar.guven if ks.karar else 0.0, yon=ks.yon,
                         giris=s_giris, hedef=s_hedef, rr=s_rr,
-                        not_=notu, taraf="Short", stop=ks.fitil_seviye,
+                        not_=notu, taraf="Short", stop=s_stop,
                         pattern=_s_pat, kaynak=_s_kaynak,
                         risk_modu=risk_modu_adi(rr_hedef),
                         risk_rr_hedef=rr_hedef, risk_r_dolar=r_dolar,

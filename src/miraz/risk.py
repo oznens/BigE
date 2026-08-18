@@ -40,6 +40,19 @@ def mesafe_hedef(giris: float, stop: float,
     return giris + rr_carpan * risk if stop < giris else giris - rr_carpan * risk
 
 
+def harmonik_stop_sec(giris: float, bolge_stop: float | None,
+                      harmonik_detay: dict | None, taraf: str) -> float | None:
+    """Harmonik X-invalidasyonu geçerliyse PA bölge stopuna tercih et."""
+    detay = harmonik_detay or {}
+    aday = detay.get("sl")
+    if aday is not None:
+        aday = float(aday)
+        if (taraf == "Long" and aday < giris) or (
+                taraf == "Short" and aday > giris):
+            return aday
+    return float(bolge_stop) if bolge_stop is not None else None
+
+
 def _f(v: float) -> str:
     """Fiyat için hassasiyet-duyarlı format (kuruş-altı coinler)."""
     a = abs(v)
@@ -125,13 +138,16 @@ def risk_plani(senaryo, r_dolar: float = 25.0,
     else:
         giris = round((bolge_alt + bolge_ust) / 2, 4)
 
-    # Stop: fitil seviyesi (yoksa kritik seviyenin biraz altı)
-    if senaryo.fitil_seviye is not None:
-        stop = float(senaryo.fitil_seviye)
-    elif senaryo.kritik_seviye is not None:
-        stop = round(float(senaryo.kritik_seviye) * 0.995, 4)
-    else:
-        return None
+    # Harmonik D girişi varsa pattern motorunun X-invalidasyon stopu kullanılır.
+    # PA bölge stopuyla karıştırmak harmonik risk/1R hedefini değiştirir.
+    harmonik = (getattr(senaryo, "harmonik_detay", None)
+                if senaryo.mavi_daire is not None else None)
+    stop = harmonik_stop_sec(giris, senaryo.fitil_seviye, harmonik, "Long")
+    if stop is None:
+        if senaryo.kritik_seviye is not None:
+            stop = round(float(senaryo.kritik_seviye) * 0.995, 4)
+        else:
+            return None
     if stop >= giris:                    # stop girişin altında olmalı (long)
         return None
 

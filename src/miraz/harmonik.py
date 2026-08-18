@@ -80,6 +80,15 @@ PATTERN_TANIMLARI: dict[str, dict[str, tuple[float, float]]] = {
 ABCD_TOL = 0.10
 
 
+def _fiyat_hassas(deger: float) -> float:
+    """Düşük fiyatlı paritelerde seviyeleri dört ondalığa ezme.
+
+    Borsa tick-size bilgisi bu saf pattern katmanında bulunmadığından hesap
+    hassasiyeti korunur; yürütme katmanı gerekirse sembol tick-size'ına uyarlar.
+    """
+    return round(float(deger), 10)
+
+
 # ---------------------------------------------------------------------------
 # Veri sınıfı
 # ---------------------------------------------------------------------------
@@ -242,8 +251,8 @@ def _kontrol_et(
             isim=isim, yon=yon,
             X_idx=X_idx, A_idx=A_idx, B_idx=B_idx, C_idx=C_idx, D_idx=D_idx,
             X=X, A=A, B=B, C=C, D=D,
-            entry=round(entry, 4), sl=round(sl, 4),
-            tp1=round(tp1, 4), tp2=round(tp2, 4),
+            entry=_fiyat_hassas(entry), sl=_fiyat_hassas(sl),
+            tp1=_fiyat_hassas(tp1), tp2=_fiyat_hassas(tp2),
             rr=rr, oranlar=oranlar, kalite=kalite,
         ))
 
@@ -260,8 +269,8 @@ def _kontrol_et(
             isim="AB=CD", yon=yon,
             X_idx=X_idx, A_idx=A_idx, B_idx=B_idx, C_idx=C_idx, D_idx=D_idx,
             X=X, A=A, B=B, C=C, D=D,
-            entry=round(entry, 4), sl=round(sl, 4),
-            tp1=round(tp1, 4), tp2=round(tp2, 4),
+            entry=_fiyat_hassas(entry), sl=_fiyat_hassas(sl),
+            tp1=_fiyat_hassas(tp1), tp2=_fiyat_hassas(tp2),
             rr=round(kazan / risk, 2) if risk > 0 else 0.0,
             oranlar=oranlar,
             kalite=_kalite_puani(oranlar, {"AB_CD": (0.9, 1.1), "BC_AB": (0.382, 0.886)}),

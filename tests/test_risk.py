@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from miraz.risk import pozisyon_boyutu, risk_plani, kademeli_plan
+from miraz.risk import (pozisyon_boyutu, risk_plani, kademeli_plan,
+                        harmonik_stop_sec)
 
 
 def test_pozisyon_boyutu_tam_r():
@@ -49,6 +50,7 @@ class _SahteSenaryo:
     hedef_kutu: object
     mtf_yapi: str | None = None
     market_yapisi: object = None
+    harmonik_detay: dict | None = None
 
 
 def _senaryo(**kw):
@@ -104,6 +106,22 @@ def test_risk_plani_market_yapisi_dusus_yari_r():
 def test_risk_plani_mavi_daire_giris():
     rp = risk_plani(_senaryo(mavi_daire=103.0), r_dolar=25)
     assert rp.giris == 103.0          # mavi daire önceliklidir
+
+
+def test_risk_plani_harmonik_x_stopunu_ve_ona_gore_hedefi_kullanir():
+    rp = risk_plani(_senaryo(
+        mavi_daire=103.0,
+        fitil_seviye=98.0,
+        harmonik_detay={"entry": 103.0, "sl": 101.5, "tp1": 104.0},
+    ), r_dolar=25)
+    assert rp.stop == 101.5
+    assert rp.hedef == 104.5
+    assert rp.rr_orani == 1.0
+
+
+def test_harmonik_stop_sec_short_x_invalidasyonunu_secer():
+    assert harmonik_stop_sec(100, 108, {"sl": 103}, "Short") == 103
+    assert harmonik_stop_sec(100, 108, {"sl": 97}, "Short") == 108
 
 
 def test_risk_plani_destek_yoksa_none():
