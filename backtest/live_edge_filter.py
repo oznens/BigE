@@ -281,6 +281,7 @@ def _miraz_guncelle(self, sembol, interval, df, max_bekleme=24):
 
         kapandi = False
         for ts, row in alt_df.iterrows():
+            open_ = float(row["open"])
             hi = float(row["high"])
             lo = float(row["low"])
             close = float(row["close"])
@@ -298,13 +299,29 @@ def _miraz_guncelle(self, sembol, interval, df, max_bekleme=24):
                 doldu = hi >= poz.giris if short else lo <= poz.giris
                 if doldu:
                     poz.durum = "Açık"
+                    poz.entry_zaman = ts.isoformat()
+                    poz.entry_bekleme_bar = (
+                        int(((df.index > acilis_ts) & (df.index <= ts)).sum())
+                        if acilis_ts is not None else None)
+                    poz.entry_bekleme_limiti = max_bekleme
+                    poz.entry_kapanis = close
+                    if "volume" in df.columns:
+                        hacim = float(row["volume"])
+                        if hacim == hacim:
+                            onceki = df.loc[df.index < ts, "volume"].tail(20)
+                            onceki = onceki[onceki > 0]
+                            poz.entry_hacim = hacim
+                            poz.entry_hacim_pencere = int(len(onceki))
+                            if len(onceki):
+                                poz.entry_hacim_oran = round(
+                                    hacim / float(onceki.median()), 4)
                     degisenler.append(poz)
 
             if poz.durum != "Açık":
                 continue
 
             # Miraz invalidasyonu: wick değil kapanış.
-            stop_close = close >= float(poz.stop) if short else close <= float(poz.stop)
+            stop_close = close > float(poz.stop) if short else close < float(poz.stop)
             tp_hit = lo <= hedef if short else hi >= hedef
 
             # Kapanış invalidasyonun ötesindeyse STOP önceliklidir.
@@ -312,6 +329,13 @@ def _miraz_guncelle(self, sembol, interval, df, max_bekleme=24):
                 poz.durum = "STOP"
                 poz.r_sonuc = -1.0
                 poz.kapanis_zaman = ts.isoformat()
+                poz.sonuc_mum_zaman = ts.isoformat()
+                poz.sonuc_tetik = "candle-close"
+                poz.sonuc_mum_ohlc = {
+                    "open": open_, "high": hi, "low": lo, "close": close}
+                poz.denetim_durumu = (
+                    "verified-entry-to-result" if poz.entry_zaman
+                    else "legacy-limited-no-entry-time")
                 degisenler.append(poz)
                 kapandi = True
                 break
@@ -319,6 +343,13 @@ def _miraz_guncelle(self, sembol, interval, df, max_bekleme=24):
                 poz.durum = "TP"
                 poz.r_sonuc = 1.0
                 poz.kapanis_zaman = ts.isoformat()
+                poz.sonuc_mum_zaman = ts.isoformat()
+                poz.sonuc_tetik = "target-touch"
+                poz.sonuc_mum_ohlc = {
+                    "open": open_, "high": hi, "low": lo, "close": close}
+                poz.denetim_durumu = (
+                    "verified-entry-to-result" if poz.entry_zaman
+                    else "legacy-limited-no-entry-time")
                 degisenler.append(poz)
                 kapandi = True
                 break
